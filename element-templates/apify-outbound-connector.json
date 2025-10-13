@@ -1,182 +1,151 @@
 {
-  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
-  "name": "Apify Connector",
-  "id": "Template_ApifyConnector",
-  "version": 1,
-  "description": "Apify connector for running actors",
-  "metadata": {
-    "keywords": ["apify", "connector", "actor"]
+  "$schema" : "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name" : "Apify Connector",
+  "id" : "io.camunda.connector.outbound.Apify.v1",
+  "description" : "Access Apify tools for web scraping, data extraction, and automation.",
+  "metadata" : {
+    "keywords" : [ ]
   },
-  "category": {
-    "id": "connectors",
-    "name": "Connectors"
+  "documentationRef" : "https://docs.camunda.io/docs/components/connectors/out-of-the-box-connectors/available-connectors-overview/",
+  "version" : 1,
+  "category" : {
+    "id" : "connectors",
+    "name" : "Connectors"
   },
-  "appliesTo": ["bpmn:Task"],
-  "elementType": { "value": "bpmn:ServiceTask" },
-  "engines": { "camunda": "^8.3" },
-  "groups": [
-    { "id": "authentication", "label": "Authentication" },
-    { "id": "operation", "label": "Operation" },
-    { "id": "apifyRequestInput", "label": "Apify Request" },
-    { "id": "output", "label": "Output mapping" },
-    { "id": "error", "label": "Error handling" },
-    { "id": "retries", "label": "Retries" }
-  ],
-  "properties": [
-    {
-      "value": "io.camunda:apify-outbound:1",
-      "binding": {
-        "property": "type",
-        "type": "zeebe:taskDefinition"
-      },
-      "type": "Hidden"
+  "appliesTo" : [ "bpmn:Task" ],
+  "elementType" : {
+    "value" : "bpmn:ServiceTask"
+  },
+  "groups" : [ {
+    "id" : "operation",
+    "label" : "Operation"
+  }, {
+    "id" : "authentication",
+    "label" : "Authentication"
+  }, {
+    "id" : "output",
+    "label" : "Output mapping"
+  }, {
+    "id" : "error",
+    "label" : "Error handling"
+  }, {
+    "id" : "retries",
+    "label" : "Retries"
+  } ],
+  "properties" : [ {
+    "value" : "io.camunda:apify-outbound:1",
+    "binding" : {
+      "property" : "type",
+      "type" : "zeebe:taskDefinition"
     },
-    {
-      "id": "authentication.method",
-      "label": "Authentication Method",
-      "optional": false,
-      "value": "token",
-      "constraints": { "notEmpty": true },
-      "group": "authentication",
-      "binding": { "name": "authentication.method", "type": "zeebe:input" },
-      "type": "Dropdown",
-      "choices": [
-        { "name": "API Token", "value": "token" },
-        { "name": "OAuth2", "value": "oauth" }
-      ]
+    "type" : "Hidden"
+  }, {
+    "id" : "apifyRequestInput.runActorInput.actorId",
+    "label" : "Actor id",
+    "constraints" : {
+      "notEmpty" : true
     },
-    {
-      "id": "authentication.token",
-      "label": "API Token",
-      "optional": false,
-      "constraints": { "notEmpty": true },
-      "group": "authentication",
-      "binding": { "name": "authentication.token", "type": "zeebe:input" },
-      "condition": {
-        "property": "authentication.method",
-        "equals": "token",
-        "type": "simple"
-      },
-      "type": "String"
+    "feel" : "optional",
+    "binding" : {
+      "name" : "apifyRequestInput.runActorInput.actorId",
+      "type" : "zeebe:input"
     },
-    {
-      "id": "operation.type",
-      "label": "Operation",
-      "description": "Operation to perform",
-      "optional": false,
-      "constraints": { "notEmpty": true },
-      "group": "operation",
-      "binding": { "name": "operation.type", "type": "zeebe:input" },
-      "type": "Dropdown",
-      "choices": [
-        { "name": "Run Actor", "value": "runActor" },
-        { "name": "Run Task", "value": "runTask" },
-        { "name": "Scrape Single URL", "value": "scrapeSingleUrl" },
-        { "name": "Get Dataset Items", "value": "getDatasetItems" },
-        {
-          "name": "Get Key Value Store Record",
-          "value": "getKeyValueStoreRecord"
-        }
-      ]
+    "type" : "String"
+  }, {
+    "id" : "apifyRequestInput.runTaskInput.taskId",
+    "label" : "Task id",
+    "constraints" : {
+      "notEmpty" : true
     },
-    {
-      "id": "apifyRequestInput.runActorInput.actorId",
-      "label": "Actor ID",
-      "description": "Unique ID of the Actor to run",
-      "optional": false,
-      "constraints": { "notEmpty": true },
-      "group": "apifyRequestInput",
-      "binding": {
-        "name": "apifyRequestInput.runActorInput.actorId",
-        "type": "zeebe:input"
-      },
-      "condition": {
-        "property": "operation.type",
-        "equals": "runActor",
-        "type": "simple"
-      },
-      "type": "String"
+    "feel" : "optional",
+    "binding" : {
+      "name" : "apifyRequestInput.runTaskInput.taskId",
+      "type" : "zeebe:input"
     },
-    {
-      "id": "apifyRequestInput.runTaskInput.taskId",
-      "label": "Task ID",
-      "description": "Unique ID of the Task to run",
-      "optional": false,
-      "constraints": { "notEmpty": true },
-      "group": "apifyRequestInput",
-      "binding": {
-        "name": "apifyRequestInput.runTaskInput.taskId",
-        "type": "zeebe:input"
-      },
-      "condition": {
-        "property": "operation.type",
-        "equals": "runTask",
-        "type": "simple"
-      },
-      "type": "String"
+    "type" : "String"
+  }, {
+    "id" : "operation.type",
+    "label" : "Type",
+    "optional" : false,
+    "constraints" : {
+      "notEmpty" : true
     },
-    {
-      "id": "resultVariable",
-      "label": "Result variable",
-      "description": "Name of variable to store the response in",
-      "group": "output",
-      "binding": {
-        "key": "resultVariable",
-        "type": "zeebe:taskHeader"
-      },
-      "type": "String"
+    "feel" : "optional",
+    "group" : "operation",
+    "binding" : {
+      "name" : "operation.type",
+      "type" : "zeebe:input"
     },
-    {
-      "id": "resultExpression",
-      "label": "Result expression",
-      "description": "Expression to map the response into process variables",
-      "feel": "required",
-      "group": "output",
-      "binding": {
-        "key": "resultExpression",
-        "type": "zeebe:taskHeader"
-      },
-      "type": "Text"
+    "type" : "String"
+  }, {
+    "id" : "authentication.token",
+    "label" : "Token",
+    "description" : "The token for authentication",
+    "optional" : false,
+    "constraints" : {
+      "notEmpty" : true
     },
-    {
-      "id": "errorExpression",
-      "label": "Error expression",
-      "description": "Expression to handle errors",
-      "feel": "required",
-      "group": "error",
-      "binding": {
-        "key": "errorExpression",
-        "type": "zeebe:taskHeader"
-      },
-      "type": "Text"
+    "feel" : "optional",
+    "group" : "authentication",
+    "binding" : {
+      "name" : "authentication.token",
+      "type" : "zeebe:input"
     },
-    {
-      "id": "retryCount",
-      "label": "Retries",
-      "description": "Number of retries",
-      "value": "3",
-      "feel": "optional",
-      "group": "retries",
-      "binding": {
-        "property": "retries",
-        "type": "zeebe:taskDefinition"
-      },
-      "type": "String"
+    "type" : "String"
+  }, {
+    "id" : "resultVariable",
+    "label" : "Result variable",
+    "description" : "Name of variable to store the response in",
+    "group" : "output",
+    "binding" : {
+      "key" : "resultVariable",
+      "type" : "zeebe:taskHeader"
     },
-    {
-      "id": "retryBackoff",
-      "label": "Retry backoff",
-      "description": "ISO-8601 duration to wait between retries",
-      "value": "PT0S",
-      "group": "retries",
-      "binding": {
-        "key": "retryBackoff",
-        "type": "zeebe:taskHeader"
-      },
-      "type": "String"
-    }
-  ],
-  "icon": {
-    "contents": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE4LjM1MTIgMEgzMS41MTUyQzMxLjc4MjkgMCAzMiAwLjIxNzA3NCAzMiAwLjQ4NDg0OFYyMC42MDI1QzMyIDIxLjA4NDQgMzEuMzczMyAyMS4yNzEyIDMxLjEwOTQgMjAuODY4TDE3Ljk0NTUgMC43NTAzMjNDMTcuNzM0NSAwLjQyNzg1OSAxNy45NjU5IDAgMTguMzUxMiAwWiIgZmlsbD0iIzI0NkRGRiIvPgo8cGF0aCBkPSJNMTMuNjQ4OCAwSDAuNDg0ODQ4QzAuMjE3MDc0IDAgMCAwLjIxNzA3NCAwIDAuNDg0ODQ4VjIwLjYwMjVDMCAyMS4wODQ0IDAuNjI2NzE3IDIxLjI3MTIgMC44OTA1NTkgMjAuODY4TDE0LjA1NDUgMC43NTAzMjNDMTQuMjY1NSAwLjQyNzg1OSAxNC4wMzQxIDAgMTMuNjQ4OCAwWiIgZmlsbD0iIzIwQTM0RSIvPgo8cGF0aCBkPSJNMTUuNzc0NSAxNi4xMDY5TDAuODIwMjM1IDMxLjE3MzZDMC41MTY1NiAzMS40Nzk2IDAuNzMzMjc3IDMyIDEuMTY0MzYgMzJIMzAuODQ4QzMxLjI3NzMgMzIgMzEuNDk0OCAzMS40ODMyIDMxLjE5NDcgMzEuMTc2MkwxNi40NjUzIDE2LjEwOTVDMTYuMjc2MSAxNS45MTYgMTUuOTY1MSAxNS45MTQ4IDE1Ljc3NDUgMTYuMTA2OVoiIGZpbGw9IiNGODY2MDYiLz4KPC9zdmc+Cg=="
-  }
+    "type" : "String"
+  }, {
+    "id" : "resultExpression",
+    "label" : "Result expression",
+    "description" : "Expression to map the response into process variables",
+    "feel" : "required",
+    "group" : "output",
+    "binding" : {
+      "key" : "resultExpression",
+      "type" : "zeebe:taskHeader"
+    },
+    "type" : "Text"
+  }, {
+    "id" : "errorExpression",
+    "label" : "Error expression",
+    "description" : "Expression to handle errors. Details in the <a href=\"https://docs.camunda.io/docs/components/connectors/use-connectors/\" target=\"_blank\">documentation</a>.",
+    "feel" : "required",
+    "group" : "error",
+    "binding" : {
+      "key" : "errorExpression",
+      "type" : "zeebe:taskHeader"
+    },
+    "type" : "Text"
+  }, {
+    "id" : "retryCount",
+    "label" : "Retries",
+    "description" : "Number of retries",
+    "value" : "3",
+    "feel" : "optional",
+    "group" : "retries",
+    "binding" : {
+      "property" : "retries",
+      "type" : "zeebe:taskDefinition"
+    },
+    "type" : "String"
+  }, {
+    "id" : "retryBackoff",
+    "label" : "Retry backoff",
+    "description" : "ISO-8601 duration to wait between retries",
+    "value" : "PT0S",
+    "group" : "retries",
+    "binding" : {
+      "key" : "retryBackoff",
+      "type" : "zeebe:taskHeader"
+    },
+    "type" : "String"
+  } ]
 }

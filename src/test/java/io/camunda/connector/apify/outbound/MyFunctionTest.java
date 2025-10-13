@@ -1,16 +1,12 @@
 package io.camunda.connector.apify.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import io.camunda.connector.apify.outbound.ApifyFunction;
 import io.camunda.connector.apify.outbound.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
-import io.camunda.connector.apify.outbound.ApifyRequest;
-import io.camunda.connector.apify.outbound.ApifyResult;
-import io.camunda.connector.api.error.ConnectorException;
+import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
+import io.camunda.connector.apify.outbound.dto.RunActorInput;
 import io.camunda.connector.test.outbound.OutboundConnectorContextBuilder;
 
 import org.junit.jupiter.api.Test;
@@ -24,7 +20,8 @@ public class MyFunctionTest {
     // given
     var input = new ApifyRequest(
       new Authentication("testToken"),
-            new Operation("runActor"), null
+      new Operation("runActor"),
+      new ApifyRequestInput(new RunActorInput("actor123"), null)
     );
     var function = new ApifyFunction();
     var context = OutboundConnectorContextBuilder.create()
@@ -35,27 +32,28 @@ public class MyFunctionTest {
     // then
     assertThat(result)
       .isInstanceOf(ApifyResult.class)
-      .extracting("operationType")
-      .isEqualTo("runActor");
+      .extracting("myProperty")
+      .isEqualTo("Operation type: runActor Authentication: Authentication[token=testToken] Apify Request Input: ApifyRequestInput[runActorInput=RunActorInput[actorId=actor123], runTaskInput=null]");
   }
 
   @Test
-  void shouldThrowWithErrorCodeWhenMessageStartsWithFail() throws Exception {
+  void shouldExecuteSuccessfullyWithValidInput() throws Exception {
     // given
     var input = new ApifyRequest(
       new Authentication("testToken"),
-            new Operation("runActor"), null
+      new Operation("runActor"),
+      new ApifyRequestInput(new RunActorInput("actor123"), null)
     );
     var function = new ApifyFunction();
     var context = OutboundConnectorContextBuilder.create()
-        .variables(objectMapper.writeValueAsString(input))
-        .build();
+      .variables(objectMapper.writeValueAsString(input))
+      .build();
     // when
-    var result = catchThrowable(() -> function.execute(context));
+    var result = function.execute(context);
     // then
     assertThat(result)
-        .isInstanceOf(ConnectorException.class)
-        .hasMessageContaining("started with 'runActor'")
-        .extracting("errorCode").isEqualTo("FAIL");
+      .isInstanceOf(ApifyResult.class)
+      .extracting("myProperty")
+      .isEqualTo("Operation type: runActor Authentication: Authentication[token=testToken] Apify Request Input: ApifyRequestInput[runActorInput=RunActorInput[actorId=actor123], runTaskInput=null]");
   }
 }
