@@ -116,6 +116,59 @@
       "type": "String"
     },
     {
+      "id": "apifyRequestInput.getDatasetItemsInput.datasetId",
+      "label": "Dataset ID",
+      "description": "Unique ID of the dataset to get items from",
+      "optional": false,
+      "constraints": { "notEmpty": true },
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.getDatasetItemsInput.datasetId",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "getDatasetItems",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.getDatasetItemsInput.offset",
+      "label": "Offset",
+      "description": "Number of items to skip (for pagination)",
+      "optional": true,
+      "value": "0",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.getDatasetItemsInput.offset",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "getDatasetItems",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.getDatasetItemsInput.limit",
+      "label": "Limit",
+      "description": "Maximum number of items to return (leave empty for no limit)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.getDatasetItemsInput.limit",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "getDatasetItems",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
       "id": "resultVariable",
       "label": "Result variable",
       "description": "Name of variable to store the response in",
