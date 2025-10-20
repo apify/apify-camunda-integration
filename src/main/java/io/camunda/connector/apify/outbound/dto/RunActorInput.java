@@ -4,7 +4,10 @@ import jakarta.validation.constraints.NotEmpty;
 
 
 public record RunActorInput(
-    @NotEmpty String actorId
-
-    // TODO: add other fields for run actor
+    @NotEmpty String actorId,
+    String inputJson,
+    Integer timeout,
+    Integer memory,
+    String build,
+    Boolean waitForFinish
 ) {}

@@ -114,6 +114,96 @@ public class ApifyClient implements AutoCloseable {
     }
     
     /**
+     * Runs an Apify Actor by its ID with optional parameters.
+     * Sends a POST request to /v2/acts/{actorId}/runs with the provided input JSON and query parameters.
+     *
+     * @param actorId The Actor ID (e.g. "username/actor-name" or "actorIdCode")
+     * @param authToken The authentication token
+     * @param inputJson The Actor input as JSON string; pass null for no input body
+     * @param timeout Timeout in seconds; null for default
+     * @param memory Memory in MB; null for default
+     * @param build Build number or tag; null for default
+     * @param waitForFinishSecs Number of seconds to wait synchronously for the run to finish; null to not wait
+     * @return The response body as a JSON string (Actor run object)
+     * @throws IOException if the request fails
+     */
+    public String runActor(String actorId, String authToken, String inputJson, Integer timeout, Integer memory, String build, Integer waitForFinishSecs) throws IOException {
+        StringBuilder urlPath = new StringBuilder("/v2/acts/").append(actorId).append("/runs");
+        
+        // Build query parameters
+        StringBuilder queryParams = new StringBuilder();
+        if (timeout != null) {
+            queryParams.append("timeout=").append(timeout);
+        }
+        if (memory != null) {
+            if (queryParams.length() > 0) queryParams.append("&");
+            queryParams.append("memory=").append(memory);
+        }
+        if (build != null) {
+            if (queryParams.length() > 0) queryParams.append("&");
+            queryParams.append("build=").append(build);
+        }
+        if (waitForFinishSecs != null && waitForFinishSecs > 0) {
+            if (queryParams.length() > 0) queryParams.append("&");
+            queryParams.append("waitForFinish=").append(waitForFinishSecs);
+        }
+        
+        if (queryParams.length() > 0) {
+            urlPath.append("?").append(queryParams);
+        }
+        
+        return executeRequest(Method.POST, urlPath.toString(), authToken, inputJson);
+    }
+
+    /**
+     * Gets the status of an actor run by its ID.
+     * 
+     * @param runId The run ID
+     * @param authToken The authentication token
+     * @return The response body as a JSON string (Actor run object with current status)
+     * @throws IOException if the request fails
+     */
+    public String getRunStatus(String runId, String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/actor-runs/" + runId, authToken, null);
+    }
+
+    /**
+     * Gets actor details by its ID.
+     * 
+     * @param actorId The Actor ID (e.g. "username/actor-name" or "actorIdCode")
+     * @param authToken The authentication token
+     * @return The response body as a JSON string (Actor object)
+     * @throws IOException if the request fails
+     */
+    public String getActor(String actorId, String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/acts/" + actorId, authToken, null);
+    }
+
+    /**
+     * Gets build details by its ID.
+     * 
+     * @param buildId The build ID
+     * @param authToken The authentication token
+     * @return The response body as a JSON string (Build object)
+     * @throws IOException if the request fails
+     */
+    public String getBuild(String buildId, String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/actor-builds/" + buildId, authToken, null);
+    }
+
+    /**
+     * Gets the default build for an actor.
+     * 
+     * @param actorId The Actor ID
+     * @param authToken The authentication token
+     * @return The response body as a JSON string (Build object)
+     * @throws IOException if the request fails
+     */
+    public String getDefaultBuild(String actorId, String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/acts/" + actorId + "/builds/default", authToken, null);
+    }
+
+    /**
      * Closes the HTTP client and releases resources.
      */
     public void close() throws IOException {

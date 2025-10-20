@@ -98,6 +98,91 @@
       "type": "String"
     },
     {
+      "id": "apifyRequestInput.runActorInput.inputJson",
+      "label": "Input JSON",
+      "description": "JSON string with actor input (optional)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.inputJson",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "Text"
+    },
+    {
+      "id": "apifyRequestInput.runActorInput.timeout",
+      "label": "Timeout (seconds)",
+      "description": "Timeout in seconds for the actor run (optional)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.timeout",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.runActorInput.memory",
+      "label": "Memory (MB)",
+      "description": "Memory allocation in MB for the actor run (optional)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.memory",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.runActorInput.build",
+      "label": "Build",
+      "description": "Build number or tag to use (optional)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.build",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.runActorInput.waitForFinish",
+      "label": "Wait For Finish",
+      "description": "Wait for the actor run to complete before returning (optional)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.waitForFinish",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "Boolean"
+    },
+    {
       "id": "apifyRequestInput.runTaskInput.taskId",
       "label": "Task ID",
       "description": "Unique ID of the Task to run",
