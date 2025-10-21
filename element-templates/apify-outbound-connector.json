@@ -84,6 +84,7 @@
       "label": "Actor ID",
       "description": "Unique ID of the Actor to run",
       "optional": false,
+      "feel": "optional",
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
       "binding": {
@@ -102,6 +103,7 @@
       "label": "Input JSON",
       "description": "JSON string with actor input (optional)",
       "optional": true,
+      "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.runActorInput.inputJson",
@@ -133,8 +135,8 @@
     },
     {
       "id": "apifyRequestInput.runActorInput.memory",
-      "label": "Memory (MB)",
-      "description": "Memory allocation in MB for the actor run (optional)",
+      "label": "Memory",
+      "description": "Memory allocation for the actor run (optional)",
       "optional": true,
       "group": "apifyRequestInput",
       "binding": {
@@ -146,7 +148,18 @@
         "equals": "runActor",
         "type": "simple"
       },
-      "type": "String"
+      "type": "Dropdown",
+      "choices": [
+        { "name": "128 MB", "value": "128" },
+        { "name": "256 MB", "value": "256" },
+        { "name": "512 MB", "value": "512" },
+        { "name": "1024 MB (1 GB)", "value": "1024" },
+        { "name": "2048 MB (2 GB)", "value": "2048" },
+        { "name": "4096 MB (4 GB)", "value": "4096" },
+        { "name": "8192 MB (8 GB)", "value": "8192" },
+        { "name": "16384 MB (16 GB)", "value": "16384" },
+        { "name": "32768 MB (32 GB)", "value": "32768" }
+      ]
     },
     {
       "id": "apifyRequestInput.runActorInput.build",
@@ -167,9 +180,8 @@
     },
     {
       "id": "apifyRequestInput.runActorInput.waitForFinish",
-      "label": "Wait For Finish",
-      "description": "Wait for the actor run to complete before returning (optional)",
-      "optional": true,
+      "label": "Wait for Finish",
+      "description": "Whether to wait for the actor run to finish (optional)",
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.runActorInput.waitForFinish",
@@ -187,7 +199,9 @@
       "label": "Task ID",
       "description": "Unique ID of the Task to run",
       "optional": false,
-      "constraints": { "notEmpty": true },
+      "constraints": {
+        "notEmpty": true
+      },
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.runTaskInput.taskId",
@@ -201,11 +215,107 @@
       "type": "String"
     },
     {
+      "id": "apifyRequestInput.runTaskInput.inputJson",
+      "label": "Input JSON",
+      "optional": true,
+      "feel": "required",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.inputJson",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "Text"
+    },
+    {
+      "id": "apifyRequestInput.runTaskInput.timeout",
+      "label": "Timeout (seconds)",
+      "description": "Timeout in seconds for the task run (optional)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.timeout",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.runTaskInput.memory",
+      "label": "Memory",
+      "description": "Memory allocation for the task run (optional)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.memory",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "Dropdown",
+      "choices": [
+        { "name": "128 MB", "value": "128" },
+        { "name": "256 MB", "value": "256" },
+        { "name": "512 MB", "value": "512" },
+        { "name": "1024 MB (1 GB)", "value": "1024" },
+        { "name": "2048 MB (2 GB)", "value": "2048" },
+        { "name": "4096 MB (4 GB)", "value": "4096" },
+        { "name": "8192 MB (8 GB)", "value": "8192" },
+        { "name": "16384 MB (16 GB)", "value": "16384" },
+        { "name": "32768 MB (32 GB)", "value": "32768" }
+      ]
+    },
+    {
+      "id": "apifyRequestInput.runTaskInput.build",
+      "label": "Build",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.build",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.runTaskInput.waitForFinish",
+      "label": "Wait for Finish",
+      "description": "Whether to wait for the task run to finish (optional)",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.waitForFinish",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "Boolean"
+    },
+    {
       "id": "apifyRequestInput.getDatasetItemsInput.datasetId",
       "label": "Dataset ID",
-      "description": "Unique ID of the dataset to get items from",
+      "description": "Unique ID of the Dataset to get items from",
       "optional": false,
-      "constraints": { "notEmpty": true },
+      "constraints": {
+        "notEmpty": true
+      },
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.getDatasetItemsInput.datasetId",
@@ -221,7 +331,7 @@
     {
       "id": "apifyRequestInput.getDatasetItemsInput.offset",
       "label": "Offset",
-      "description": "Number of items to skip (for pagination)",
+      "description": "Number of items to skip (optional)",
       "optional": true,
       "value": "0",
       "group": "apifyRequestInput",

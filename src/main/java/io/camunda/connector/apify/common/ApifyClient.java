@@ -121,13 +121,13 @@ public class ApifyClient implements AutoCloseable {
      * @param authToken The authentication token
      * @param inputJson The Actor input as JSON string; pass null for no input body
      * @param timeout Timeout in seconds; null for default
-     * @param memory Memory in MB; null for default
+     * @param memory Memory in MB as string; null or empty for default
      * @param build Build number or tag; null for default
      * @param waitForFinishSecs Number of seconds to wait synchronously for the run to finish; null to not wait
      * @return The response body as a JSON string (Actor run object)
      * @throws IOException if the request fails
      */
-    public String runActor(String actorId, String authToken, String inputJson, Integer timeout, Integer memory, String build, Integer waitForFinishSecs) throws IOException {
+    public String runActor(String actorId, String authToken, String inputJson, Integer timeout, String memory, String build, Integer waitForFinishSecs) throws IOException {
         StringBuilder urlPath = new StringBuilder("/v2/acts/").append(actorId).append("/runs");
         
         // Build query parameters
@@ -135,7 +135,7 @@ public class ApifyClient implements AutoCloseable {
         if (timeout != null) {
             queryParams.append("timeout=").append(timeout);
         }
-        if (memory != null) {
+        if (memory != null && !memory.trim().isEmpty()) {
             if (queryParams.length() > 0) queryParams.append("&");
             queryParams.append("memory=").append(memory);
         }
@@ -201,6 +201,48 @@ public class ApifyClient implements AutoCloseable {
      */
     public String getDefaultBuild(String actorId, String authToken) throws IOException {
         return executeRequest(Method.GET, "/v2/acts/" + actorId + "/builds/default", authToken, null);
+    }
+
+    /**
+     * Runs an Actor task by its ID with optional parameters.
+     * Sends a POST request to /v2/actor-tasks/{taskId}/runs with the provided input JSON and query parameters.
+     * 
+     * @param taskId The Task ID
+     * @param authToken The authentication token
+     * @param inputJson The Task input as JSON string; pass null for no input body (uses task's default input)
+     * @param timeout Timeout in seconds; null for default
+     * @param memory Memory in MB as string; null or empty for default
+     * @param build Build number or tag; null for default
+     * @param waitForFinishSecs Number of seconds to wait synchronously for the run to finish; null to not wait
+     * @return The response body as a JSON string (Actor run object)
+     * @throws IOException if the request fails
+     */
+    public String runTask(String taskId, String authToken, String inputJson, Integer timeout, String memory, String build, Integer waitForFinishSecs) throws IOException {
+        StringBuilder urlPath = new StringBuilder("/v2/actor-tasks/").append(taskId).append("/runs");
+        
+        // Build query parameters
+        StringBuilder queryParams = new StringBuilder();
+        if (timeout != null) {
+            queryParams.append("timeout=").append(timeout);
+        }
+        if (memory != null && !memory.trim().isEmpty()) {
+            if (queryParams.length() > 0) queryParams.append("&");
+            queryParams.append("memory=").append(memory);
+        }
+        if (build != null) {
+            if (queryParams.length() > 0) queryParams.append("&");
+            queryParams.append("build=").append(build);
+        }
+        if (waitForFinishSecs != null && waitForFinishSecs > 0) {
+            if (queryParams.length() > 0) queryParams.append("&");
+            queryParams.append("waitForFinish=").append(waitForFinishSecs);
+        }
+        
+        if (queryParams.length() > 0) {
+            urlPath.append("?").append(queryParams);
+        }
+        
+        return executeRequest(Method.POST, urlPath.toString(), authToken, inputJson);
     }
 
     /**

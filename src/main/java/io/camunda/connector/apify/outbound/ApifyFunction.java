@@ -1,5 +1,7 @@
 package io.camunda.connector.apify.outbound;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.camunda.connector.api.annotation.OutboundConnector;
 import io.camunda.connector.apify.common.ApifyClient;
 import io.camunda.connector.apify.outbound.dto.Authentication;
@@ -40,6 +42,7 @@ import java.util.regex.Pattern;
 public class ApifyFunction implements OutboundConnectorFunction {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ApifyFunction.class);
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   @Override
   public Object execute(OutboundConnectorContext context) {
@@ -109,12 +112,13 @@ public class ApifyFunction implements OutboundConnectorFunction {
       // Extract default input values from build definition
       Map<String, Object> defaultInput = extractDefaultInputFromBuild(buildResponse);
       
-      // Parse user input JSON
-      Map<String, Object> userInput = parseJsonToMap(input.inputJson());
+      // Parse user input JSON (escape it first to handle literal \n, \t, etc.)
+      String escapedInputJson = escapeJsonString(input.inputJson());
+      Map<String, Object> userInput = parseJsonToMap(escapedInputJson);
       
       // Merge default input with user input (user input takes precedence)
       Map<String, Object> mergedInput = new HashMap<>(defaultInput);
-      mergedInput.putAll(userInput);
+        mergedInput.putAll(userInput);
       
       // Convert merged input back to JSON
       String mergedInputJson = mapToJson(mergedInput);
@@ -174,25 +178,74 @@ public class ApifyFunction implements OutboundConnectorFunction {
     throw new IOException("Run did not complete within timeout period");
   }
 
-  private String extractRunId(String response) {
-    // Simple extraction - in production use proper JSON parsing
-    int idIndex = response.indexOf("\"id\":\"");
-    if (idIndex != -1) {
-      int start = idIndex + 6;
-      int end = response.indexOf("\"", start);
-      if (end != -1) {
-        return response.substring(start, end);
-      }
+  /**
+   * Properly escapes JSON string to handle literal \n, \t, \r, etc. characters
+   * that users might input in the JSON field.
+   */
+  private String escapeJsonString(String json) {
+    if (json == null || json.trim().isEmpty()) {
+      return json;
     }
-    return null;
+    
+    // Replace literal newlines with escaped newlines
+    json = json.replace("\n", "\\n");
+    json = json.replace("\r", "\\r");
+    json = json.replace("\t", "\\t");
+    json = json.replace("\b", "\\b");
+    json = json.replace("\f", "\\f");
+    json = json.replace("\\", "\\\\");
+    
+    return json;
+  }
+
+  private String extractRunId(String response) {
+    try {
+      if (response == null || response.trim().isEmpty()) {
+        return null;
+      }
+      
+      JsonNode rootNode = objectMapper.readTree(response);
+      
+      // Look for the run ID in the data object: {"data": {"id": "runId", ...}}
+      JsonNode dataNode = rootNode.get("data");
+      if (dataNode != null && dataNode.has("id")) {
+        return dataNode.get("id").asText();
+      }
+      
+      // Fallback: look for any "id" field at root level
+      if (rootNode.has("id")) {
+        return rootNode.get("id").asText();
+      }
+      
+      return null;
+    } catch (Exception e) {
+      LOGGER.warn("Failed to parse JSON response for run ID extraction: {}", e.getMessage());
+      return null;
+    }
   }
 
   private boolean isRunFinished(String statusResponse) {
-    // Simple check for terminal states - in production use proper JSON parsing
-    return statusResponse.contains("\"status\":\"SUCCEEDED\"") ||
-           statusResponse.contains("\"status\":\"FAILED\"") ||
-           statusResponse.contains("\"status\":\"ABORTED\"") ||
-           statusResponse.contains("\"status\":\"TIMED-OUT\"");
+    try {
+      if (statusResponse == null || statusResponse.trim().isEmpty()) {
+        return false;
+      }
+      
+      JsonNode rootNode = objectMapper.readTree(statusResponse);
+      JsonNode dataNode = rootNode.get("data");
+      
+      if (dataNode != null && dataNode.has("status")) {
+        String status = dataNode.get("status").asText();
+        return "SUCCEEDED".equals(status) || 
+               "FAILED".equals(status) || 
+               "ABORTED".equals(status) || 
+               "TIMED-OUT".equals(status);
+      }
+      
+      return false;
+    } catch (Exception e) {
+      LOGGER.warn("Failed to parse JSON response for status check: {}", e.getMessage());
+      return false;
+    }
   }
 
   private String extractBuildIdFromTag(String actorResponse, String buildTag) {
@@ -248,82 +301,94 @@ public class ApifyFunction implements OutboundConnectorFunction {
       return result;
     }
     
-    // Simple JSON parsing for basic key-value pairs
-    // This is a simplified approach - in production you'd want to use a proper JSON library
-    json = json.trim();
-    if (!json.startsWith("{") || !json.endsWith("}")) {
-      return result;
-    }
-    
-    // Remove outer braces
-    json = json.substring(1, json.length() - 1);
-    
-    // Split by comma, but be careful about nested objects/arrays
-    String[] pairs = json.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
-    
-    for (String pair : pairs) {
-      String[] keyValue = pair.split(":", 2);
-      if (keyValue.length == 2) {
-        String key = keyValue[0].trim();
-        String value = keyValue[1].trim();
-        
-        // Remove quotes from key
-        if (key.startsWith("\"") && key.endsWith("\"")) {
-          key = key.substring(1, key.length() - 1);
-        }
-        
-        // Parse value
-        if (value.startsWith("\"") && value.endsWith("\"")) {
-          result.put(key, value.substring(1, value.length() - 1));
-        } else if ("true".equals(value) || "false".equals(value)) {
-          result.put(key, Boolean.parseBoolean(value));
-        } else if (value.matches("-?\\d+")) {
-          result.put(key, Integer.parseInt(value));
-        } else if (value.matches("-?\\d+\\.\\d+")) {
-          result.put(key, Double.parseDouble(value));
-        } else {
-          result.put(key, value);
-        }
+    try {
+      JsonNode rootNode = objectMapper.readTree(json);
+      
+      if (rootNode.isObject()) {
+        rootNode.fields().forEachRemaining(entry -> {
+          String key = entry.getKey();
+          JsonNode value = entry.getValue();
+          result.put(key, convertJsonNodeToObject(value));
+        });
       }
+    } catch (Exception e) {
+      LOGGER.warn("Failed to parse JSON input: {}", e.getMessage());
     }
     
     return result;
   }
+  
+  private Object convertJsonNodeToObject(JsonNode node) {
+    if (node.isTextual()) {
+      return node.asText();
+    } else if (node.isBoolean()) {
+      return node.asBoolean();
+    } else if (node.isInt()) {
+      return node.asInt();
+    } else if (node.isLong()) {
+      return node.asLong();
+    } else if (node.isDouble()) {
+      return node.asDouble();
+    } else if (node.isArray()) {
+      return objectMapper.convertValue(node, Object.class);
+    } else if (node.isObject()) {
+      Map<String, Object> map = new HashMap<>();
+      node.fields().forEachRemaining(entry -> {
+        map.put(entry.getKey(), convertJsonNodeToObject(entry.getValue()));
+      });
+      return map;
+    } else if (node.isNull()) {
+      return null;
+    } else {
+      return node.asText();
+    }
+  }
 
   private String mapToJson(Map<String, Object> map) {
-    if (map.isEmpty()) {
+    try {
+      return objectMapper.writeValueAsString(map);
+    } catch (Exception e) {
+      LOGGER.warn("Failed to convert map to JSON: {}", e.getMessage());
       return "{}";
     }
-    
-    StringBuilder json = new StringBuilder("{");
-    boolean first = true;
-    
-    for (Map.Entry<String, Object> entry : map.entrySet()) {
-      if (!first) {
-        json.append(",");
-      }
-      first = false;
-      
-      json.append("\"").append(entry.getKey()).append("\":");
-      
-      Object value = entry.getValue();
-      if (value instanceof String) {
-        json.append("\"").append(value).append("\"");
-      } else if (value instanceof Boolean || value instanceof Number) {
-        json.append(value);
-      } else {
-        json.append("\"").append(value.toString()).append("\"");
-      }
-    }
-    
-    json.append("}");
-    return json.toString();
   }
 
   private ApifyResult handleRunTask(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     LOGGER.info("Handling runTask operation");
-    // TODO: Implement runTask logic
-    return new ApifyResult("RunTask operation - Task ID: " + apifyRequestInput.runTaskInput().taskId());
+    if (apifyRequestInput == null || apifyRequestInput.runTaskInput() == null) {
+      return new ApifyResult("Error: runTaskInput is null");
+    }
+    if (authentication == null || authentication.token() == null || authentication.token().isEmpty()) {
+      return new ApifyResult("Error: Authentication token is required");
+    }
+
+    var input = apifyRequestInput.runTaskInput();
+
+    try (ApifyClient apifyClient = new ApifyClient()) {
+      // Use input JSON if provided, otherwise use task's default input (escape it first)
+      String inputJson = escapeJsonString(input.inputJson());
+      
+      // Run the task with parameters
+      String response = apifyClient.runTask(
+        input.taskId(),
+        authentication.token(),
+        inputJson,
+        input.timeout(),
+        input.memory(),
+        input.build(),
+        null // Don't wait for finish initially
+      );
+      
+      // If waitForFinish is true, poll for completion
+      if (Boolean.TRUE.equals(input.waitForFinish())) {
+        response = pollRunStatus(apifyClient, response, authentication.token());
+      }
+      
+      return new ApifyResult(response);
+    } catch (IOException e) {
+      LOGGER.error("Failed to run task: {}", e.getMessage(), e);
+      return new ApifyResult("Error: Failed to run task - " + e.getMessage());
+    }
   }
 
   private ApifyResult handleGetDatasetItems(Authentication authentication, ApifyRequestInput apifyRequestInput) {

@@ -4,7 +4,10 @@ import jakarta.validation.constraints.NotEmpty;
 
 
 public record RunTaskInput(
-    @NotEmpty String taskId
-
-    // TODO: add other fields for run task
+    @NotEmpty String taskId,
+    String inputJson,
+    Integer timeout,
+    String memory,
+    String build,
+    Boolean waitForFinish
 ) {}

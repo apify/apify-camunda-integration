@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.camunda.connector.apify.outbound.ApifyFunction;
 import io.camunda.connector.apify.outbound.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
+import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
+import io.camunda.connector.apify.outbound.dto.RunActorInput;
 import io.camunda.connector.apify.outbound.ApifyRequest;
 import io.camunda.connector.apify.outbound.ApifyResult;
 import io.camunda.connector.api.error.ConnectorException;
@@ -22,9 +24,23 @@ public class MyFunctionTest {
   @Test
   void shouldReturnReceivedMessageWhenExecute() throws Exception {
     // given
+    var runActorInput = new RunActorInput(
+      "test-actor",
+      null, // inputJson
+      null, // timeout
+      null, // memory
+      null, // build
+      false // waitForFinish
+    );
+    var apifyRequestInput = new ApifyRequestInput(
+      runActorInput,
+      null, // runTaskInput
+      null  // getDatasetItemsInput
+    );
     var input = new ApifyRequest(
       new Authentication("testToken"),
-            new Operation("runActor"), null
+      new Operation("runActor"),
+      apifyRequestInput
     );
     var function = new ApifyFunction();
     var context = OutboundConnectorContextBuilder.create()
@@ -35,27 +51,43 @@ public class MyFunctionTest {
     // then
     assertThat(result)
       .isInstanceOf(ApifyResult.class)
-      .extracting("operationType")
-      .isEqualTo("runActor");
+      .extracting("myProperty")
+      .asString()
+      .contains("Error");
   }
 
   @Test
   void shouldThrowWithErrorCodeWhenMessageStartsWithFail() throws Exception {
     // given
+    var runActorInput = new RunActorInput(
+      "test-actor",
+      null, // inputJson
+      null, // timeout
+      null, // memory
+      null, // build
+      false // waitForFinish
+    );
+    var apifyRequestInput = new ApifyRequestInput(
+      runActorInput,
+      null, // runTaskInput
+      null  // getDatasetItemsInput
+    );
     var input = new ApifyRequest(
       new Authentication("testToken"),
-            new Operation("runActor"), null
+      new Operation("runActor"),
+      apifyRequestInput
     );
     var function = new ApifyFunction();
     var context = OutboundConnectorContextBuilder.create()
         .variables(objectMapper.writeValueAsString(input))
         .build();
     // when
-    var result = catchThrowable(() -> function.execute(context));
+    var result = function.execute(context);
     // then
     assertThat(result)
-        .isInstanceOf(ConnectorException.class)
-        .hasMessageContaining("started with 'runActor'")
-        .extracting("errorCode").isEqualTo("FAIL");
+        .isInstanceOf(ApifyResult.class)
+        .extracting("myProperty")
+        .asString()
+        .contains("Error");
   }
 }

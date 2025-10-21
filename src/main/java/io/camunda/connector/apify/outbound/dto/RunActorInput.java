@@ -7,7 +7,7 @@ public record RunActorInput(
     @NotEmpty String actorId,
     String inputJson,
     Integer timeout,
-    Integer memory,
+    String memory,
     String build,
     Boolean waitForFinish
 ) {}
