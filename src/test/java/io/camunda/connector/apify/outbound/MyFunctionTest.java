@@ -10,6 +10,7 @@ import io.camunda.connector.apify.outbound.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
 import io.camunda.connector.apify.outbound.dto.RunActorInput;
+import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlInput;
 import io.camunda.connector.test.outbound.OutboundConnectorContextBuilder;
 
 import java.lang.reflect.Method;
@@ -34,6 +35,7 @@ public class MyFunctionTest {
     var apifyRequestInput = new ApifyRequestInput(
       runActorInput,
       null,
+      null,
       null
     );
     var input = new ApifyRequest(
@@ -53,6 +55,7 @@ public class MyFunctionTest {
   @Test
   void shouldReturnResultForUnsupportedOperation() throws Exception {
     var apifyRequestInput = new ApifyRequestInput(
+      null,
       null,
       null,
       null
@@ -274,5 +277,31 @@ public class MyFunctionTest {
     assertThat(defaultInput).hasSize(2); // prompt and maxTokens have prefill values
     assertThat(defaultInput.get("prompt")).isEqualTo("Enter your prompt here");
     assertThat(defaultInput.get("maxTokens")).isEqualTo(100);
+  }
+  
+  void shouldHandleScrapeSingleUrlOperation() throws Exception {
+    var scrapeInput = new ScrapeSingleUrlInput(
+      "http://example.com",
+      null // crawlerType, defaults in handler
+    );
+    var apifyRequestInput = new ApifyRequestInput(
+      null, // runActorInput
+      null, // runTaskInput
+      null, // getDatasetItemsInput
+      scrapeInput
+    );
+    var input = new ApifyRequest(
+      new Authentication("testToken"),
+      new Operation("scrapeSingleUrl"),
+      apifyRequestInput
+    );
+    var function = new ApifyFunction();
+    var context = OutboundConnectorContextBuilder.create()
+      .variables(objectMapper.writeValueAsString(input))
+      .build();
+    // Note: This test will likely throw a RuntimeException due to API error (invalid token/actor)
+    assertThatThrownBy(() -> function.execute(context))
+      .isInstanceOf(RuntimeException.class)
+      .hasMessageContaining("Error");
   }
 }

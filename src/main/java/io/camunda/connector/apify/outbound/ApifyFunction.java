@@ -2,6 +2,7 @@ package io.camunda.connector.apify.outbound;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.api.annotation.OutboundConnector;
 import io.camunda.connector.apify.common.ApifyClient;
 import io.camunda.connector.apify.common.RunOptions;
@@ -11,6 +12,7 @@ import io.camunda.connector.apify.outbound.dto.GetDatasetItemsInput;
 import io.camunda.connector.apify.outbound.dto.GetDatasetItemsResponse;
 import io.camunda.connector.apify.outbound.dto.RunActorResponse;
 import io.camunda.connector.apify.outbound.dto.RunTaskResponse;
+import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlResponse;
 import io.camunda.connector.api.error.ConnectorInputException;
 import io.camunda.connector.api.outbound.OutboundConnectorContext;
 import io.camunda.connector.api.outbound.OutboundConnectorFunction;
@@ -19,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +34,8 @@ import java.util.Set;
         "apifyRequestInput",
         "apifyRequestInput.runActorInput",
         "apifyRequestInput.runTaskInput",
-        "apifyRequestInput.getDatasetItemsInput"
+        "apifyRequestInput.getDatasetItemsInput",
+        "apifyRequestInput.scrapeSingleUrlInput"
     },
     type = "io.camunda:apify-outbound:1")
 @ElementTemplate(
@@ -47,6 +51,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
   private static final Logger LOGGER = LoggerFactory.getLogger(ApifyFunction.class);
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final Set<String> TERMINAL_STATUSES = Set.of("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT");
+  private static final String WEB_CONTENT_SCRAPER_ACTOR_ID = "aYG0l9s7dbB7j3gbS";
 
   @Override
   public Object execute(OutboundConnectorContext context) {
@@ -72,6 +77,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
         return handleRunTask(authentication, apifyRequestInput);
       case "getDatasetItems":
         return handleGetDatasetItems(authentication, apifyRequestInput);
+      case "scrapeSingleUrl":
+        return handleScrapeSingleUrl(authentication, apifyRequestInput);
       default:
         throw new ConnectorInputException("Unsupported operation type: " + operationType);
     }
@@ -238,6 +245,72 @@ public class ApifyFunction implements OutboundConnectorFunction {
     } catch (Exception e) {
       LOGGER.error("Failed to get dataset items: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to get dataset items - " + e.getMessage(), e);
+    }
+  }
+
+  private ApifyResult handleScrapeSingleUrl(Authentication authentication, ApifyRequestInput apifyRequestInput) {
+    if (apifyRequestInput == null || apifyRequestInput.scrapeSingleUrlInput() == null) {
+      throw new ConnectorInputException("Error: scrapeSingleUrlInput is null");
+    }
+    validateAuthentication(authentication);
+
+    var input = apifyRequestInput.scrapeSingleUrlInput();
+
+    try (ApifyClient apifyClient = new ApifyClient()) {
+      // Build input for web content scraper actor
+      Map<String, Object> actorInput = new HashMap<>();
+      Map<String, Object> startUrlObj = new HashMap<>();
+      startUrlObj.put("url", input.url());
+      actorInput.put("startUrls", Collections.singletonList(startUrlObj));
+      actorInput.put("crawlerType", input.crawlerType() != null ? input.crawlerType() : "cheerio");
+      actorInput.put("maxCrawlDepth", 0);
+      actorInput.put("maxCrawlPages", 1);
+      actorInput.put("maxResults", 1);
+      actorInput.put("proxyConfiguration", Collections.singletonMap("useApifyProxy", true));
+      actorInput.put("removeCookieWarnings", true);
+      actorInput.put("saveHtml", true);
+      actorInput.put("saveMarkdown", true);
+      String mergedInputJson = mapToJson(actorInput);
+
+      // Start WCC Actor
+      var runOptions = new RunOptions(
+        null,
+        null,
+        null,
+        null
+      );
+      String runStartResponse = apifyClient.runActor(
+        authentication.token(),
+        WEB_CONTENT_SCRAPER_ACTOR_ID,
+        mergedInputJson,
+        runOptions
+      );
+
+      // Poll for finished status
+      String finalRunResponse = pollRunStatus(apifyClient, runStartResponse, authentication.token());
+      JsonNode runNode = objectMapper.readTree(finalRunResponse);
+      JsonNode dataNode = runNode.path("data");
+      JsonNode defaultDatasetIdNode = dataNode.isMissingNode() ? null : dataNode.path("defaultDatasetId");
+      if (defaultDatasetIdNode == null || defaultDatasetIdNode.isMissingNode() || !defaultDatasetIdNode.isTextual()) {
+        throw new RuntimeException("Error: No dataset ID returned from actor run");
+      }
+      String datasetId = defaultDatasetIdNode.asText();
+      
+      // Fetch first item from dataset
+      String datasetItemsJson = apifyClient.getDatasetItems(datasetId, authentication.token(), 0, 1);
+      JsonNode itemsNode = objectMapper.readTree(datasetItemsJson);
+      if (!itemsNode.isArray() || itemsNode.size() == 0) {
+        throw new RuntimeException("Error: No items found in dataset");
+      }
+      
+      // Remove text field to reduce usage of tokens if AI Agent is used in the process
+      ObjectNode itemNode = (ObjectNode) itemsNode.get(0);
+      itemNode.remove("text");
+      
+      return new ScrapeSingleUrlResponse(itemNode.toString());
+    } catch (Exception e) {
+      LOGGER.error("Failed to scrape single URL: {}", e.getMessage(), e);
+      throw new RuntimeException("Error: Failed to scrape single URL - " + e.getMessage(), e);
     }
   }
 
