@@ -1,164 +1,71 @@
-> A Connector template for new C8 outbound connector
->
-> To use this template update the following resources to match the name of your connector:
->
-> - [README](./README.md) (title, description)
-> - [Element Template](./element-templates/template-connector.json)
-> - [POM](./pom.xml) (artifact name, id, description)
-> - [Connector Function](src/main/java/io/camunda/example/MyConnectorFunction.java) (rename, implement, update
+# Apify Camunda Connector
 
-    `OutboundConnector` annotation)
+This connector is used to interact with the Apify API in the **Camunda 8** environment.
 
-> - [Service Provider Interface (SPI)](./src/main/resources/META-INF/services/io.camunda.connector.api.outbound.OutboundConnectorFunction) (
+## Development setup guide
 
-    rename)
+Follow these steps to run and test your custom outbound connector with your locally hosted Camunda stack in Docker.
 
-> about [creating Connectors](https://docs.camunda.io/docs/components/connectors/custom-built-connectors/connector-sdk/#creating-a-custom-connector)
->
-> Check out the [Connectors SDK](https://github.com/camunda/connectors)
+### Prerequisites:
 
-# Connector Template
+#### 1. Camunda stack in Docker
 
-Camunda Outbound Connector Template
+Locally spin up a Camunda stack using Docker Compose following [this quickstart guide](https://docs.camunda.io/docs/next/self-managed/quickstart/developer-quickstart/docker-compose).
 
-Emulates a simple outbound connector function that takes a message and echoes it back.
+In case you want to choose a specific version, you can find their `docker-compose.yaml` files in [Camunda's official repository](https://github.com/camunda/camunda-distributions/tree/main/docker-compose/versions).
 
-The function will throw an exception if your message starts with `fail`. This can be used to test error handling.
+#### 2. Apify Camunda Connector
 
-## Build
-
-You can package the Connector by running the following command:
+Clone this repository and build the connector:
 
 ```bash
+git clone https://github.com/apify/apify-camunda-connector.git
+
+cd apify-camunda-connector
+
 mvn clean package
 ```
 
-This will create the following artifacts:
+### Run your connector locally
 
-- A thin JAR without dependencies.
-- A fat JAR containing all dependencies, potentially shaded to avoid classpath conflicts. This will not include the SDK
-  artifacts since those are in scope `provided` and will be brought along by the respective Connector Runtime executing
-  the Connector.
+**Important:** Before proceeding with Camunda Modeler, make sure both the Camunda stack and your connector are running locally.
 
-### Shading dependencies
+1. Ensure your Camunda stack is running in Docker. If you haven't started it yet, spin it up using Docker Compose (see Prerequisites above).
 
-You can use the `maven-shade-plugin` defined in the [Maven configuration](./pom.xml) to relocate common dependencies
-that are used in other Connectors and
-the [Connector Runtime](https://github.com/camunda/connectors).
-This helps to avoid classpath conflicts when the Connector is executed.
-
-Use the `relocations` configuration in the Maven Shade plugin to define the dependencies that should be shaded.
-The [Maven Shade documentation](https://maven.apache.org/plugins/maven-shade-plugin/examples/class-relocation.html)
-provides more details on relocations.
-
-## API
-
-### Input
-
-| Name     | Description      | Example           | Notes                                                                      |
-| -------- | ---------------- | ----------------- | -------------------------------------------------------------------------- |
-| username | Mock username    | `alice`           | Has no effect on the function call outcome.                                |
-| token    | Mock token value | `my-secret-token` | Has no effect on the function call outcome.                                |
-| message  | Mock message     | `Hello World`     | Echoed back in the output. If starts with 'fail', an error will be thrown. |
-
-### Output
-
-```json
-{
-  "result": {
-    "myProperty": "Message received: ..."
-  }
-}
-```
-
-### Error codes
-
-| Code | Description                                |
-| ---- | ------------------------------------------ |
-| FAIL | Message starts with 'fail' (ignoring case) |
-
-## Test locally
-
-Run unit tests
+2. Start the local runtime to expose your connector:
 
 ```bash
-mvn clean verify
+mvn exec:java -Dexec.mainClass="io.camunda.example.LocalConnectorRuntime"
 ```
 
-### Test with local runtime
+Keep this terminal running while you work with Camunda Modeler.
 
-To ensure the seamless functionality of your custom Camunda connector, please follow the steps below:
+### Set up Camunda Modeler and test the connector
 
-#### Prerequisites:
+1. Go to Camunda Modeler and create a new project.
 
-1. Camunda Modeler, which is available in two variants:
+![Creating a new project](docs/modeler-create-project.png)
 
-   - [Desktop Modeler](https://camunda.com/download/modeler/) for a local installation.
-   - [Web Modeler](https://camunda.com/download/modeler/) for an online experience.
+2. Upload your connector template JSON from this repository.
 
-2. [Docker](https://www.docker.com/products/docker-desktop), which is required to run the Camunda platform.
+![Uploading the connector template JSON](docs/modeler-upload-template.png)
 
-#### Setting Up the Environment:
+3. Publish the connector template to the project.
 
-1. Clone the Camunda Platform repository from GitHub:
+![Publishing the connector template](docs/modeler-publish-template.png)
 
-```shell
-git clone https://github.com/camunda/camunda-platform.git
-```
+4. Create a new BPMN diagram.
 
-Navigate to the cloned directory and open docker-compose-core.yaml with your preferred text editor.
+![Creating a new BPMN diagram](docs/modeler-create-bpmp-diagram.png)
 
-Locate the connector image section and comment it out using the # symbol, as you will be executing your connector
-locally.
+5. Design a process using the Apify BPMN connector as a BPMN service task.
 
-Initiate the Camunda suite with the following Docker command:
+![Designing a process using the Apify BPMN connector as a BPMN service task](docs/modeler-create-apify-bpmn-task.png)
 
-```shell
-docker compose -f docker-compose-core.yaml up
-```
+6. Set the connector input variables and run the process.
 
-### Configuring Camunda Modeler
+![Setting the connector input variables and running the process](docs/modeler-set-inputs-and-run.png)
 
-1. Install the Camunda Modeler if not already done.
-2. Add the `element-templates/template-connector.json` to your Modeler configuration as per
-   the [Element Templates documentation](https://docs.camunda.io/docs/components/modeler/desktop-modeler/element-templates/configuring-templates/).
+7. Verify the run status and result in Camunda Operate.
 
-### Launching Your Connector
-
-1. Run `io.camunda.connector.outbound.LocalConnectorRuntime` to start your connector.
-2. Create and initiate a process that utilizes your newly created connector within the Camunda Modeler. ![Connector in Camunda Modeler](img/img.png)
-3. Verify that the process is running smoothly by accessing Camunda Operate at [localhost:8081](http://localhost:8081).
-
-Follow these instructions to test and use your custom Camunda connector effectively.
-
-### Test with SaaS
-
-#### Setting Up the Environment:
-
-1. Navigate to Camunda [SaaS](https://console.camunda.io).
-2. Create a cluster using the latest version available.
-3. Select your cluster, then go to the `API` section and click `Create new Client`.
-4. Ensure the `zeebe` checkbox is selected, then click `Create`.
-5. Copy the configuration details displayed under the `Spring Boot` tab.
-6. Paste the copied configuration into your `application.properties` file within your project.
-
-### Launching Your Connector
-
-1. Start your connector by executing `io.camunda.connector.outbound.LocalConnectorRuntime` in your development environment.
-2. Access the Web Modeler and create a new project.
-3. Click on `Create new`, then select `Upload files`. Upload the connector template from the repository you have.
-4. In the same folder, create a new BPMN diagram.
-5. Design and start a process that incorporates your new connector.
-
-By adhering to these steps, you can validate the integration of your custom Camunda connector with the SaaS environment.
-
-## Element Template
-
-The element template for this sample connector is generated automatically based on the connector
-input class using
-the [Element Template Generator](https://github.com/camunda/connectors/tree/main/element-template-generator/core).
-
-The generation is embedded in the Maven build and can be triggered by running `mvn clean package`.
-
-The generated element template can be found
-in [element-templates/template-connector.json](./element-templates/template-connector.json).
+![Verifying the run status and result in Camunda Operate](docs/operate-check-run-result.png)
