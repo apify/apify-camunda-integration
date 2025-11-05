@@ -11,6 +11,7 @@ import org.apache.hc.core5.http.Method;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -38,7 +39,9 @@ public class ApifyClient implements AutoCloseable {
      * @throws IOException if the request fails
      */
     private String executeRequest(Method method, String urlPath, String authToken, String body) throws IOException {
-        String fullUrl = APIFY_API_URL + (urlPath.startsWith("/") ? urlPath : "/" + urlPath);
+        URI baseUri = URI.create(APIFY_API_URL);
+        URI fullUri = baseUri.resolve(urlPath);
+        String fullUrl = fullUri.toString();
         
         try (ClassicHttpResponse response = performHttpRequest(method, fullUrl, authToken, body)) {
             int statusCode = response.getCode();
