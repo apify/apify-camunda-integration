@@ -119,6 +119,7 @@
       "id": "apifyRequestInput.getDatasetItemsInput.datasetId",
       "label": "Dataset ID",
       "description": "Unique ID of the dataset to get items from",
+      "feel": "optional",
       "optional": false,
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
