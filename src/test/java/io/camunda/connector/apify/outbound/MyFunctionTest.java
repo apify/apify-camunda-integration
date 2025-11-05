@@ -21,8 +21,12 @@ public class MyFunctionTest {
     // given
     var input = new ApifyRequest(
       new Authentication("testToken"),
-      new Operation("runActor"), 
-      new ApifyRequestInput(new RunActorInput("actor123"), null)
+            new Operation("runActor"),
+            new ApifyRequestInput(
+                new RunActorInput("test-actor-id"),
+                null,
+                null
+            )
     );
     var function = new ApifyFunction();
     var context = OutboundConnectorContextBuilder.create()
@@ -34,16 +38,21 @@ public class MyFunctionTest {
     assertThat(result)
       .isInstanceOf(ApifyResult.class)
       .extracting("myProperty")
-      .isEqualTo("Operation type: runActor Authentication: Authentication[token=testToken] Apify Request Input: ApifyRequestInput[runActorInput=RunActorInput[actorId=actor123], runTaskInput=null]");
+      .asString()
+      .contains("RunActor operation");
   }
 
   @Test
-  void shouldExecuteSuccessfullyWithValidInput() throws Exception {
+  void shouldReturnResultForUnsupportedOperation() throws Exception {
     // given
     var input = new ApifyRequest(
       new Authentication("testToken"),
-      new Operation("runActor"), 
-      new ApifyRequestInput(new RunActorInput("actor123"), null)
+            new Operation("unsupportedOperation"),
+            new ApifyRequestInput(
+                null,
+                null,
+                null
+            )
     );
     var function = new ApifyFunction();
     var context = OutboundConnectorContextBuilder.create()
@@ -55,6 +64,7 @@ public class MyFunctionTest {
     assertThat(result)
         .isInstanceOf(ApifyResult.class)
         .extracting("myProperty")
-        .isEqualTo("Operation type: runActor Authentication: Authentication[token=testToken] Apify Request Input: ApifyRequestInput[runActorInput=RunActorInput[actorId=actor123], runTaskInput=null]");
+        .asString()
+        .contains("Unsupported operation type");
   }
 }

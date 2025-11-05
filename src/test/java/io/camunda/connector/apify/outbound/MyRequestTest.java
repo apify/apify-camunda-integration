@@ -23,8 +23,12 @@ public class MyRequestTest {
     // given
     var input = new ApifyRequest(
       new Authentication("secrets.MY_TOKEN"),
-      new Operation("runActor"), 
-      new ApifyRequestInput(new RunActorInput("actor123"), null)
+      new Operation("runActor"),
+      new ApifyRequestInput(
+          new RunActorInput("test-actor-id"),
+          null,
+          null
+      )
     );
     var context = OutboundConnectorContextBuilder.create()
       .secret("MY_TOKEN", "token value")
@@ -43,8 +47,13 @@ public class MyRequestTest {
   void shouldFailWhenValidate_NoAuthentication() throws JsonProcessingException {
     // given
     var input = new ApifyRequest(
-      null, new Operation("runActor"),
-      new ApifyRequestInput(new RunActorInput("actor123"), null)
+      null,
+      new Operation("runActor"),
+      new ApifyRequestInput(
+          new RunActorInput("test-actor-id"),
+          null,
+          null
+      )
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
     // when
@@ -60,7 +69,11 @@ public class MyRequestTest {
     var input = new ApifyRequest(
       new Authentication(null),
       new Operation("runActor"),
-      new ApifyRequestInput(new RunActorInput("actor123"), null)
+      new ApifyRequestInput(
+          new RunActorInput("test-actor-id"),
+          null,
+          null
+      )
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
     // when
@@ -92,7 +105,11 @@ public class MyRequestTest {
     var input = new ApifyRequest(
       new Authentication(""),
       new Operation("runActor"),
-      new ApifyRequestInput(new RunActorInput("actor123"), null)
+      new ApifyRequestInput(
+          new RunActorInput("test-actor-id"),
+          null,
+          null
+      )
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
     // when
