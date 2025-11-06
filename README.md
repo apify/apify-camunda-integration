@@ -10,7 +10,9 @@ Follow these steps to run and test your custom outbound connector with your loca
 
 #### 1. Camunda stack in Docker
 
-Locally spin up a Camunda stack using Docker Compose following [this quickstart guide](https://docs.camunda.io/docs/next/self-managed/quickstart/developer-quickstart/docker-compose).
+Locally spin up a Camunda stack using Docker Compose following [this quickstart guide](https://docs.camunda.io/docs/self-managed/quickstart/developer-quickstart/docker-compose).
+
+📌 **Note: Make sure to install FULLY configured Camunda stack which includes the Modeler.**
 
 In case you want to choose a specific version, you can find their `docker-compose.yaml` files in [Camunda's official repository](https://github.com/camunda/camunda-distributions/tree/main/docker-compose/versions).
 
@@ -47,6 +49,9 @@ Keep this terminal running while you work with Camunda Modeler.
 ![Creating a new project](docs/modeler-create-project.png)
 
 2. Upload your connector template JSON from this repository.
+
+- Outbound connector template: `element-templates/apify-outbound-connector.json`
+- Inbound connector template: `element-templates/apify-inbound-connector.json`
 
 ![Uploading the connector template JSON](docs/modeler-upload-template.png)
 
