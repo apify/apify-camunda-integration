@@ -21,7 +21,7 @@ In case you want to choose a specific version, you can find their `docker-compos
 Clone this repository and build the connector:
 
 ```bash
-git clone https://github.com/apify/apify-camunda-connector.git
+git clone https://github.com/apify/apify-camunda-integration.git
 
 cd apify-camunda-connector
 
@@ -37,7 +37,7 @@ mvn clean package
 2. Start the local runtime to expose your connector:
 
 ```bash
-mvn exec:java -Dexec.mainClass="io.camunda.example.LocalConnectorRuntime"
+mvn test-compile exec:java -Dexec.mainClass="io.camunda.connector.apify.outbound.LocalConnectorRuntime" -Dexec.classpathScope=test
 ```
 
 Keep this terminal running while you work with Camunda Modeler.
