@@ -44,7 +44,7 @@ public class MyRequestTest {
   }
 
   @Test
-  void shouldFailWhenValidate_NoAuthentication() throws JsonProcessingException {
+  void shouldFailWhenValidateNoAuthentication() throws JsonProcessingException {
     // given
     var input = new ApifyRequest(
       null,
@@ -64,7 +64,7 @@ public class MyRequestTest {
   }
 
   @Test
-  void shouldFailWhenValidate_NoToken() throws JsonProcessingException {
+  void shouldFailWhenValidateNoToken() throws JsonProcessingException {
     // given
     var input = new ApifyRequest(
       new Authentication(null),
@@ -84,7 +84,7 @@ public class MyRequestTest {
   }
 
   @Test
-  void shouldFailWhenValidate_NoMesage() throws JsonProcessingException {
+  void shouldFailWhenValidateNoMessage() throws JsonProcessingException {
     // given
     var input = new ApifyRequest(
       new Authentication("testToken"),
@@ -100,7 +100,7 @@ public class MyRequestTest {
   }
 
   @Test
-  void shouldFailWhenValidate_TokenEmpty() throws JsonProcessingException {
+  void shouldFailWhenValidateTokenEmpty() throws JsonProcessingException {
     // given
     var input = new ApifyRequest(
       new Authentication(""),
