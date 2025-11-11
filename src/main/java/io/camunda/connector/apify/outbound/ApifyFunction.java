@@ -44,15 +44,15 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult executeConnector(final ApifyRequest connectorRequest) {
-    LOGGER.info("Executing my connector with request {}", connectorRequest);
     String operationType = connectorRequest.operation().type();
 
     Authentication authentication = connectorRequest.authentication();
     ApifyRequestInput apifyRequestInput = connectorRequest.apifyRequestInput();
 
-    LOGGER.info("Authentication {}", authentication);
+    LOGGER.info("Operation Type {}", operationType);
     LOGGER.info("Apify Request Input {}", apifyRequestInput);
 
+    
     // Handle different operation types
     switch (operationType) {
       case "runActor":
@@ -67,13 +67,11 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult handleRunActor(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    LOGGER.info("Handling runActor operation");
     // TODO: Implement runActor logic
     return new ApifyResult("RunActor operation - Actor ID: " + apifyRequestInput.runActorInput().actorId());
   }
 
   private ApifyResult handleRunTask(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    LOGGER.info("Handling runTask operation");
     // TODO: Implement runTask logic
     return new ApifyResult("RunTask operation - Task ID: " + apifyRequestInput.runTaskInput().taskId());
   }
