@@ -9,6 +9,7 @@ import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.Method;
+import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
 import java.io.IOException;
@@ -69,20 +70,22 @@ public class ApifyClient implements AutoCloseable {
         
         for (int i = 0; i < DEFAULT_EXP_BACKOFF_RETRIES; i++) {
             try {
-                try (ClassicHttpResponse response = performHttpRequest(method, url, authToken, body)) {
-                    int statusCode = response.getCode();
-                    String responseBody = new String(response.getEntity().getContent().readAllBytes(), StandardCharsets.UTF_8);
-                    
-                    if (statusCode >= 200 && statusCode < 300) {
-                        return responseBody;
-                    } else {
-                        // Create an exception with status code information for retry logic
-                        HttpRequestException exception = new HttpRequestException(
-                            "HTTP request failed with status " + statusCode + ": " + responseBody,
-                            statusCode
-                        );
-                        throw exception;
-                    }
+                ResponseResult result = performHttpRequest(method, url, authToken, body);
+                int statusCode = result.statusCode;
+                String responseBody = result.responseBody;
+                
+                if (statusCode >= 200 && statusCode < 300) {
+                    return responseBody;
+                } else {
+                    // Create an exception with status code information for retry logic
+                    HttpRequestException exception = new HttpRequestException(
+                        String.format(
+                            "HTTP %s request to %s failed with status %d: %s",
+                            method, url, statusCode, responseBody
+                        ),
+                        statusCode
+                    );
+                    throw exception;
                 }
             } catch (HttpRequestException e) {
                 lastError = e;
@@ -107,7 +110,11 @@ public class ApifyClient implements AutoCloseable {
             } catch (IOException e) {
                 // Wrap other IOException to include status code
                 HttpRequestException wrappedException = new HttpRequestException(
-                    "HTTP request failed: " + e.getMessage(), 0, e);
+                    String.format(
+                        "HTTP %s request to %s failed: %s",
+                        method, url, e.getMessage()
+                    ),
+                    0, e);
                 lastError = wrappedException;
                 
                 // For network errors, retry once more
@@ -127,7 +134,13 @@ public class ApifyClient implements AutoCloseable {
                 throw wrappedException;
             } catch (RuntimeException e) {
                 // Wrap unexpected runtime exceptions
-                throw new IOException("Unexpected error during request: " + e.getMessage(), e);
+                throw new IOException(
+                    String.format(
+                        "Unexpected error during HTTP %s request to %s: %s",
+                        method, url, e.getMessage()
+                    ),
+                    e
+                );
             }
         }
         
@@ -135,10 +148,28 @@ public class ApifyClient implements AutoCloseable {
         if (lastError != null) {
             throw lastError;
         }
-        throw new IOException("Request failed after " + DEFAULT_EXP_BACKOFF_RETRIES + " retries");
+        throw new IOException(
+            String.format(
+                "HTTP %s request to %s failed after %d retries",
+                method, url, DEFAULT_EXP_BACKOFF_RETRIES
+            )
+        );
     }
     
-    private ClassicHttpResponse performHttpRequest(Method method, String url, String authToken, String body) throws IOException {
+    /**
+     * Result class to hold response status code and body.
+     */
+    private static class ResponseResult {
+        final int statusCode;
+        final String responseBody;
+        
+        ResponseResult(int statusCode, String responseBody) {
+            this.statusCode = statusCode;
+            this.responseBody = responseBody;
+        }
+    }
+    
+    private ResponseResult performHttpRequest(Method method, String url, String authToken, String body) throws IOException {
         ClassicHttpRequest request;
         
         switch (method) {
@@ -156,7 +187,21 @@ public class ApifyClient implements AutoCloseable {
         }
         
         addHeaders(request, authToken);
-        return httpClient.executeOpen(null, request, null);
+        
+        // Use execute() with ResponseHandler for automatic resource management
+        // This ensures the response and connection are properly closed even if exceptions occur
+        HttpClientResponseHandler<ResponseResult> responseHandler = (ClassicHttpResponse response) -> {
+            int statusCode = response.getCode();
+            String responseBody = "";
+            
+            if (response.getEntity() != null && response.getEntity().getContent() != null) {
+                responseBody = new String(response.getEntity().getContent().readAllBytes(), StandardCharsets.UTF_8);
+            }
+            
+            return new ResponseResult(statusCode, responseBody);
+        };
+        
+        return httpClient.execute(null, request, responseHandler);
     }
     
     private void addHeaders(org.apache.hc.core5.http.HttpRequest request, String authToken) {
