@@ -139,7 +139,8 @@
       "label": "Offset",
       "description": "Number of items to skip (for pagination)",
       "optional": true,
-      "value": "0",
+      "feel": "optional",
+      "value": 0,
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.getDatasetItemsInput.offset",
@@ -150,13 +151,15 @@
         "equals": "getDatasetItems",
         "type": "simple"
       },
-      "type": "String"
+      "type": "Number"
     },
     {
       "id": "apifyRequestInput.getDatasetItemsInput.limit",
       "label": "Limit",
-      "description": "Maximum number of items to return (leave empty for no limit)",
+      "description": "Maximum number of items to return (leave empty or 0 for no limit)",
       "optional": true,
+      "feel": "optional",
+      "value": 0,
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.getDatasetItemsInput.limit",
@@ -167,7 +170,7 @@
         "equals": "getDatasetItems",
         "type": "simple"
       },
-      "type": "String"
+      "type": "Number"
     },
     {
       "id": "resultVariable",
