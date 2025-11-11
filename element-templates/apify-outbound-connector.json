@@ -1,9 +1,9 @@
 {
   "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
   "name": "Apify Connector",
-  "id": "Template_ApifyConnector",
+  "id": "io.camunda.connector.outbound.Apify.v1",
   "version": 1,
-  "description": "Apify connector for running actors",
+  "description": "Access Apify tools for web scraping, data extraction, and automation.",
   "metadata": {
     "keywords": ["apify", "connector", "actor"]
   },

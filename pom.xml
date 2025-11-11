@@ -109,7 +109,7 @@
                             <connectorClass>io.camunda.connector.apify.outbound.ApifyFunction</connectorClass>
                             <files>
                                 <file>
-                                    <templateId>io.camunda.connector.Apify.v1</templateId>
+                                    <templateId>io.camunda.connector.outbound.Apify.v1</templateId>
                                     <templateFileName>apify-outbound-connector.json</templateFileName>
                                 </file>
                             </files>

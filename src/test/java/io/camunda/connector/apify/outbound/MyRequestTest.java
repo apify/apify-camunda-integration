@@ -6,9 +6,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.camunda.connector.api.error.ConnectorInputException;
-import io.camunda.connector.apify.outbound.ApifyRequest;
 import io.camunda.connector.apify.outbound.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
+import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
+import io.camunda.connector.apify.outbound.dto.RunActorInput;
 import io.camunda.connector.test.outbound.OutboundConnectorContextBuilder;
 
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,8 @@ public class MyRequestTest {
     // given
     var input = new ApifyRequest(
       new Authentication("secrets.MY_TOKEN"),
-      new Operation("runActor"), null
+      new Operation("runActor"), 
+      new ApifyRequestInput(new RunActorInput("actor123"), null)
     );
     var context = OutboundConnectorContextBuilder.create()
       .secret("MY_TOKEN", "token value")
@@ -42,7 +44,7 @@ public class MyRequestTest {
     // given
     var input = new ApifyRequest(
       null, new Operation("runActor"),
-            null
+      new ApifyRequestInput(new RunActorInput("actor123"), null)
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
     // when
@@ -58,7 +60,7 @@ public class MyRequestTest {
     var input = new ApifyRequest(
       new Authentication(null),
       new Operation("runActor"),
-      null
+      new ApifyRequestInput(new RunActorInput("actor123"), null)
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
     // when
@@ -73,14 +75,15 @@ public class MyRequestTest {
     // given
     var input = new ApifyRequest(
       new Authentication("testToken"),
-      new Operation("runActor"),null
+      new Operation("runActor"),
+      null
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
     // when
     assertThatThrownBy(() -> context.bindVariables(ApifyRequest.class))
       // then
       .isInstanceOf(ConnectorInputException.class)
-      .hasMessageContaining("message");
+      .hasMessageContaining("apifyRequestInput");
   }
 
   @Test
@@ -88,7 +91,8 @@ public class MyRequestTest {
     // given
     var input = new ApifyRequest(
       new Authentication(""),
-      new Operation("runActor"),null
+      new Operation("runActor"),
+      new ApifyRequestInput(new RunActorInput("actor123"), null)
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
     // when
