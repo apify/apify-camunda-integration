@@ -1,14 +1,18 @@
 package io.camunda.connector.apify.outbound;
 
 import io.camunda.connector.api.annotation.OutboundConnector;
+import io.camunda.connector.apify.common.ApifyClient;
 import io.camunda.connector.apify.outbound.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
+import io.camunda.connector.apify.outbound.dto.GetDatasetItemsInput;
 // import io.camunda.connector.api.error.ConnectorException;
 import io.camunda.connector.api.outbound.OutboundConnectorContext;
 import io.camunda.connector.api.outbound.OutboundConnectorFunction;
 import io.camunda.connector.generator.java.annotation.ElementTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 @OutboundConnector(
     name = "APIFY",
@@ -17,7 +21,8 @@ import org.slf4j.LoggerFactory;
         "operation",
         "apifyRequestInput",
         "apifyRequestInput.runActorInput",
-        "apifyRequestInput.runTaskInput"
+        "apifyRequestInput.runTaskInput",
+        "apifyRequestInput.getDatasetItemsInput"
     },
     type = "io.camunda:apify-outbound:1")
 @ElementTemplate(
@@ -39,19 +44,63 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult executeConnector(final ApifyRequest connectorRequest) {
-    LOGGER.info("Executing my connector with request {}", connectorRequest);
     String operationType = connectorRequest.operation().type();
 
     Authentication authentication = connectorRequest.authentication();
     ApifyRequestInput apifyRequestInput = connectorRequest.apifyRequestInput();
 
-    LOGGER.info("Authentication {}", authentication);
+    LOGGER.info("Operation Type {}", operationType);
     LOGGER.info("Apify Request Input {}", apifyRequestInput);
 
+    
+    // Handle different operation types
+    switch (operationType) {
+      case "runActor":
+        return handleRunActor(authentication, apifyRequestInput);
+      case "runTask":
+        return handleRunTask(authentication, apifyRequestInput);
+      case "getDatasetItems":
+        return handleGetDatasetItems(authentication, apifyRequestInput);
+      default:
+        return new ApifyResult("Unsupported operation type: " + operationType);
+    }
+  }
 
-    // if (message != null && message.toLowerCase().startsWith("fail")) {
-    //   throw new ConnectorException("FAIL", "My property started with 'fail', was: " + message);
-    // }
-    return new ApifyResult("Operation type: " + operationType + " Authentication: " + authentication + " Apify Request Input: " + apifyRequestInput);
+  private ApifyResult handleRunActor(Authentication authentication, ApifyRequestInput apifyRequestInput) {
+    // TODO: Implement runActor logic
+    return new ApifyResult("RunActor operation - Actor ID: " + apifyRequestInput.runActorInput().actorId());
+  }
+
+  private ApifyResult handleRunTask(Authentication authentication, ApifyRequestInput apifyRequestInput) {
+    // TODO: Implement runTask logic
+    return new ApifyResult("RunTask operation - Task ID: " + apifyRequestInput.runTaskInput().taskId());
+  }
+
+  private ApifyResult handleGetDatasetItems(Authentication authentication, ApifyRequestInput apifyRequestInput) {
+    GetDatasetItemsInput datasetInput = apifyRequestInput.getDatasetItemsInput();
+    
+    if (datasetInput == null) {
+      return new ApifyResult("Error: getDatasetItemsInput is null");
+    }
+    
+    if (authentication == null || authentication.token() == null || authentication.token().isEmpty()) {
+      return new ApifyResult("Error: Authentication token is required");
+    }
+    
+    try (ApifyClient apifyClient = new ApifyClient()) {
+      
+      String datasetItems = apifyClient.getDatasetItems(
+        datasetInput.datasetId(),
+        authentication.token(),
+        datasetInput.offset(),
+        datasetInput.limit()
+      );
+      
+      return new ApifyResult(datasetItems);
+      
+    } catch (IOException e) {
+      LOGGER.error("Failed to get dataset items: {}", e.getMessage(), e);
+      return new ApifyResult("Error: Failed to get dataset items - " + e.getMessage());
+    }
   }
 }
