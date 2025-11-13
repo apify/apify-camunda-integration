@@ -1,9 +1,10 @@
 package io.camunda.connector.apify.outbound;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.camunda.connector.api.error.ConnectorInputException;
 import io.camunda.connector.apify.outbound.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
@@ -18,53 +19,51 @@ public class MyFunctionTest {
 
   @Test
   void shouldReturnReceivedMessageWhenExecute() throws Exception {
-    // given
+    var runActorInput = new RunActorInput(
+      "test-actor",
+      null,
+      null,
+      null,
+      null,
+      false
+    );
+    var apifyRequestInput = new ApifyRequestInput(
+      runActorInput,
+      null,
+      null
+    );
     var input = new ApifyRequest(
       new Authentication("testToken"),
-            new Operation("runActor"),
-            new ApifyRequestInput(
-                new RunActorInput("test-actor-id"),
-                null,
-                null
-            )
+      new Operation("runActor"),
+      apifyRequestInput
     );
     var function = new ApifyFunction();
     var context = OutboundConnectorContextBuilder.create()
       .variables(objectMapper.writeValueAsString(input))
       .build();
-    // when
-    var result = function.execute(context);
-    // then
-    assertThat(result)
-      .isInstanceOf(ApifyResult.class)
-      .extracting("myProperty")
-      .asString()
-      .contains("RunActor operation");
+    assertThatThrownBy(() -> function.execute(context))
+      .isInstanceOf(RuntimeException.class)
+      .hasMessageContaining("Error");
   }
 
   @Test
   void shouldReturnResultForUnsupportedOperation() throws Exception {
-    // given
+    var apifyRequestInput = new ApifyRequestInput(
+      null,
+      null,
+      null
+    );
     var input = new ApifyRequest(
       new Authentication("testToken"),
-            new Operation("unsupportedOperation"),
-            new ApifyRequestInput(
-                null,
-                null,
-                null
-            )
+      new Operation("unsupportedOperation"),
+      apifyRequestInput
     );
     var function = new ApifyFunction();
     var context = OutboundConnectorContextBuilder.create()
         .variables(objectMapper.writeValueAsString(input))
         .build();
-    // when
-    var result = function.execute(context);
-    // then
-    assertThat(result)
-        .isInstanceOf(ApifyResult.class)
-        .extracting("myProperty")
-        .asString()
-        .contains("Unsupported operation type");
+    assertThatThrownBy(() -> function.execute(context))
+        .isInstanceOf(ConnectorInputException.class)
+        .hasMessageContaining("Unsupported operation type");
   }
 }

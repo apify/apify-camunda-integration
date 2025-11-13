@@ -11,9 +11,11 @@ import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.Method;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.net.URIBuilder;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -226,20 +228,24 @@ public class ApifyClient implements AutoCloseable {
      * @throws IOException if the request fails
      */
     public String getDatasetItems(String datasetId, String authToken, Integer offset, Integer limit) throws IOException {
-        StringBuilder urlPath = new StringBuilder("/v2/datasets/").append(datasetId).append("/items");
-        
-        // Always use JSON format
-        urlPath.append("?format=json");
-        
-        // Add pagination parameters if provided
-        if (offset != null) {
-            urlPath.append("&offset=").append(offset);
+        try {
+            URIBuilder builder = new URIBuilder(APIFY_API_URL)
+                .setPath("/v2/datasets/" + datasetId + "/items")
+                .setParameter("format", "json");
+            
+            if (offset != null) {
+                builder.setParameter("offset", offset.toString());
+            }
+            if (limit != null) {
+                builder.setParameter("limit", limit.toString());
+            }
+            
+            URI uri = builder.build();
+            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
+            return executeRequest(Method.GET, urlPath, authToken, null);
+        } catch (URISyntaxException e) {
+            throw new IOException("Invalid URI for dataset items request", e);
         }
-        if (limit != null) {
-            urlPath.append("&limit=").append(limit);
-        }
-        
-        return executeRequest(Method.GET, urlPath.toString(), authToken, null);
     }
     
     /**
@@ -255,8 +261,148 @@ public class ApifyClient implements AutoCloseable {
         boolean isRateLimitError = statusCode == HttpStatus.SC_TOO_MANY_REQUESTS;
         boolean isInternalError = statusCode >= HttpStatus.SC_INTERNAL_SERVER_ERROR;
         return isRateLimitError || isInternalError;
+        }
+        
+    /**
+     * Runs an Apify Actor by its ID with optional parameters.
+     * Sends a POST request to /v2/acts/{actorId}/runs with the provided input JSON and query parameters.
+     *
+     * @param actorId The Actor ID (e.g. "username/actor-name" or "actorIdCode")
+     * @param authToken The authentication token
+     * @param inputJson The Actor input as JSON string; pass null for no input body
+     * @param timeout Timeout in seconds; null for default
+     * @param memory Memory in MB as string; null or empty for default
+     * @param build Build number or tag; null for default
+     * @param waitForFinishSecs Number of seconds to wait synchronously for the run to finish; null to not wait
+     * @return The response body as a JSON string (Actor run object)
+     * @throws IOException if the request fails
+     */
+    public String runActor(String actorId, String authToken, String inputJson, Integer timeout, String memory, String build, Integer waitForFinishSecs) throws IOException {
+        try {
+            URIBuilder builder = new URIBuilder(APIFY_API_URL)
+                .setPath("/v2/acts/" + actorId + "/runs");
+            
+            if (timeout != null) {
+                builder.setParameter("timeout", timeout.toString());
+            }
+            if (memory != null && !memory.isBlank()) {
+                builder.setParameter("memory", memory);
+            }
+            if (build != null && !build.isBlank()) {
+                builder.setParameter("build", build);
+            }
+            if (waitForFinishSecs != null && waitForFinishSecs > 0) {
+                builder.setParameter("waitForFinish", waitForFinishSecs.toString());
+            }
+            
+            URI uri = builder.build();
+            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
+            return executeRequest(Method.POST, urlPath, authToken, inputJson);
+        } catch (URISyntaxException e) {
+            throw new IOException("Invalid URI for actor run request", e);
+        }
     }
-    
+
+    /**
+     * Runs an Actor task by its ID with optional parameters.
+     * Sends a POST request to /v2/actor-tasks/{taskId}/runs with the provided input JSON and query parameters.
+     * 
+     * @param taskId The Task ID
+     * @param authToken The authentication token
+     * @param inputJson The Task input as JSON string; pass null for no input body (uses task's default input)
+     * @param timeout Timeout in seconds; null for default
+     * @param memory Memory in MB as string; null or empty for default
+     * @param build Build number or tag; null for default
+     * @param waitForFinishSecs Number of seconds to wait synchronously for the run to finish; null to not wait
+     * @return The response body as a JSON string (Actor run object)
+     * @throws IOException if the request fails
+     */
+    public String runTask(String taskId, String authToken, String inputJson, Integer timeout, String memory, String build, Integer waitForFinishSecs) throws IOException {
+        try {
+            URIBuilder builder = new URIBuilder(APIFY_API_URL)
+                .setPath("/v2/actor-tasks/" + taskId + "/runs");
+            
+            if (timeout != null) {
+                builder.setParameter("timeout", timeout.toString());
+            }
+            if (memory != null && !memory.isBlank()) {
+                builder.setParameter("memory", memory);
+            }
+            if (build != null && !build.isBlank()) {
+                builder.setParameter("build", build);
+            }
+            if (waitForFinishSecs != null && waitForFinishSecs > 0) {
+                builder.setParameter("waitForFinish", waitForFinishSecs.toString());
+            }
+            
+            URI uri = builder.build();
+            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
+            return executeRequest(Method.POST, urlPath, authToken, inputJson);
+        } catch (URISyntaxException e) {
+            throw new IOException("Invalid URI for task run request", e);
+        }
+    }
+
+    /**
+     * Gets the status of an actor run by its ID.
+     * 
+     * @param runId The run ID
+     * @param authToken The authentication token
+     * @return The response body as a JSON string (Actor run object with current status)
+     * @throws IOException if the request fails
+     */
+    public String getRunStatus(String runId, String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/actor-runs/" + runId, authToken, null);
+    }
+
+    /**
+     * Gets actor details by its ID.
+     * 
+     * @param actorId The Actor ID (e.g. "username/actor-name" or "actorIdCode")
+     * @param authToken The authentication token
+     * @return The response body as a JSON string (Actor object)
+     * @throws IOException if the request fails
+     */
+    public String getActor(String actorId, String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/acts/" + actorId, authToken, null);
+    }
+
+        /**
+     * Gets task details by its ID.
+     * 
+     * @param taskId The Task ID
+     * @param authToken The authentication token
+     * @return The response body as a JSON string (Task object)
+     * @throws IOException if the request fails
+     */
+    public String getTask(String taskId, String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/actor-tasks/" + taskId, authToken, null);
+    }
+
+    /**
+     * Gets build details by its ID.
+     * 
+     * @param buildId The build ID
+     * @param authToken The authentication token
+     * @return The response body as a JSON string (Build object)
+     * @throws IOException if the request fails
+     */
+    public String getBuild(String buildId, String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/actor-builds/" + buildId, authToken, null);
+    }
+
+    /**
+     * Gets the default build for an actor.
+     * 
+     * @param actorId The Actor ID
+     * @param authToken The authentication token
+     * @return The response body as a JSON string (Build object)
+     * @throws IOException if the request fails
+     */
+    public String getDefaultBuild(String actorId, String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/acts/" + actorId + "/builds/default", authToken, null);
+    }
+
     /**
      * Closes the HTTP client and releases resources.
      */
