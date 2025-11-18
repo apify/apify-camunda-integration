@@ -180,14 +180,14 @@
       ]
     },
     {
-      "id": "apifyRequestInput.runActorInput.build",
-      "label": "Build",
-      "description": "Build number or tag to use (optional)",
+      "id": "apifyRequestInput.runActorInput.buildTag",
+      "label": "Build Tag",
+      "description": "Build tag to use (optional)",
       "optional": true,
       "feel": "optional",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runActorInput.build",
+        "name": "apifyRequestInput.runActorInput.buildTag",
         "type": "zeebe:input"
       },
       "condition": {
@@ -297,13 +297,14 @@
       ]
     },
     {
-      "id": "apifyRequestInput.runTaskInput.build",
-      "label": "Build",
+      "id": "apifyRequestInput.runTaskInput.buildTag",
+      "label": "Build Tag",
+      "description": "Build tag to use (optional)",
       "optional": true,
       "feel": "optional",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runTaskInput.build",
+        "name": "apifyRequestInput.runTaskInput.buildTag",
         "type": "zeebe:input"
       },
       "condition": {

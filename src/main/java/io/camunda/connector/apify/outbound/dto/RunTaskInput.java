@@ -9,6 +9,6 @@ public record RunTaskInput(
     JsonNode inputJson,
     Integer timeout,
     String memory,
-    String build,
+    String buildTag,
     Boolean waitForFinish
 ) {}

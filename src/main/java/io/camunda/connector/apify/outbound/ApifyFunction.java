@@ -92,11 +92,11 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
       // Get build information (either specified build or default)
       String buildResponse;
-      if (input.build() != null && !input.build().trim().isEmpty()) {
+      if (input.buildTag() != null && !input.buildTag().trim().isEmpty()) {
         // Get build by tag from actor's taggedBuilds
-        String buildId = extractBuildIdFromTag(actorResponse, input.build());
+        String buildId = extractBuildIdFromTag(actorResponse, input.buildTag());
         if (buildId == null) {
-          throw new RuntimeException("Error: Build tag '" + input.build() + "' not found for actor " + input.actorId());
+          throw new RuntimeException("Error: Build tag '" + input.buildTag() + "' not found for actor " + input.actorId());
         }
         buildResponse = apifyClient.getBuild(buildId, authentication.token());
       } else {
@@ -137,7 +137,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       var runOptions = new RunOptions(
         input.timeout(),
         input.memory(),
-        input.build(),
+        input.buildTag(),
         null // Don't wait for finish initially
       );
       String response = apifyClient.runActor(
@@ -191,7 +191,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       var runOptions = new RunOptions(
         input.timeout(),
         input.memory(),
-        input.build(),
+        input.buildTag(),
         null // Don't wait for finish initially
       );
       String response = apifyClient.runTask(
