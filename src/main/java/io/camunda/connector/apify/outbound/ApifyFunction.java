@@ -21,8 +21,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @OutboundConnector(
     name = "APIFY",
@@ -315,46 +313,57 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private String extractBuildIdFromTag(String actorResponse, String buildTag) {
-    // Look for taggedBuilds section and extract buildId for the given tag
-    Pattern pattern = Pattern.compile("\"taggedBuilds\"\\s*:\\s*\\{[^}]*\"" + Pattern.quote(buildTag) + "\"\\s*:\\s*\\{[^}]*\"buildId\"\\s*:\\s*\"([^\"]+)\"");
-    Matcher matcher = pattern.matcher(actorResponse);
-    if (matcher.find()) {
-      return matcher.group(1);
+    try {
+      JsonNode rootNode = objectMapper.readTree(actorResponse);
+      // Check if taggedBuilds is nested under "data" property
+      JsonNode dataNode = rootNode.path("data");
+      JsonNode taggedBuildsNode = dataNode.isMissingNode() 
+          ? rootNode.path("taggedBuilds") 
+          : dataNode.path("taggedBuilds");
+      
+      if (taggedBuildsNode.isObject()) {
+        JsonNode buildTagNode = taggedBuildsNode.path(buildTag);
+        if (buildTagNode.isObject() && buildTagNode.has("buildId")) {
+          return buildTagNode.get("buildId").asText();
+        }
+      }
+      
+      return null;
+    } catch (Exception e) {
+      LOGGER.warn("Failed to parse JSON response for build ID extraction: {}", e.getMessage());
+      return null;
     }
-    return null;
   }
 
   private Map<String, Object> extractDefaultInputFromBuild(String buildResponse) {
     Map<String, Object> defaultInput = new HashMap<>();
     
-    // Look for actorDefinition.input.properties and extract prefill values
-    Pattern propertiesPattern = Pattern.compile("\"actorDefinition\"\\s*:\\s*\\{[^}]*\"input\"\\s*:\\s*\\{[^}]*\"properties\"\\s*:\\s*\\{([^}]+(?:\\{[^}]*\\}[^}]*)*)\\}");
-    Matcher propertiesMatcher = propertiesPattern.matcher(buildResponse);
-    
-    if (propertiesMatcher.find()) {
-      String propertiesSection = propertiesMatcher.group(1);
+    try {
+      JsonNode rootNode = objectMapper.readTree(buildResponse);
+      JsonNode actorDefinitionNode = rootNode.path("actorDefinition");
       
-      // Extract each property with its prefill value
-      Pattern propertyPattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{[^}]*\"prefill\"\\s*:\\s*([^,}]+)");
-      Matcher propertyMatcher = propertyPattern.matcher(propertiesSection);
-      
-      while (propertyMatcher.find()) {
-        String key = propertyMatcher.group(1);
-        String value = propertyMatcher.group(2).trim();
-        
-        // Remove quotes and handle different value types
-        if (value.startsWith("\"") && value.endsWith("\"")) {
-          defaultInput.put(key, value.substring(1, value.length() - 1));
-        } else if ("true".equals(value) || "false".equals(value)) {
-          defaultInput.put(key, Boolean.parseBoolean(value));
-        } else if (value.matches("-?\\d+")) {
-          defaultInput.put(key, Integer.parseInt(value));
-        } else if (value.matches("-?\\d+\\.\\d+")) {
-          defaultInput.put(key, Double.parseDouble(value));
-        } else {
-          defaultInput.put(key, value);
+      if (actorDefinitionNode.isObject()) {
+        JsonNode inputNode = actorDefinitionNode.path("input");
+        if (inputNode.isObject()) {
+          JsonNode propertiesNode = inputNode.path("properties");
+          
+          if (propertiesNode.isObject()) {
+            // Iterate through each property
+            propertiesNode.fields().forEachRemaining(entry -> {
+              String propertyName = entry.getKey();
+              JsonNode propertyNode = entry.getValue();
+              
+              if (propertyNode.isObject() && propertyNode.has("prefill")) {
+                JsonNode prefillNode = propertyNode.get("prefill");
+                Object prefillValue = convertJsonNodeToObject(prefillNode);
+                defaultInput.put(propertyName, prefillValue);
+              }
+            });
+          }
         }
       }
+    } catch (Exception e) {
+      LOGGER.warn("Failed to parse JSON response for default input extraction: {}", e.getMessage());
     }
     
     return defaultInput;
