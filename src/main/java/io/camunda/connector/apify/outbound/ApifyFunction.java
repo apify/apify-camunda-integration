@@ -153,7 +153,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       }
       
       return new RunActorResponse(response);
-    } catch (IOException e) {
+    } catch (Exception e) {
       LOGGER.error("Failed to run actor: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to run actor - " + e.getMessage(), e);
     }
@@ -207,9 +207,6 @@ public class ApifyFunction implements OutboundConnectorFunction {
       }
       
       return new RunTaskResponse(response);
-    } catch (IOException e) {
-      LOGGER.error("Failed to run task: {}", e.getMessage(), e);
-      throw new RuntimeException("Error: Failed to run task - " + e.getMessage(), e);
     } catch (Exception e) {
       LOGGER.error("Failed to run task: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to run task - " + e.getMessage(), e);
@@ -236,7 +233,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       
       return new GetDatasetItemsResponse(datasetItems);
       
-    } catch (IOException e) {
+    } catch (Exception e) {
       LOGGER.error("Failed to get dataset items: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to get dataset items - " + e.getMessage(), e);
     }
