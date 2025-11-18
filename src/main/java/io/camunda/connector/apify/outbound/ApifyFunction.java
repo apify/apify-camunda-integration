@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @OutboundConnector(
     name = "APIFY",
@@ -45,6 +46,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ApifyFunction.class);
   private static final ObjectMapper objectMapper = new ObjectMapper();
+  private static final Set<String> TERMINAL_STATUSES = Set.of("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT");
 
   @Override
   public Object execute(OutboundConnectorContext context) {
@@ -296,10 +298,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       
       if (dataNode != null && dataNode.has("status")) {
         String status = dataNode.get("status").asText();
-        return "SUCCEEDED".equals(status) || 
-               "FAILED".equals(status) || 
-               "ABORTED".equals(status) || 
-               "TIMED-OUT".equals(status);
+        return TERMINAL_STATUSES.contains(status);
       }
       
       return false;
