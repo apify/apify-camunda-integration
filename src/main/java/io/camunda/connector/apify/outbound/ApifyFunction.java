@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.camunda.connector.api.annotation.OutboundConnector;
 import io.camunda.connector.apify.common.ApifyClient;
+import io.camunda.connector.apify.common.RunOptions;
 import io.camunda.connector.apify.outbound.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
 import io.camunda.connector.apify.outbound.dto.GetDatasetItemsInput;
@@ -135,14 +136,17 @@ public class ApifyFunction implements OutboundConnectorFunction {
       String mergedInputJson = mapToJson(mergedInput);
       
       // Run the actor with merged input and parameters
-      String response = apifyClient.runActor(
-        input.actorId(),
-        authentication.token(),
-        mergedInputJson,
+      var runOptions = new RunOptions(
         input.timeout(),
         input.memory(),
         input.build(),
         null // Don't wait for finish initially
+      );
+      String response = apifyClient.runActor(
+        authentication.token(),
+        input.actorId(),
+        mergedInputJson,
+        runOptions
       );
       
       // If waitForFinish is true, poll for completion
@@ -186,14 +190,17 @@ public class ApifyFunction implements OutboundConnectorFunction {
       }
       
       // Run the task with parameters
-      String response = apifyClient.runTask(
-        input.taskId(),
-        authentication.token(),
-        inputJson,
+      var runOptions = new RunOptions(
         input.timeout(),
         input.memory(),
         input.build(),
         null // Don't wait for finish initially
+      );
+      String response = apifyClient.runTask(
+        authentication.token(),
+        input.taskId(),
+        inputJson,
+        runOptions
       );
       
       // If waitForFinish is true, poll for completion
@@ -245,28 +252,16 @@ public class ApifyFunction implements OutboundConnectorFunction {
       throw new IOException("Could not extract run ID from response");
     }
     
-    // Poll for completion (simplified - in production you'd want more sophisticated polling)
-    int maxAttempts = 60; // 5 minutes with 5-second intervals
-    int attempt = 0;
     
-    while (attempt < maxAttempts) {
-      try {
-        Thread.sleep(5000); // Wait 5 seconds
-        String statusResponse = apifyClient.getRunStatus(runId, authToken);
+    while (true) {
+      // Wait for finish automatically waits for 1 second or until the run is terminal
+        String statusResponse = apifyClient.getRunStatus(runId, authToken, 1);
         
         // Check if run is in terminal state (simplified check)
         if (isRunFinished(statusResponse)) {
           return statusResponse;
         }
-        
-        attempt++;
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IOException("Polling interrupted", e);
-      }
     }
-    
-    throw new IOException("Run did not complete within timeout period");
   }
 
   private String extractRunId(String response) {

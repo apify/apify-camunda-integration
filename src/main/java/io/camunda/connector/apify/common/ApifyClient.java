@@ -267,32 +267,31 @@ public class ApifyClient implements AutoCloseable {
      * Runs an Apify Actor by its ID with optional parameters.
      * Sends a POST request to /v2/acts/{actorId}/runs with the provided input JSON and query parameters.
      *
-     * @param actorId The Actor ID (e.g. "username/actor-name" or "actorIdCode")
      * @param authToken The authentication token
+     * @param actorId The Actor ID (e.g. "username/actor-name" or "actorIdCode")
      * @param inputJson The Actor input as JSON string; pass null for no input body
-     * @param timeout Timeout in seconds; null for default
-     * @param memory Memory in MB as string; null or empty for default
-     * @param build Build number or tag; null for default
-     * @param waitForFinishSecs Number of seconds to wait synchronously for the run to finish; null to not wait
+     * @param runOptions The run options (timeout, memory, build, waitForFinishSecs)
      * @return The response body as a JSON string (Actor run object)
      * @throws IOException if the request fails
      */
-    public String runActor(String actorId, String authToken, String inputJson, Integer timeout, String memory, String build, Integer waitForFinishSecs) throws IOException {
+    public String runActor(String authToken, String actorId, String inputJson, RunOptions runOptions) throws IOException {
         try {
             URIBuilder builder = new URIBuilder(APIFY_API_URL)
                 .setPath("/v2/acts/" + actorId + "/runs");
             
-            if (timeout != null) {
-                builder.setParameter("timeout", timeout.toString());
-            }
-            if (memory != null && !memory.isBlank()) {
-                builder.setParameter("memory", memory);
-            }
-            if (build != null && !build.isBlank()) {
-                builder.setParameter("build", build);
-            }
-            if (waitForFinishSecs != null && waitForFinishSecs > 0) {
-                builder.setParameter("waitForFinish", waitForFinishSecs.toString());
+            if (runOptions != null) {
+                if (runOptions.timeout != null) {
+                    builder.setParameter("timeout", runOptions.timeout.toString());
+                }
+                if (runOptions.memory != null && !runOptions.memory.isBlank()) {
+                    builder.setParameter("memory", runOptions.memory);
+                }
+                if (runOptions.build != null && !runOptions.build.isBlank()) {
+                    builder.setParameter("build", runOptions.build);
+                }
+                if (runOptions.waitForFinishSecs != null && runOptions.waitForFinishSecs > 0) {
+                    builder.setParameter("waitForFinish", runOptions.waitForFinishSecs.toString());
+                }
             }
             
             URI uri = builder.build();
@@ -307,32 +306,31 @@ public class ApifyClient implements AutoCloseable {
      * Runs an Actor task by its ID with optional parameters.
      * Sends a POST request to /v2/actor-tasks/{taskId}/runs with the provided input JSON and query parameters.
      * 
-     * @param taskId The Task ID
      * @param authToken The authentication token
+     * @param taskId The Task ID
      * @param inputJson The Task input as JSON string; pass null for no input body (uses task's default input)
-     * @param timeout Timeout in seconds; null for default
-     * @param memory Memory in MB as string; null or empty for default
-     * @param build Build number or tag; null for default
-     * @param waitForFinishSecs Number of seconds to wait synchronously for the run to finish; null to not wait
+     * @param runOptions The run options (timeout, memory, build, waitForFinishSecs)
      * @return The response body as a JSON string (Actor run object)
      * @throws IOException if the request fails
      */
-    public String runTask(String taskId, String authToken, String inputJson, Integer timeout, String memory, String build, Integer waitForFinishSecs) throws IOException {
+    public String runTask(String authToken, String taskId, String inputJson, RunOptions runOptions) throws IOException {
         try {
             URIBuilder builder = new URIBuilder(APIFY_API_URL)
                 .setPath("/v2/actor-tasks/" + taskId + "/runs");
             
-            if (timeout != null) {
-                builder.setParameter("timeout", timeout.toString());
-            }
-            if (memory != null && !memory.isBlank()) {
-                builder.setParameter("memory", memory);
-            }
-            if (build != null && !build.isBlank()) {
-                builder.setParameter("build", build);
-            }
-            if (waitForFinishSecs != null && waitForFinishSecs > 0) {
-                builder.setParameter("waitForFinish", waitForFinishSecs.toString());
+            if (runOptions != null) {
+                if (runOptions.timeout != null) {
+                    builder.setParameter("timeout", runOptions.timeout.toString());
+                }
+                if (runOptions.memory != null && !runOptions.memory.isBlank()) {
+                    builder.setParameter("memory", runOptions.memory);
+                }
+                if (runOptions.build != null && !runOptions.build.isBlank()) {
+                    builder.setParameter("build", runOptions.build);
+                }
+                if (runOptions.waitForFinishSecs != null && runOptions.waitForFinishSecs > 0) {
+                    builder.setParameter("waitForFinish", runOptions.waitForFinishSecs.toString());
+                }
             }
             
             URI uri = builder.build();
@@ -351,8 +349,12 @@ public class ApifyClient implements AutoCloseable {
      * @return The response body as a JSON string (Actor run object with current status)
      * @throws IOException if the request fails
      */
-    public String getRunStatus(String runId, String authToken) throws IOException {
-        return executeRequest(Method.GET, "/v2/actor-runs/" + runId, authToken, null);
+    public String getRunStatus(String runId, String authToken, Integer waitForFinishSecs) throws IOException {
+        String urlPath = "/v2/actor-runs/" + runId;
+        if (waitForFinishSecs != null && waitForFinishSecs > 0) {
+            urlPath += "?waitForFinish=" + waitForFinishSecs.toString();
+        }
+        return executeRequest(Method.GET, urlPath, authToken, null);
     }
 
     /**
