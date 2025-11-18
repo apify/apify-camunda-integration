@@ -8,14 +8,15 @@ import java.util.List;
 
 public record GetDatasetItemsResponse(List<JsonNode> items) implements ApifyResult {
 
+  private static final ObjectMapper objectMapper = new ObjectMapper();
+
   public GetDatasetItemsResponse(String jsonResponse) {
     this(parseItems(jsonResponse));
   }
 
   private static List<JsonNode> parseItems(String jsonResponse) {
     try {
-      ObjectMapper mapper = new ObjectMapper();
-      JsonNode rootNode = mapper.readTree(jsonResponse);
+      JsonNode rootNode = objectMapper.readTree(jsonResponse);
       
       if (rootNode.isArray()) {
         List<JsonNode> items = new java.util.ArrayList<>();
