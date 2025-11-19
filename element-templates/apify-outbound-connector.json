@@ -82,7 +82,7 @@
     {
       "id": "apifyRequestInput.runActorInput.actorId",
       "label": "Actor ID",
-      "description": "Unique ID of the Actor to run",
+      "description": "Actor ID or a tilde-separated owner's username and Actor name",
       "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
@@ -200,7 +200,7 @@
     {
       "id": "apifyRequestInput.runTaskInput.taskId",
       "label": "Task ID",
-      "description": "Unique ID of the Task to run",
+      "description": "Task ID or a tilde-separated owner's username and task's name.",
       "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },

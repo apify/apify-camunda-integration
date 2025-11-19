@@ -268,7 +268,7 @@ public class ApifyClient implements AutoCloseable {
      * Sends a POST request to /v2/acts/{actorId}/runs with the provided input JSON and query parameters.
      *
      * @param authToken The authentication token
-     * @param actorId The Actor ID (e.g. "username/actor-name" or "actorIdCode")
+     * @param actorId The Actor ID (e.g. "username~actor-name" or "actorIdCode")
      * @param inputJson The Actor input as JSON string; pass null for no input body
      * @param runOptions The run options (timeout, memory, build, waitForFinishSecs)
      * @return The response body as a JSON string (Actor run object)
@@ -360,7 +360,7 @@ public class ApifyClient implements AutoCloseable {
     /**
      * Gets actor details by its ID.
      * 
-     * @param actorId The Actor ID (e.g. "username/actor-name" or "actorIdCode")
+     * @param actorId The Actor ID (e.g. "username~actor-name" or "actorIdCode")
      * @param authToken The authentication token
      * @return The response body as a JSON string (Actor object)
      * @throws IOException if the request fails
