@@ -82,8 +82,9 @@
     {
       "id": "apifyRequestInput.runActorInput.actorId",
       "label": "Actor ID",
-      "description": "Unique ID of the Actor to run",
+      "description": "Actor ID or a tilde-separated owner's username and Actor name",
       "optional": false,
+      "feel": "optional",
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
       "binding": {
@@ -98,14 +99,212 @@
       "type": "String"
     },
     {
+      "id": "apifyRequestInput.runActorInput.inputJson",
+      "label": "Input JSON",
+      "description": "JSON string with actor input (optional)",
+      "optional": true,
+      "feel": "required",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.inputJson",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "Text"
+    },
+    {
+      "id": "apifyRequestInput.runActorInput.waitForFinish",
+      "label": "Wait for Finish",
+      "description": "Whether to wait for the actor run to finish (optional)",
+      "group": "apifyRequestInput",
+      "value": true,
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.waitForFinish",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "Boolean"
+    },
+    {
+      "id": "apifyRequestInput.runActorInput.timeout",
+      "label": "Timeout (seconds)",
+      "description": "Timeout in seconds for the actor run (optional)",
+      "optional": true,
+      "feel": "optional",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.timeout",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.runActorInput.memory",
+      "label": "Memory",
+      "description": "Memory allocation for the actor run (optional)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.memory",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "Dropdown",
+      "choices": [
+        { "name": "128 MB", "value": "128" },
+        { "name": "256 MB", "value": "256" },
+        { "name": "512 MB", "value": "512" },
+        { "name": "1024 MB (1 GB)", "value": "1024" },
+        { "name": "2048 MB (2 GB)", "value": "2048" },
+        { "name": "4096 MB (4 GB)", "value": "4096" },
+        { "name": "8192 MB (8 GB)", "value": "8192" },
+        { "name": "16384 MB (16 GB)", "value": "16384" },
+        { "name": "32768 MB (32 GB)", "value": "32768" }
+      ]
+    },
+    {
+      "id": "apifyRequestInput.runActorInput.buildTag",
+      "label": "Build Tag",
+      "description": "Build tag to use (optional)",
+      "optional": true,
+      "feel": "optional",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runActorInput.buildTag",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runActor",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
       "id": "apifyRequestInput.runTaskInput.taskId",
       "label": "Task ID",
-      "description": "Unique ID of the Task to run",
+      "description": "Task ID or a tilde-separated owner's username and task's name.",
       "optional": false,
+      "feel": "optional",
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.runTaskInput.taskId",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.runTaskInput.inputJson",
+      "label": "Input JSON",
+      "optional": true,
+      "feel": "required",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.inputJson",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "Text"
+    },
+    {
+      "id": "apifyRequestInput.runTaskInput.waitForFinish",
+      "label": "Wait for Finish",
+      "description": "Whether to wait for the task run to finish (optional)",
+      "group": "apifyRequestInput",
+      "value": true,
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.waitForFinish",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "Boolean"
+    },
+    {
+      "id": "apifyRequestInput.runTaskInput.timeout",
+      "label": "Timeout (seconds)",
+      "description": "Timeout in seconds for the task run (optional)",
+      "optional": true,
+      "feel": "optional",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.timeout",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.runTaskInput.memory",
+      "label": "Memory",
+      "description": "Memory allocation for the task run (optional)",
+      "optional": true,
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.memory",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "runTask",
+        "type": "simple"
+      },
+      "type": "Dropdown",
+      "choices": [
+        { "name": "128 MB", "value": "128" },
+        { "name": "256 MB", "value": "256" },
+        { "name": "512 MB", "value": "512" },
+        { "name": "1024 MB (1 GB)", "value": "1024" },
+        { "name": "2048 MB (2 GB)", "value": "2048" },
+        { "name": "4096 MB (4 GB)", "value": "4096" },
+        { "name": "8192 MB (8 GB)", "value": "8192" },
+        { "name": "16384 MB (16 GB)", "value": "16384" },
+        { "name": "32768 MB (32 GB)", "value": "32768" }
+      ]
+    },
+    {
+      "id": "apifyRequestInput.runTaskInput.buildTag",
+      "label": "Build Tag",
+      "description": "Build tag to use (optional)",
+      "optional": true,
+      "feel": "optional",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.runTaskInput.buildTag",
         "type": "zeebe:input"
       },
       "condition": {

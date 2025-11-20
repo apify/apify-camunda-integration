@@ -20,23 +20,32 @@ public class MyRequestTest {
 
   @Test
   void shouldReplaceTokenSecretWhenReplaceSecrets() throws JsonProcessingException {
-    // given
+
+    var runActorInput = new RunActorInput(
+      "test-actor",
+      null,
+      null,
+      null,
+      null,
+      false
+    );
+    var apifyRequestInput = new ApifyRequestInput(
+      runActorInput,
+      null,
+      null
+    );
     var input = new ApifyRequest(
       new Authentication("secrets.MY_TOKEN"),
       new Operation("runActor"),
-      new ApifyRequestInput(
-          new RunActorInput("test-actor-id"),
-          null,
-          null
-      )
+      apifyRequestInput
     );
     var context = OutboundConnectorContextBuilder.create()
       .secret("MY_TOKEN", "token value")
             .variables(objectMapper.writeValueAsString(input))
       .build();
-    // when
+
     final var connectorRequest = context.bindVariables(ApifyRequest.class);
-    // then
+
     assertThat(connectorRequest)
       .extracting("authentication")
       .extracting("token")
@@ -45,76 +54,98 @@ public class MyRequestTest {
 
   @Test
   void shouldFailWhenValidateNoAuthentication() throws JsonProcessingException {
-    // given
-    var input = new ApifyRequest(
+
+    var runActorInput = new RunActorInput(
+      "test-actor",
       null,
-      new Operation("runActor"),
-      new ApifyRequestInput(
-          new RunActorInput("test-actor-id"),
-          null,
-          null
-      )
+      null,
+      null,
+      null,
+      false
+    );
+    var apifyRequestInput = new ApifyRequestInput(
+      runActorInput,
+      null,
+      null
+    );
+    var input = new ApifyRequest(
+      null, new Operation("runActor"),
+      apifyRequestInput
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
-    // when
+
     assertThatThrownBy(() -> context.bindVariables(ApifyRequest.class))
-      // then
       .isInstanceOf(ConnectorInputException.class)
       .hasMessageContaining("authentication");
   }
 
   @Test
   void shouldFailWhenValidateNoToken() throws JsonProcessingException {
-    // given
+
+    var runActorInput = new RunActorInput(
+      "test-actor",
+      null,
+      null,
+      null,
+      null,
+      false
+    );
+    var apifyRequestInput = new ApifyRequestInput(
+      runActorInput,
+      null,
+      null
+    );
     var input = new ApifyRequest(
       new Authentication(null),
       new Operation("runActor"),
-      new ApifyRequestInput(
-          new RunActorInput("test-actor-id"),
-          null,
-          null
-      )
+      apifyRequestInput
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
-    // when
+
     assertThatThrownBy(() -> context.bindVariables(ApifyRequest.class))
-      // then
       .isInstanceOf(ConnectorInputException.class)
       .hasMessageContaining("token");
   }
 
   @Test
   void shouldFailWhenValidateNoMessage() throws JsonProcessingException {
-    // given
+
     var input = new ApifyRequest(
       new Authentication("testToken"),
       new Operation("runActor"),
-      null
+      null // apifyRequestInput is null - this should cause validation error
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
-    // when
+
     assertThatThrownBy(() -> context.bindVariables(ApifyRequest.class))
-      // then
       .isInstanceOf(ConnectorInputException.class)
       .hasMessageContaining("apifyRequestInput");
   }
 
   @Test
   void shouldFailWhenValidateTokenEmpty() throws JsonProcessingException {
-    // given
+
+    var runActorInput = new RunActorInput(
+      "test-actor",
+      null,
+      null,
+      null,
+      null,
+      false
+    );
+    var apifyRequestInput = new ApifyRequestInput(
+      runActorInput,
+      null,
+      null
+    );
     var input = new ApifyRequest(
       new Authentication(""),
       new Operation("runActor"),
-      new ApifyRequestInput(
-          new RunActorInput("test-actor-id"),
-          null,
-          null
-      )
+      apifyRequestInput
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
-    // when
+
     assertThatThrownBy(() -> context.bindVariables(ApifyRequest.class))
-      // then
       .isInstanceOf(ConnectorInputException.class)
       .hasMessageContaining("authentication.token: Validation failed");
   }
