@@ -8,29 +8,23 @@ import java.util.List;
 
 public record GetDatasetItemsResponse(List<JsonNode> items) implements ApifyResult {
 
-  private static final ObjectMapper objectMapper = new ObjectMapper();
-
-  public GetDatasetItemsResponse(String jsonResponse) {
+  public GetDatasetItemsResponse(String jsonResponse) throws Exception {
     this(parseItems(jsonResponse));
   }
 
-  private static List<JsonNode> parseItems(String jsonResponse) {
-    try {
-      JsonNode rootNode = objectMapper.readTree(jsonResponse);
-      
-      if (rootNode.isArray()) {
-        List<JsonNode> items = new java.util.ArrayList<>();
-        for (JsonNode item : rootNode) {
-          items.add(item);
-        }
-        return items;
-      } else {
-        // If it's a single object, wrap it in a list
-        return List.of(rootNode);
+  private static List<JsonNode> parseItems(String jsonResponse) throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode rootNode = objectMapper.readTree(jsonResponse);
+    
+    if (rootNode.isArray()) {
+      List<JsonNode> items = new java.util.ArrayList<>();
+      for (JsonNode item : rootNode) {
+        items.add(item);
       }
-    } catch (Exception e) {
-      // If parsing fails, return empty list
-      return List.of();
+      return items;
+    } else {
+      // If it's a single object, wrap it in a list
+      return List.of(rootNode);
     }
   }
 }

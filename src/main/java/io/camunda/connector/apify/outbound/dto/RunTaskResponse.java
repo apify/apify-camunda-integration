@@ -6,25 +6,19 @@ import io.camunda.connector.apify.outbound.ApifyResult;
 
 public record RunTaskResponse(JsonNode data) implements ApifyResult {
 
-  private static final ObjectMapper objectMapper = new ObjectMapper();
-
-  public RunTaskResponse(String jsonResponse) {
+  public RunTaskResponse(String jsonResponse) throws Exception {
     this(parseResponse(jsonResponse));
   }
 
-  private static JsonNode parseResponse(String jsonResponse) {
-    try {
-      JsonNode rootNode = objectMapper.readTree(jsonResponse);
-      
-      // Extract data field if present, otherwise use root
-      if (rootNode.has("data")) {
-        return rootNode.get("data");
-      }
-      return rootNode;
-    } catch (Exception e) {
-      // If parsing fails, return empty object
-      return objectMapper.createObjectNode();
+  private static JsonNode parseResponse(String jsonResponse) throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode rootNode = objectMapper.readTree(jsonResponse);
+    
+    // Extract data field if present, otherwise use root
+    if (rootNode.has("data")) {
+      return rootNode.get("data");
     }
+    return rootNode;
   }
 }
 
