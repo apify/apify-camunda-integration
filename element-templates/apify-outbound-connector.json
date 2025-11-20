@@ -413,6 +413,44 @@
       "type": "Dropdown"
     },
     {
+      "id": "apifyRequestInput.getKeyValueStoreRecordInput.storeId",
+      "label": "Store ID",
+      "description": "Unique ID of the key-value store",
+      "optional": false,
+      "constraints": { "notEmpty": true },
+      "feel": "optional",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.getKeyValueStoreRecordInput.storeId",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "getKeyValueStoreRecord",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.getKeyValueStoreRecordInput.recordKey",
+      "label": "Record Key",
+      "description": "Key of the record to retrieve from the key-value store",
+      "optional": false,
+      "constraints": { "notEmpty": true },
+      "feel": "optional",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.getKeyValueStoreRecordInput.recordKey",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "getKeyValueStoreRecord",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
       "id": "resultVariable",
       "label": "Result variable",
       "description": "Name of variable to store the response in",

@@ -7,6 +7,7 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.Method;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
@@ -44,10 +45,10 @@ public class ApifyClient implements AutoCloseable {
      * @param urlPath The URL path to append to the base API URL (e.g., "/v2/actors")
      * @param authToken The authentication token
      * @param body The request body (null for GET requests or when no body is needed)
-     * @return The response body as a string
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails after all retries
      */
-    private String executeRequest(Method method, String urlPath, String authToken, String body) throws IOException {
+    private ResponseResult executeRequest(Method method, String urlPath, String authToken, String body) throws IOException {
         URI baseUri = URI.create(APIFY_API_URL);
         URI fullUri = baseUri.resolve(urlPath);
         String fullUrl = fullUri.toString();
@@ -64,10 +65,10 @@ public class ApifyClient implements AutoCloseable {
      * @param url The full URL to request
      * @param authToken The authentication token
      * @param body The request body (null for GET requests or when no body is needed)
-     * @return The response body as a string
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails after all retries or if a non-retryable error occurs
      */
-    private String retryWithExponentialBackoff(Method method, String url, String authToken, String body) throws IOException {
+    private ResponseResult retryWithExponentialBackoff(Method method, String url, String authToken, String body) throws IOException {
         IOException lastError = null;
         
         for (int i = 0; i < DEFAULT_EXP_BACKOFF_RETRIES; i++) {
@@ -77,7 +78,7 @@ public class ApifyClient implements AutoCloseable {
                 String responseBody = result.responseBody;
                 
                 if (statusCode >= 200 && statusCode < 300) {
-                    return responseBody;
+                    return result;
                 } else {
                     // Create an exception with status code information for retry logic
                     HttpRequestException exception = new HttpRequestException(
@@ -161,13 +162,33 @@ public class ApifyClient implements AutoCloseable {
     /**
      * Result class to hold response status code and body.
      */
-    private static class ResponseResult {
-        final int statusCode;
-        final String responseBody;
+    public static class ResponseResult {
+        private final int statusCode;
+        private final String responseBody;
+        private final byte[] responseBodyInBytes;
+        private final String contentType;
         
-        ResponseResult(int statusCode, String responseBody) {
+        ResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) {
             this.statusCode = statusCode;
             this.responseBody = responseBody;
+            this.responseBodyInBytes = responseBodyBytes;
+            this.contentType = contentType;
+        }
+        
+        public int getStatusCode() {
+            return statusCode;
+        }
+        
+        public String getResponseBody() {
+            return responseBody;
+        }
+        
+        public byte[] getResponseBodyInBytes() {
+            return responseBodyInBytes;
+        }
+        
+        public String getContentType() {
+            return contentType;
         }
     }
     
@@ -195,18 +216,34 @@ public class ApifyClient implements AutoCloseable {
         HttpClientResponseHandler<ResponseResult> responseHandler = (ClassicHttpResponse response) -> {
             int statusCode = response.getCode();
             String responseBody = "";
+            byte[] responseBodyBytes = new byte[0];
+            String contentType = "application/octet-stream"; // default
             
-            if (response.getEntity() != null && response.getEntity().getContent() != null) {
-                responseBody = new String(response.getEntity().getContent().readAllBytes(), StandardCharsets.UTF_8);
+            if (response.getEntity() != null) {
+                if (response.getEntity().getContent() != null) {
+                    responseBodyBytes = response.getEntity().getContent().readAllBytes();
+                    responseBody = new String(responseBodyBytes, StandardCharsets.UTF_8);
+                }
+                
+                // Extract content type from entity
+                String contentTypeHeader = response.getEntity().getContentType();
+                if (contentTypeHeader != null && !contentTypeHeader.isEmpty()) {
+                    // Extract just the MIME type (remove charset, boundary, etc.)
+                    if (contentTypeHeader.contains(";")) {
+                        contentType = contentTypeHeader.substring(0, contentTypeHeader.indexOf(";")).trim();
+                    } else {
+                        contentType = contentTypeHeader.trim();
+                    }
+                }
             }
             
-            return new ResponseResult(statusCode, responseBody);
+            return new ResponseResult(statusCode, responseBody, responseBodyBytes, contentType);
         };
         
         return httpClient.execute(null, request, responseHandler);
     }
     
-    private void addHeaders(org.apache.hc.core5.http.HttpRequest request, String authToken) {
+    private void addHeaders(HttpRequest request, String authToken) {
         // Add authentication header
         if (authToken != null && !authToken.isEmpty()) {
             request.setHeader("Authorization", "Bearer " + authToken);
@@ -224,10 +261,10 @@ public class ApifyClient implements AutoCloseable {
      * @param authToken The authentication token
      * @param offset The number of items to skip. Defaults to 0.
      * @param limit The maximum number of items to return. No limit by default.
-     * @return The dataset items as a JSON string
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails
      */
-    public String getDatasetItems(String datasetId, String authToken, Integer offset, Integer limit) throws IOException {
+    public ResponseResult getDatasetItems(String datasetId, String authToken, Integer offset, Integer limit) throws IOException {
         try {
             URIBuilder builder = new URIBuilder(APIFY_API_URL)
                 .setPath("/v2/datasets/" + datasetId + "/items")
@@ -245,6 +282,30 @@ public class ApifyClient implements AutoCloseable {
             return executeRequest(Method.GET, urlPath, authToken, null);
         } catch (URISyntaxException e) {
             throw new IOException("Invalid URI for dataset items request", e);
+        }
+    }
+
+    /**
+     * Gets a record from a key-value store by store ID and record key.
+     * Returns a ResponseResult containing the raw response bytes and the content type from HTTP headers.
+     * Uses retry logic with exponential backoff.
+     * 
+     * @param storeId The ID of the key-value store
+     * @param recordKey The key of the record to retrieve
+     * @param authToken The authentication token
+     * @return ResponseResult containing status code, response body, binary data, and content type
+     * @throws IOException if the request fails or if there's a URI construction error
+     */
+    public ResponseResult getKeyValueStoreRecord(String storeId, String recordKey, String authToken) throws IOException {
+        try {
+            URIBuilder builder = new URIBuilder(APIFY_API_URL)
+                .setPath("/v2/key-value-stores/" + storeId + "/records/" + recordKey);
+            
+            URI uri = builder.build();
+            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
+            return executeRequest(Method.GET, urlPath, authToken, null);
+        } catch (URISyntaxException e) {
+            throw new IOException("Invalid URI for key-value store record request", e);
         }
     }
     
@@ -271,10 +332,10 @@ public class ApifyClient implements AutoCloseable {
      * @param actorId The Actor ID (e.g. "username~actor-name" or "actorIdCode")
      * @param inputJson The Actor input as JSON string; pass null for no input body
      * @param runOptions The run options (timeout, memory, build, waitForFinishSecs)
-     * @return The response body as a JSON string (Actor run object)
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails
      */
-    public String runActor(String authToken, String actorId, String inputJson, RunOptions runOptions) throws IOException {
+    public ResponseResult runActor(String authToken, String actorId, String inputJson, RunOptions runOptions) throws IOException {
         try {
             URIBuilder builder = new URIBuilder(APIFY_API_URL)
                 .setPath("/v2/acts/" + actorId + "/runs");
@@ -310,10 +371,10 @@ public class ApifyClient implements AutoCloseable {
      * @param taskId The Task ID
      * @param inputJson The Task input as JSON string; pass null for no input body (uses task's default input)
      * @param runOptions The run options (timeout, memory, build, waitForFinishSecs)
-     * @return The response body as a JSON string (Actor run object)
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails
      */
-    public String runTask(String authToken, String taskId, String inputJson, RunOptions runOptions) throws IOException {
+    public ResponseResult runTask(String authToken, String taskId, String inputJson, RunOptions runOptions) throws IOException {
         try {
             URIBuilder builder = new URIBuilder(APIFY_API_URL)
                 .setPath("/v2/actor-tasks/" + taskId + "/runs");
@@ -346,10 +407,10 @@ public class ApifyClient implements AutoCloseable {
      * 
      * @param runId The run ID
      * @param authToken The authentication token
-     * @return The response body as a JSON string (Actor run object with current status)
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails
      */
-    public String getRunStatus(String runId, String authToken, Integer waitForFinishSecs) throws IOException {
+    public ResponseResult getRunStatus(String runId, String authToken, Integer waitForFinishSecs) throws IOException {
         String urlPath = "/v2/actor-runs/" + runId;
         if (waitForFinishSecs != null && waitForFinishSecs > 0) {
             urlPath += "?waitForFinish=" + waitForFinishSecs.toString();
@@ -362,10 +423,10 @@ public class ApifyClient implements AutoCloseable {
      * 
      * @param actorId The Actor ID (e.g. "username~actor-name" or "actorIdCode")
      * @param authToken The authentication token
-     * @return The response body as a JSON string (Actor object)
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails
      */
-    public String getActor(String actorId, String authToken) throws IOException {
+    public ResponseResult getActor(String actorId, String authToken) throws IOException {
         return executeRequest(Method.GET, "/v2/acts/" + actorId, authToken, null);
     }
 
@@ -374,10 +435,10 @@ public class ApifyClient implements AutoCloseable {
      * 
      * @param taskId The Task ID
      * @param authToken The authentication token
-     * @return The response body as a JSON string (Task object)
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails
      */
-    public String getTask(String taskId, String authToken) throws IOException {
+    public ResponseResult getTask(String taskId, String authToken) throws IOException {
         return executeRequest(Method.GET, "/v2/actor-tasks/" + taskId, authToken, null);
     }
 
@@ -386,10 +447,10 @@ public class ApifyClient implements AutoCloseable {
      * 
      * @param buildId The build ID
      * @param authToken The authentication token
-     * @return The response body as a JSON string (Build object)
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails
      */
-    public String getBuild(String buildId, String authToken) throws IOException {
+    public ResponseResult getBuild(String buildId, String authToken) throws IOException {
         return executeRequest(Method.GET, "/v2/actor-builds/" + buildId, authToken, null);
     }
 
@@ -398,13 +459,13 @@ public class ApifyClient implements AutoCloseable {
      * 
      * @param actorId The Actor ID
      * @param authToken The authentication token
-     * @return The response body as a JSON string (Build object)
+     * @return ResponseResult containing status code, response body, binary data, and content type
      * @throws IOException if the request fails
      */
-    public String getDefaultBuild(String actorId, String authToken) throws IOException {
+    public ResponseResult getDefaultBuild(String actorId, String authToken) throws IOException {
         return executeRequest(Method.GET, "/v2/acts/" + actorId + "/builds/default", authToken, null);
     }
-
+    
     /**
      * Closes the HTTP client and releases resources.
      */

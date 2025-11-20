@@ -13,7 +13,11 @@ import io.camunda.connector.apify.outbound.dto.RunActorInput;
 import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlInput;
 import io.camunda.connector.test.outbound.OutboundConnectorContextBuilder;
 
+import io.camunda.connector.apify.common.ApifyClient;
+
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -21,6 +25,13 @@ import org.junit.jupiter.api.Test;
 public class MyFunctionTest {
 
   ObjectMapper objectMapper = new ObjectMapper();
+
+  private ApifyClient.ResponseResult createResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) throws Exception {
+    Constructor<ApifyClient.ResponseResult> constructor = ApifyClient.ResponseResult.class.getDeclaredConstructor(
+        int.class, String.class, byte[].class, String.class);
+    constructor.setAccessible(true);
+    return constructor.newInstance(statusCode, responseBody, responseBodyBytes, contentType);
+  }
 
   @Test
   void shouldReturnReceivedMessageWhenExecute() throws Exception {
@@ -34,6 +45,7 @@ public class MyFunctionTest {
     );
     var apifyRequestInput = new ApifyRequestInput(
       runActorInput,
+      null,
       null,
       null,
       null
@@ -55,6 +67,7 @@ public class MyFunctionTest {
   @Test
   void shouldReturnResultForUnsupportedOperation() throws Exception {
     var apifyRequestInput = new ApifyRequestInput(
+      null,
       null,
       null,
       null,
@@ -285,10 +298,11 @@ public class MyFunctionTest {
       null // crawlerType, defaults in handler
     );
     var apifyRequestInput = new ApifyRequestInput(
-      null, // runActorInput
-      null, // runTaskInput
-      null, // getDatasetItemsInput
-      scrapeInput
+      null,
+      null,
+      null,
+      scrapeInput,
+      null
     );
     var input = new ApifyRequest(
       new Authentication("testToken"),
@@ -303,5 +317,226 @@ public class MyFunctionTest {
     assertThatThrownBy(() -> function.execute(context))
       .isInstanceOf(RuntimeException.class)
       .hasMessageContaining("Error");
+  }
+
+  @Test
+  void testParseKeyValueStoreResponse_JsonContent() throws Exception {
+    ApifyFunction function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "parseKeyValueStoreResponse", io.camunda.connector.apify.common.ApifyClient.ResponseResult.class);
+    method.setAccessible(true);
+
+    String jsonContent = "{\"name\":\"test\",\"value\":123}";
+    byte[] jsonBytes = jsonContent.getBytes(StandardCharsets.UTF_8);
+    ApifyClient.ResponseResult responseResult = 
+        createResponseResult(200, jsonContent, jsonBytes, "application/json");
+
+    var result = (io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse) 
+        method.invoke(function, responseResult);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContentType()).isEqualTo("application/json");
+    assertThat(result.getJsonValue()).isNotNull();
+    assertThat(result.getJsonValue().get("name").asText()).isEqualTo("test");
+    assertThat(result.getJsonValue().get("value").asInt()).isEqualTo(123);
+    assertThat(result.getTextValue()).isNull();
+    assertThat(result.getBase64Value()).isNull();
+  }
+
+  @Test
+  void testParseKeyValueStoreResponse_TextContent() throws Exception {
+    ApifyFunction function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "parseKeyValueStoreResponse", ApifyClient.ResponseResult.class);
+    method.setAccessible(true);
+
+    String textContent = "This is plain text content";
+    byte[] textBytes = textContent.getBytes(StandardCharsets.UTF_8);
+    ApifyClient.ResponseResult responseResult = 
+        createResponseResult(200, textContent, textBytes, "text/plain");
+
+    var result = (io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse) 
+        method.invoke(function, responseResult);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContentType()).isEqualTo("text/plain");
+    assertThat(result.getTextValue()).isEqualTo(textContent);
+    assertThat(result.getJsonValue()).isNull();
+    assertThat(result.getBase64Value()).isNull();
+  }
+
+  @Test
+  void testParseKeyValueStoreResponse_BinaryContent() throws Exception {
+    ApifyFunction function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "parseKeyValueStoreResponse", ApifyClient.ResponseResult.class);
+    method.setAccessible(true);
+
+    // Simulate binary content (e.g., image bytes)
+    byte[] binaryBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 
+                                    0x00, 0x10, 0x4A, 0x46, 0x49, 0x46}; // JPEG header
+    ApifyClient.ResponseResult responseResult = 
+        createResponseResult(200, "", binaryBytes, "image/jpeg");
+
+    var result = (io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse) 
+        method.invoke(function, responseResult);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContentType()).isEqualTo("image/jpeg");
+    assertThat(result.getBase64Value()).isNotNull();
+    assertThat(result.getBase64Value()).isEqualTo(java.util.Base64.getEncoder().encodeToString(binaryBytes));
+    assertThat(result.getJsonValue()).isNull();
+    assertThat(result.getTextValue()).isNull();
+  }
+
+  @Test
+  void testParseKeyValueStoreResponse_EmptyContent() throws Exception {
+    ApifyFunction function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "parseKeyValueStoreResponse", ApifyClient.ResponseResult.class);
+    method.setAccessible(true);
+
+    byte[] emptyBytes = new byte[0];
+    ApifyClient.ResponseResult responseResult = 
+        createResponseResult(200, "", emptyBytes, "application/octet-stream");
+
+    var result = (io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse) 
+        method.invoke(function, responseResult);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContentType()).isEqualTo("application/octet-stream");
+    assertThat(result.getJsonValue()).isNull();
+    assertThat(result.getTextValue()).isNull();
+    assertThat(result.getBase64Value()).isNull();
+  }
+
+  @Test
+  void testParseKeyValueStoreResponse_NullContent() throws Exception {
+    ApifyFunction function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "parseKeyValueStoreResponse", ApifyClient.ResponseResult.class);
+    method.setAccessible(true);
+
+    ApifyClient.ResponseResult responseResult = 
+        createResponseResult(200, "", null, "application/octet-stream");
+
+    var result = (io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse) 
+        method.invoke(function, responseResult);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContentType()).isEqualTo("application/octet-stream");
+    assertThat(result.getJsonValue()).isNull();
+    assertThat(result.getTextValue()).isNull();
+    assertThat(result.getBase64Value()).isNull();
+  }
+
+  @Test
+  void testParseKeyValueStoreResponse_TextWithSpecialCharacters() throws Exception {
+    ApifyFunction function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "parseKeyValueStoreResponse", ApifyClient.ResponseResult.class);
+    method.setAccessible(true);
+
+    String textContent = "Hello World! こんにちは 🌍";
+    byte[] textBytes = textContent.getBytes(StandardCharsets.UTF_8);
+    ApifyClient.ResponseResult responseResult = 
+        createResponseResult(200, textContent, textBytes, "text/plain");
+
+    var result = (io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse) 
+        method.invoke(function, responseResult);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContentType()).isEqualTo("text/plain");
+    assertThat(result.getTextValue()).isEqualTo(textContent);
+    assertThat(result.getJsonValue()).isNull();
+    assertThat(result.getBase64Value()).isNull();
+  }
+
+  @Test
+  void testParseKeyValueStoreResponse_InvalidJsonButValidText() throws Exception {
+    ApifyFunction function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "parseKeyValueStoreResponse", ApifyClient.ResponseResult.class);
+    method.setAccessible(true);
+
+    // Invalid JSON but valid text
+    String invalidJson = "{name: test, value: 123}"; // Missing quotes
+    byte[] textBytes = invalidJson.getBytes(StandardCharsets.UTF_8);
+    ApifyClient.ResponseResult responseResult = 
+        createResponseResult(200, invalidJson, textBytes, "text/plain");
+
+    var result = (io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse) 
+        method.invoke(function, responseResult);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContentType()).isEqualTo("text/plain");
+    assertThat(result.getTextValue()).isEqualTo(invalidJson);
+    assertThat(result.getJsonValue()).isNull();
+    assertThat(result.getBase64Value()).isNull();
+  }
+
+  @Test
+  void testParseKeyValueStoreResponse_TextWithLowPrintableRatio() throws Exception {
+    ApifyFunction function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "parseKeyValueStoreResponse", ApifyClient.ResponseResult.class);
+    method.setAccessible(true);
+
+    // Create text with less than 80% printable characters
+    // Mix of printable and non-printable control characters
+    byte[] mixedBytes = new byte[100];
+    for (int i = 0; i < 50; i++) {
+      mixedBytes[i] = (byte) ('A' + (i % 26)); // Printable
+    }
+    for (int i = 50; i < 100; i++) {
+      mixedBytes[i] = (byte) (i % 32); // Non-printable control chars
+    }
+
+    ApifyClient.ResponseResult responseResult = 
+        createResponseResult(200, "", mixedBytes, "application/octet-stream");
+
+    var result = (io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse) 
+        method.invoke(function, responseResult);
+
+    assertThat(result).isNotNull();
+    // Should be treated as binary since printable ratio is < 80%
+    assertThat(result.getContentType()).isEqualTo("application/octet-stream");
+    assertThat(result.getBase64Value()).isNotNull();
+    assertThat(result.getTextValue()).isNull();
+    assertThat(result.getJsonValue()).isNull();
+  }
+
+  @Test
+  void testParseKeyValueStoreResponse_ComplexJson() throws Exception {
+    ApifyFunction function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "parseKeyValueStoreResponse", ApifyClient.ResponseResult.class);
+    method.setAccessible(true);
+
+    String complexJson = """
+        {
+          "array": [1, 2, 3],
+          "nested": {
+            "key": "value",
+            "number": 42.5
+          },
+          "boolean": true,
+          "null": null
+        }
+        """;
+    byte[] jsonBytes = complexJson.getBytes(StandardCharsets.UTF_8);
+    ApifyClient.ResponseResult responseResult = 
+        createResponseResult(200, complexJson, jsonBytes, "application/json");
+
+    var result = (io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse) 
+        method.invoke(function, responseResult);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getContentType()).isEqualTo("application/json");
+    assertThat(result.getJsonValue()).isNotNull();
+    assertThat(result.getJsonValue().has("array")).isTrue();
+    assertThat(result.getJsonValue().has("nested")).isTrue();
+    assertThat(result.getTextValue()).isNull();
+    assertThat(result.getBase64Value()).isNull();
   }
 }
