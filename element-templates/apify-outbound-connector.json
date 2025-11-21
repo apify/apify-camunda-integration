@@ -372,6 +372,47 @@
       "type": "Number"
     },
     {
+      "id": "apifyRequestInput.scrapeSingleUrlInput.url",
+      "label": "URL",
+      "description": "URL to be scraped. Must start with http:// or https:// and be a valid URL.",
+      "optional": false,
+      "constraints": { "notEmpty": true },
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.scrapeSingleUrlInput.url",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "scrapeSingleUrl",
+        "type": "simple"
+      },
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.scrapeSingleUrlInput.crawlerType",
+      "label": "Crawler Type",
+      "description": "Select the crawling engine",
+      "group": "apifyRequestInput",
+      "condition": {
+        "property": "operation.type",
+        "equals": "scrapeSingleUrl",
+        "type": "simple"
+      },
+      "binding": {
+        "name": "apifyRequestInput.scrapeSingleUrlInput.crawlerType",
+        "type": "zeebe:input"
+      },
+      "choices": [
+        { "name": "Cheerio", "value": "cheerio" },
+        { "name": "JSDOM", "value": "jsdom" },
+        { "name": "Playwright Adaptive", "value": "playwright:adaptive" },
+        { "name": "Playwright Firefox", "value": "playwright:firefox" }
+      ],
+      "value": "cheerio",
+      "type": "Dropdown"
+    },
+    {
       "id": "resultVariable",
       "label": "Result variable",
       "description": "Name of variable to store the response in",

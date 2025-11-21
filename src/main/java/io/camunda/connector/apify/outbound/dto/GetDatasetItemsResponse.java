@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.camunda.connector.apify.outbound.ApifyResult;
 
 import java.util.List;
+import java.util.ArrayList;
 
 public record GetDatasetItemsResponse(List<JsonNode> items) implements ApifyResult {
 
@@ -17,7 +18,7 @@ public record GetDatasetItemsResponse(List<JsonNode> items) implements ApifyResu
     JsonNode rootNode = objectMapper.readTree(jsonResponse);
     
     if (rootNode.isArray()) {
-      List<JsonNode> items = new java.util.ArrayList<>();
+      List<JsonNode> items = new ArrayList<>();
       for (JsonNode item : rootNode) {
         items.add(item);
       }

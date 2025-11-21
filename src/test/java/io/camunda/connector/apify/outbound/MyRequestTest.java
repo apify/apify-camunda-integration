@@ -32,6 +32,7 @@ public class MyRequestTest {
     var apifyRequestInput = new ApifyRequestInput(
       runActorInput,
       null,
+      null,
       null
     );
     var input = new ApifyRequest(
@@ -66,6 +67,7 @@ public class MyRequestTest {
     var apifyRequestInput = new ApifyRequestInput(
       runActorInput,
       null,
+      null,
       null
     );
     var input = new ApifyRequest(
@@ -92,6 +94,7 @@ public class MyRequestTest {
     );
     var apifyRequestInput = new ApifyRequestInput(
       runActorInput,
+      null,
       null,
       null
     );
@@ -135,6 +138,7 @@ public class MyRequestTest {
     );
     var apifyRequestInput = new ApifyRequestInput(
       runActorInput,
+      null,
       null,
       null
     );
