@@ -13,7 +13,11 @@ public record ScrapeSingleUrlResponse(JsonNode data) implements ApifyResult {
   private static JsonNode parseResponse(String jsonResponse) throws Exception {
     ObjectMapper objectMapper = new ObjectMapper();
     JsonNode rootNode = objectMapper.readTree(jsonResponse);
-      
+
+    // Extract data field if present, otherwise use root
+    if (rootNode.has("data")) {
+      return rootNode.get("data");
+    }
     return rootNode;
   }
 }

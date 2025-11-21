@@ -14,6 +14,10 @@ public record RunActorResponse(JsonNode data) implements ApifyResult {
     ObjectMapper objectMapper = new ObjectMapper();
     JsonNode rootNode = objectMapper.readTree(jsonResponse);
     
+    // Extract data field if present, otherwise use root
+    if (rootNode.has("data")) {
+      return rootNode.get("data");
+    }
     return rootNode;
   }
 }

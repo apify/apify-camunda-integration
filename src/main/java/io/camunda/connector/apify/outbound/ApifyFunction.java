@@ -262,7 +262,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       Map<String, Object> startUrlObj = new HashMap<>();
       startUrlObj.put("url", input.url());
       actorInput.put("startUrls", Collections.singletonList(startUrlObj));
-      actorInput.put("crawlerType", input.crawlerType() != null ? input.crawlerType() : "cheerio");
+      actorInput.put("crawlerType", input.crawlerType());
       actorInput.put("maxCrawlDepth", 0);
       actorInput.put("maxCrawlPages", 1);
       actorInput.put("maxResults", 1);
