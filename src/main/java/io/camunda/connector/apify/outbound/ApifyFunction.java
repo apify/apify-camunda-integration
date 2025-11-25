@@ -506,12 +506,10 @@ public class ApifyFunction implements OutboundConnectorFunction {
     GetKeyValueStoreRecordInput recordInput = apifyRequestInput.getKeyValueStoreRecordInput();
     
     if (recordInput == null) {
-      throw new IllegalArgumentException("getKeyValueStoreRecordInput is null");
+      throw new ConnectorInputException("Error: getKeyValueStoreRecordInput is null");
     }
     
-    if (authentication == null || authentication.token() == null || authentication.token().isEmpty()) {
-      throw new IllegalArgumentException("Authentication token is required");
-    }
+    validateAuthentication(authentication);
     
     try (ApifyClient apifyClient = new ApifyClient()) {
       
