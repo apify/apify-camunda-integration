@@ -1,0 +1,106 @@
+{
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "Apify Connector",
+  "id": "io.camunda.connector.inbound.Apify.v1",
+  "version": 1,
+  "description": "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.",
+  "metadata": {
+    "keywords": ["apify", "connector", "webhook", "inbound", "actor", "task"]
+  },
+  "category": {
+    "id": "connectors",
+    "name": "Connectors"
+  },
+  "appliesTo": ["bpmn:StartEvent", "bpmn:IntermediateCatchEvent"],
+  "elementType": { "value": "bpmn:StartEvent", "eventDefinition": "bpmn:MessageEventDefinition" },
+  "groups": [
+    { "id": "authentication", "label": "Authentication" },
+    { "id": "trigger", "label": "Trigger details" },
+    { "id": "output", "label": "Output mapping" }  
+  ],
+  "properties": [
+    {
+      "value": "io.camunda:apify-inbound:1",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "inbound.type"
+      },
+      "type": "Hidden"
+    },
+    {
+      "id": "token",
+      "label": "API Token",
+      "description": "The Apify API token for authentication",
+      "type": "String",
+      "feel": "optional",
+      "group": "authentication",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "token"
+      },
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+    {
+      "id": "resourceType",
+      "label": "Resource Type",
+      "description": "The type of Apify resource to listen for events from",
+      "type": "Dropdown",
+      "group": "trigger",
+      "value": "actor",
+      "choices": [
+        { "name": "Actor", "value": "actor" },
+        { "name": "Task", "value": "task" }
+      ],
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resourceType"
+      },
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+    {
+      "id": "resourceId",
+      "label": "Resource ID",
+      "description": "The Actor ID or Task ID to subscribe to. For Actors, use the format 'username~actor-name' or the Actor ID.",
+      "type": "String",
+      "feel": "optional",
+      "group": "trigger",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resourceId"
+      },
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+    {
+      "id": "resultVariable",
+      "label": "Result Variable",
+      "description": "Name of the variable to store the webhook event data",
+      "type": "String",
+      "group": "output",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resultVariable"
+      }
+    },
+    {
+      "id": "resultExpression",
+      "label": "Result Expression",
+      "description": "FEEL expression to map the webhook data into process variables",
+      "type": "Text",
+      "feel": "required",
+      "group": "output",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resultExpression"
+      }
+    }
+  ],
+  "icon": {
+    "contents": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE4LjM1MTIgMEgzMS41MTUyQzMxLjc4MjkgMCAzMiAwLjIxNzA3NCAzMiAwLjQ4NDg0OFYyMC42MDI1QzMyIDIxLjA4NDQgMzEuMzczMyAyMS4yNzEyIDMxLjEwOTQgMjAuODY4TDE3Ljk0NTUgMC43NTAzMjNDMTcuNzM0NSAwLjQyNzg1OSAxNy45NjU5IDAgMTguMzUxMiAwWiIgZmlsbD0iIzI0NkRGRiIvPgo8cGF0aCBkPSJNMTMuNjQ4OCAwSDAuNDg0ODQ4QzAuMjE3MDc0IDAgMCAwLjIxNzA3NCAwIDAuNDg0ODQ4VjIwLjYwMjVDMCAyMS4wODQ0IDAuNjI2NzE3IDIxLjI3MTIgMC44OTA1NTkgMjAuODY4TDE0LjA1NDUgMC43NTAzMjNDMTQuMjY1NSAwLjQyNzg1OSAxNC4wMzQxIDAgMTMuNjQ4OCAwWiIgZmlsbD0iIzIwQTM0RSIvPgo8cGF0aCBkPSJNMTUuNzc0NSAxNi4xMDY5TDAuODIwMjM1IDMxLjE3MzZDMC41MTY1NiAzMS40Nzk2IDAuNzMzMjc3IDMyIDEuMTY0MzYgMzJIMzAuODQ4QzMxLjI3NzMgMzIgMzEuNDk0OCAzMS40ODMyIDMxLjE5NDcgMzEuMTc2MkwxNi40NjUzIDE2LjEwOTVDMTYuMjc2MSAxNS45MTYgMTUuOTY1MSAxNS45MTQ4IDE1Ljc3NDUgMTYuMTA2OVoiIGZpbGw9IiNGODY2MDYiLz4KPC9zdmc+Cg=="
+  }
+}
