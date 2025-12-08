@@ -135,6 +135,15 @@
                                 </file>
                             </files>
                         </connector>
+                        <connector>
+                            <connectorClass>io.camunda.connector.apify.inbound.ApifyInboundExecutable</connectorClass>
+                            <files>
+                                <file>
+                                    <templateId>io.camunda.connector.inbound.Apify.v1</templateId>
+                                    <templateFileName>apify-inbound-connector.json</templateFileName>
+                                </file>
+                            </files>
+                        </connector>
                     </connectors>
                 </configuration>
             </plugin>

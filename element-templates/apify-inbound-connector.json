@@ -4,6 +4,7 @@
   "id": "io.camunda.connector.inbound.Apify.v1",
   "version": 1,
   "description": "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.",
+  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/docs/START_EVENT_EXAMPLE.md",
   "metadata": {
     "keywords": ["apify", "connector", "webhook", "inbound", "actor", "task"]
   },
@@ -11,21 +12,31 @@
     "id": "connectors",
     "name": "Connectors"
   },
-  "appliesTo": ["bpmn:StartEvent", "bpmn:IntermediateCatchEvent"],
-  "elementType": { "value": "bpmn:StartEvent", "eventDefinition": "bpmn:MessageEventDefinition" },
+  "appliesTo": ["bpmn:StartEvent"],
+  "elementType": { 
+    "value": "bpmn:StartEvent"
+  },
   "groups": [
     { "id": "authentication", "label": "Authentication" },
-    { "id": "trigger", "label": "Trigger details" },
-    { "id": "output", "label": "Output mapping" }  
+    { "id": "trigger", "label": "Trigger Details" },
+    { "id": "activation", "label": "Activation" },
+    { "id": "output", "label": "Output Mapping" }
   ],
   "properties": [
     {
-      "value": "io.camunda:apify-inbound:1",
-      "binding": {
-        "type": "zeebe:property",
-        "name": "inbound.type"
-      },
-      "type": "Hidden"
+      "id": "method",
+      "label": "Authentication Method",
+      "description": "Method to authenticate with the Apify API",
+      "optional": false,
+      "value": "token",
+      "constraints": { "notEmpty": true },
+      "group": "authentication",
+      "binding": { "name": "method", "type": "zeebe:property" },
+      "type": "Dropdown",
+      "choices": [
+        { "name": "API Token", "value": "token" },
+        { "name": "Sign in with Apify", "value": "oauth" }
+      ]
     },
     {
       "id": "token",
@@ -37,6 +48,11 @@
       "binding": {
         "type": "zeebe:property",
         "name": "token"
+      },
+      "condition": {
+        "property": "method",
+        "equals": "token",
+        "type": "simple"
       },
       "constraints": {
         "notEmpty": true
@@ -64,7 +80,7 @@
     {
       "id": "resourceId",
       "label": "Resource ID",
-      "description": "The Actor ID or Task ID to subscribe to. For Actors, use the format 'username~actor-name' or the Actor ID.",
+      "description": "Actor ID or Task ID (e.g., 'apify/google-search-scraper' or 'username/actor-name').",
       "type": "String",
       "feel": "optional",
       "group": "trigger",
@@ -77,11 +93,42 @@
       }
     },
     {
+      "id": "context",
+      "label": "Webhook ID",
+      "description": "Unique identifier for this webhook endpoint (auto-generated)",
+      "type": "String",
+      "group": "activation",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "inbound.context"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "generatedValue": {
+        "type": "uuid"
+      }
+    },
+    {
+      "id": "activationCondition",
+      "label": "Activation Condition",
+      "description": "Optional FEEL expression to filter events (e.g., '=status = \"SUCCEEDED\"'). Use this to only start processes for successful Actor runs, ignore failures, etc. Leave empty to process all events.",
+      "type": "Text",
+      "feel": "required",
+      "group": "activation",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:property",
+        "name": "activationCondition"
+      }
+    },
+    {
       "id": "resultVariable",
       "label": "Result Variable",
-      "description": "Name of the variable to store the webhook event data",
+      "description": "Name of the variable to store the webhook event data. The event includes: eventType, runId, status, actorId, taskId, defaultDatasetId, and more. See documentation for full list.",
       "type": "String",
       "group": "output",
+      "optional": true,
       "binding": {
         "type": "zeebe:property",
         "name": "resultVariable"
@@ -90,14 +137,23 @@
     {
       "id": "resultExpression",
       "label": "Result Expression",
-      "description": "FEEL expression to map the webhook data into process variables",
+      "description": "Optional FEEL expression to transform the webhook data before storing. Example: '={runId: runId, status: status, datasetId: defaultDatasetId}'",
       "type": "Text",
       "feel": "required",
       "group": "output",
+      "optional": true,
       "binding": {
         "type": "zeebe:property",
         "name": "resultExpression"
       }
+    },
+    {
+      "value": "io.camunda:apify-inbound:1",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "inbound.type"
+      },
+      "type": "Hidden"
     }
   ],
   "icon": {
