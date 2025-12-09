@@ -81,19 +81,14 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         this.callbackUrl = getCallbackUrl();
         try {
             this.apifyClient = new ApifyClient();
-        
-            if (callbackUrl != null && !callbackUrl.isEmpty()) {
-                // Create webhook in Apify
-                createApifyWebhook();
-                LOGGER.info("Apify webhook created successfully. Webhook ID: {}", webhookId);
-                context.reportHealth(Health.up());
-            } else {
-                LOGGER.warn("No callback URL available. Webhook not created. " +
-                    "Configure the webhook manually in the Apify Console, pointing to this connector's endpoint. The expected callback URL is: {}", callbackUrl);
-                context.reportHealth(Health.down());
-            }
+            
+            // Create webhook in Apify
+            createApifyWebhook();
+            LOGGER.info("Apify webhook created successfully. Webhook ID: {}", webhookId);
+            context.reportHealth(Health.up());
         } catch (Exception e) {
             LOGGER.error("Error activating Apify inbound connector: {}", e.getMessage(), e);
+            context.reportHealth(Health.down(e));
             closeApifyClient();
             throw e;
         }
