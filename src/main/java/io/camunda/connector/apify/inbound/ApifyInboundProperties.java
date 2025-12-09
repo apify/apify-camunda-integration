@@ -2,7 +2,6 @@ package io.camunda.connector.apify.inbound;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Configuration properties for the Apify Inbound Connector.
@@ -23,7 +22,7 @@ public record ApifyInboundProperties(
      * The type of resource to subscribe to (actor or task).
      */
     @NotNull
-    String resourceType,
+    ResourceType resourceType,
     
     /**
      * The Actor ID or Task ID to subscribe to.

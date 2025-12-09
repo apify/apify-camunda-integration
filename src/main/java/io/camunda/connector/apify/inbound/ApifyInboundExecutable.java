@@ -188,7 +188,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private String getBaseUrl() {
         // TODO: this exact port might not be the best solution, it will work for my instance for now
         // TODO: change default url to camunda instance url
-        return System.getenv("CONNECTOR_BASE_URL") != null ? System.getenv("CONNECTOR_BASE_URL") : "https://localhost:9898";
+        return System.getenv("CONNECTOR_BASE_URL") != null ? System.getenv("CONNECTOR_BASE_URL") : "https://localhost.com";
     }
 
     /**
@@ -263,14 +263,9 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         
         // Set the condition based on resource type
         ObjectNode conditionNode = OBJECT_MAPPER.createObjectNode();
-        if (properties.resourceType().equals("actor")) {
-            conditionNode.put("actorId", properties.getNormalizedResourceId());
-        } else {
-            conditionNode.put("actorTaskId", properties.getNormalizedResourceId());
-        }
-
-        webhookNode.put("requestUrl", callbackUrl);
+        conditionNode.put(properties.resourceType().getConditionKey(), properties.getNormalizedResourceId());
         webhookNode.set("condition", conditionNode);
+        webhookNode.put("requestUrl", callbackUrl);
         webhookNode.put("payloadTemplate", PAYLOAD_TEMPLATE.trim());
         webhookNode.put("shouldInterpolateStrings", true);
         
