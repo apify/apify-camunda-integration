@@ -39,7 +39,6 @@ public record ApifyInboundProperties(
      * @return The normalized resource ID
      */
     public String getNormalizedResourceId() {
-        System.out.println("Normalizing resource ID: " + resourceId);
         if (resourceId == null) {
             return null;
         }

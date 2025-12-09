@@ -78,23 +78,39 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         LOGGER.debug("Activating Apify inbound connector");
         this.context = context;
         this.properties = context.bindProperties(ApifyInboundProperties.class);
-        this.apifyClient = new ApifyClient();
         this.callbackUrl = getCallbackUrl();
+        try {
+            this.apifyClient = new ApifyClient();
+        
+            if (callbackUrl != null && !callbackUrl.isEmpty()) {
+                // Create webhook in Apify
+                createApifyWebhook();
+                LOGGER.info("Apify webhook created successfully. Webhook ID: {}", webhookId);
+                context.reportHealth(Health.up());
+            } else {
+                LOGGER.warn("No callback URL available. Webhook not created. " +
+                    "Configure the webhook manually in the Apify Console, pointing to this connector's endpoint. The expected callback URL is: {}", callbackUrl);
+                context.reportHealth(Health.down());
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error activating Apify inbound connector: {}", e.getMessage(), e);
+            closeApifyClient();
+            throw e;
+        }
+    }
 
-        LOGGER.info("Creating Apify webhook for resource type: {}, resource ID: {}", 
-            properties.resourceType(), properties.resourceId());
-        
-        // TODO: i should check how the camunda generates the callback url 
-        
-        if (callbackUrl != null && !callbackUrl.isEmpty()) {
-            // Create webhook in Apify
-            createApifyWebhook();
-            LOGGER.info("Apify webhook created successfully. Webhook ID: {}", webhookId);
-            context.reportHealth(Health.up());
-        } else {
-            LOGGER.warn("No callback URL available. Webhook not created. " +
-                "Configure the webhook manually in the Apify Console, pointing to this connector's endpoint. The expected callback URL is: {}", callbackUrl);
-            context.reportHealth(Health.down());
+    /**
+     * Closes the ApifyClient, logging any errors but not throwing them.
+     */
+    private void closeApifyClient() {
+        if (apifyClient != null) {
+            try {
+                apifyClient.close();
+            } catch (IOException e) {
+                LOGGER.warn("Error closing ApifyClient during cleanup: {}", e.getMessage());
+            } finally {
+                apifyClient = null;
+            }
         }
     }
     
@@ -118,15 +134,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             }
         }
         
-        if (apifyClient != null) {
-            try {
-                apifyClient.close();
-                context.reportHealth(Health.up());
-            } catch (IOException e) {
-                LOGGER.warn("Error closing ApifyClient: {}", e.getMessage());
-                context.reportHealth(Health.down());
-            }
-        }
+        closeApifyClient();
     }
     
     /**
@@ -203,8 +211,9 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         Map<String, Object> inboundContext = (Map<String, Object>) context.getProperties().get("inbound");
         String contextValue = (String) inboundContext.get("context");
 
-        if (contextValue != null) {
+        if (contextValue == null) {
             LOGGER.warn("Inbound context is not available.");
+            return null;
         }
         
         return getBaseUrl() + "/inbound/" + contextValue;
