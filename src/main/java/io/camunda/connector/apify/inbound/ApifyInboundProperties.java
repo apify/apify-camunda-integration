@@ -2,6 +2,7 @@ package io.camunda.connector.apify.inbound;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Configuration properties for the Apify Inbound Connector.
@@ -15,7 +16,7 @@ public record ApifyInboundProperties(
     /**
      * The Apify API token for authentication.
      */
-    @NotEmpty 
+    @NotEmpty
     String token,
     
     /**
@@ -28,13 +29,7 @@ public record ApifyInboundProperties(
      * The Actor ID or Task ID to subscribe to.
      */
     @NotEmpty
-    String resourceId,
-
-    /**
-     * The generated webhook id.
-     */
-    @NotEmpty
-    String context
+    String resourceId
 ) {
 
     /**
