@@ -477,7 +477,6 @@ public class ApifyClient implements AutoCloseable {
      * - condition: Object with actorId or actorTaskId to filter events
      * - requestUrl: The URL where Apify will send webhook notifications
      * - payloadTemplate: Template for the webhook payload (optional)
-     * - idempotencyKey: Unique key to prevent duplicate webhooks (optional)
      * 
      * @param authToken The authentication token
      * @param webhookJson The webhook configuration as JSON string
