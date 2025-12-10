@@ -31,42 +31,31 @@ import java.util.function.Function;
 /**
  * Apify Inbound Connector implementation that listens for Apify webhook events.
  */
-@InboundConnector(
-    name = "Apify Inbound Connector",
-    type = "io.camunda:apify-inbound:1"
-)
-@ElementTemplate(
-    id = "io.camunda.connector.inbound.Apify.v1",
-    name = "Apify Connector",
-    version = 1,
-    description = "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.",
-    // TODO: update documentation link
-    documentationRef = "https://docs.camunda.io/docs/components/connectors/in-the-box-connectors/available-connectors-overview/",
-    inputDataClass = ApifyInboundProperties.class
-)
+@InboundConnector(name = "Apify Inbound Connector", type = "io.camunda:apify-inbound:1")
+@ElementTemplate(id = "io.camunda.connector.inbound.Apify.v1", name = "Apify Connector", version = 1, description = "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.",
+        // TODO: update documentation link
+        documentationRef = "https://docs.camunda.io/docs/components/connectors/in-the-box-connectors/available-connectors-overview/", inputDataClass = ApifyInboundProperties.class)
 public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApifyInboundExecutable.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final List<String> EVENT_TYPES = List.of(
-        "ACTOR.RUN.SUCCEEDED",
-        "ACTOR.RUN.FAILED",
-        "ACTOR.RUN.TIMED_OUT",
-        "ACTOR.RUN.ABORTED"
-    );
-    private static final String PAYLOAD_TEMPLATE =
-        "{\n" +
-        "    \"userId\": {{userId}},\n" +
-        "    \"createdAt\": {{createdAt}},\n" +
-        "    \"eventType\": {{eventType}},\n" +
-        "    \"eventData\": {{eventData}},\n" +
-        "    \"resource\": {{resource}}\n" +
-        "}";
+            "ACTOR.RUN.SUCCEEDED",
+            "ACTOR.RUN.FAILED",
+            "ACTOR.RUN.TIMED_OUT",
+            "ACTOR.RUN.ABORTED");
+    private static final String PAYLOAD_TEMPLATE = "{\n" +
+            "    \"userId\": {{userId}},\n" +
+            "    \"createdAt\": {{createdAt}},\n" +
+            "    \"eventType\": {{eventType}},\n" +
+            "    \"eventData\": {{eventData}},\n" +
+            "    \"resource\": {{resource}}\n" +
+            "}";
     private InboundConnectorContext context;
     private ApifyInboundProperties properties;
     private String callbackUrl;
     private String webhookId;
     private ApifyClient apifyClient;
-    
+
     /**
      * Activates the inbound connector by creating a webhook subscription in Apify.
      * 
@@ -81,7 +70,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         this.callbackUrl = getCallbackUrl();
         try {
             this.apifyClient = new ApifyClient();
-            
+
             // Create webhook in Apify
             createApifyWebhook();
             LOGGER.info("Apify webhook created successfully. Webhook ID: {}", webhookId);
@@ -108,7 +97,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             }
         }
     }
-    
+
     /**
      * Deactivates the inbound connector and deletes the webhook from Apify.
      * 
@@ -117,7 +106,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     @Override
     public void deactivate() throws Exception {
         LOGGER.info("Removing Apify webhook. Webhook ID: {}", webhookId);
-        
+
         if (webhookId != null && apifyClient != null && properties != null) {
             try {
                 apifyClient.deleteWebhook(properties.token(), webhookId);
@@ -128,10 +117,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
                 LOGGER.error("Failed to delete webhook {}: {}", webhookId, e.getMessage(), e);
             }
         }
-        
+
         closeApifyClient();
     }
-    
+
     /**
      * Processes incoming webhook requests from Apify.
      * 
@@ -142,38 +131,37 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     @Override
     public WebhookResult triggerWebhook(WebhookProcessingPayload payload) throws Exception {
         LOGGER.debug("Received webhook payload");
-        
+
         byte[] rawBody = payload.rawBody();
-        
+
         if (rawBody == null || rawBody.length == 0) {
             LOGGER.warn("Received webhook with empty body.");
             return createErrorResult(payload, "Empty request body");
         }
-        
+
         try {
             // Parse the webhook body
             String bodyString = new String(rawBody, StandardCharsets.UTF_8);
             ApifyInboundEvent event = OBJECT_MAPPER.readValue(bodyString, ApifyInboundEvent.class);
-            
+
             if (event == null) {
                 LOGGER.warn("Failed to parse webhook body");
                 return createErrorResult(payload, "Failed to parse webhook body");
             }
-            
+
             // Build the result map to pass to the process
             Map<String, Object> connectorData = buildConnectorData(event);
-            
+
             // Create MappedHttpRequest from payload
             Object parsedBody = OBJECT_MAPPER.readValue(bodyString, Object.class);
             MappedHttpRequest mappedRequest = new MappedHttpRequest(
-                parsedBody,
-                payload.headers(),
-                payload.params()
-            );
-            
+                    parsedBody,
+                    payload.headers(),
+                    payload.params());
+
             // Return successful result with correlation data
             return createSuccessResult(mappedRequest, connectorData);
-            
+
         } catch (Exception e) {
             LOGGER.error("Error processing webhook: {}", e.getMessage(), e);
             return createErrorResult(payload, "Error processing webhook: " + e.getMessage());
@@ -186,9 +174,13 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      * @return The base URL.
      */
     private String getBaseUrl() {
-        // TODO: this exact port might not be the best solution, it will work for my instance for now
-        // TODO: change default url to camunda instance url
-        return System.getenv("CONNECTOR_BASE_URL") != null ? System.getenv("CONNECTOR_BASE_URL") : "https://localhost.com";
+        String baseUrl = System.getenv("CONNECTOR_BASE_URL");
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new IllegalArgumentException(
+                    "CONNECTOR_BASE_URL environment variable must be set for inbound connectors. \n"
+                            + "This should be the public URL where Camunda connectors receive webhook callbacks.");
+        }
+        return baseUrl;
     }
 
     /**
@@ -197,7 +189,8 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      * @return The webhook callback URL, or null if not available
      */
     private String getCallbackUrl() {
-        // TODO: camunda does not provide a default programmatic api to retrieve full redirect url
+        // TODO: camunda does not provide a default programmatic api to retrieve full
+        // redirect url
         // TODO: connector runtime must know its own listening address
         // TODO: camunda exposes just the path comonent via bpmn properties
         LOGGER.debug("Getting callback URL from Camunda runtime context");
@@ -210,10 +203,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             LOGGER.warn("Inbound context is not available.");
             return null;
         }
-        
+
         return getBaseUrl() + "/inbound/" + contextValue;
     }
-    
+
     /**
      * Creates a webhook subscription in Apify for the configured resource.
      * 
@@ -221,10 +214,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      */
     private void createApifyWebhook() throws IOException {
         LOGGER.debug("Creating Apify webhook with callback URL: {}.", callbackUrl);
-        
+
         // Build the webhook payload
         String webhookJson = buildWebhookPayload();
-        
+
         // Create the webhook
         ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.token(), webhookJson);
         String responseBody = result.getResponseBody();
@@ -244,7 +237,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             throw new IOException("Failed to extract webhook ID from response: " + responseBody);
         }
     }
-    
+
     /**
      * Builds the JSON payload for creating an Apify webhook.
      * 
@@ -254,13 +247,13 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private String buildWebhookPayload() throws JsonProcessingException {
         LOGGER.debug("Building Apify webhook payload with callback URL: {}", callbackUrl);
         ObjectNode webhookNode = OBJECT_MAPPER.createObjectNode();
-        
+
         // Add all event types to the webhook
         ArrayNode eventTypesArray = webhookNode.putArray("eventTypes");
         for (String eventType : EVENT_TYPES) {
             eventTypesArray.add(eventType);
         }
-        
+
         // Set the condition based on resource type
         ObjectNode conditionNode = OBJECT_MAPPER.createObjectNode();
         conditionNode.put(properties.resourceType().getConditionKey(), properties.getNormalizedResourceId());
@@ -268,10 +261,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         webhookNode.put("requestUrl", callbackUrl);
         webhookNode.put("payloadTemplate", PAYLOAD_TEMPLATE.trim());
         webhookNode.put("shouldInterpolateStrings", true);
-        
+
         return OBJECT_MAPPER.writeValueAsString(webhookNode);
     }
-    
+
     /**
      * Builds the connector data map from the Apify event.
      * 
@@ -281,7 +274,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private Map<String, Object> buildConnectorData(ApifyInboundEvent event) {
         LOGGER.debug("Building connector data map from Apify event");
         Map<String, Object> result = new HashMap<>();
-        
+
         result.put("eventType", event.eventType());
         result.put("userId", event.userId());
         result.put("createdAt", event.createdAt());
@@ -291,24 +284,24 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         result.put("taskId", event.getTaskId());
         result.put("defaultDatasetId", event.getDefaultDatasetId());
         result.put("defaultKeyValueStoreId", event.getDefaultKeyValueStoreId());
-        
+
         // Include the full resource as a map
         if (event.resource() != null) {
             result.put("resource", OBJECT_MAPPER.convertValue(event.resource(), Map.class));
         }
-        
+
         // Include event data if present
         if (event.eventData() != null) {
             result.put("eventData", OBJECT_MAPPER.convertValue(event.eventData(), Map.class));
         }
-        
+
         return result;
     }
-    
+
     /**
      * Creates a successful WebhookResult.
      * 
-     * @param request The MappedHttpRequest object.
+     * @param request       The MappedHttpRequest object.
      * @param connectorData The connector data map.
      * @return The WebhookResult object.
      */
@@ -316,73 +309,69 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         LOGGER.debug("Creating successful WebhookResult");
         return new SuccessWebhookResult(request, connectorData);
     }
-    
+
     /**
      * Creates an error WebhookResult.
      * 
-     * @param payload The WebhookProcessingPayload object.
+     * @param payload      The WebhookProcessingPayload object.
      * @param errorMessage The error message.
      * @return The WebhookResult object.
      */
     private WebhookResult createErrorResult(WebhookProcessingPayload payload, String errorMessage) {
         LOGGER.debug("Creating error WebhookResult with error message: {}", errorMessage);
         MappedHttpRequest request = new MappedHttpRequest(
-            null,
-            payload.headers(),
-            payload.params()
-        );
-        
+                null,
+                payload.headers(),
+                payload.params());
+
         return new ErrorWebhookResult(request, errorMessage);
     }
-    
+
     /**
-     * Record-based implementation of WebhookResult for successful webhook processing.
+     * Record-based implementation of WebhookResult for successful webhook
+     * processing.
      * Returns HTTP 200 with a success status.
      * 
-     * @param request The MappedHttpRequest object.
+     * @param request       The MappedHttpRequest object.
      * @param connectorData The connector data map.
      * @return The WebhookResult object.
      */
     private record SuccessWebhookResult(
-        MappedHttpRequest request,
-        Map<String, Object> connectorData
-    ) implements WebhookResult {
-        
+            MappedHttpRequest request,
+            Map<String, Object> connectorData) implements WebhookResult {
+
         @Override
         public Function<WebhookResultContext, WebhookHttpResponse> response() {
             return ctx -> new WebhookHttpResponse(
-                Map.of("status", "ok"),
-                Map.of("Content-Type", "application/json"),
-                200
-            );
+                    Map.of("status", "ok"),
+                    Map.of("Content-Type", "application/json"),
+                    200);
         }
     }
-    
+
     /**
      * Record-based implementation of WebhookResult for error cases.
      * Returns HTTP 400 with an error message.
      * 
-     * @param request The MappedHttpRequest object.
+     * @param request      The MappedHttpRequest object.
      * @param errorMessage The error message.
      * @return The WebhookResult object.
      */
     private record ErrorWebhookResult(
-        MappedHttpRequest request,
-        String errorMessage
-    ) implements WebhookResult {
-        
+            MappedHttpRequest request,
+            String errorMessage) implements WebhookResult {
+
         @Override
         public Map<String, Object> connectorData() {
             return Map.of("error", errorMessage);
         }
-        
+
         @Override
         public Function<WebhookResultContext, WebhookHttpResponse> response() {
             return ctx -> new WebhookHttpResponse(
-                Map.of("error", errorMessage),
-                Map.of("Content-Type", "application/json"),
-                400
-            );
+                    Map.of("error", errorMessage),
+                    Map.of("Content-Type", "application/json"),
+                    400);
         }
     }
 }
