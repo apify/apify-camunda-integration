@@ -1,4 +1,4 @@
-package io.camunda.connector.apify.inbound;
+package io.camunda.connector.apify.inbound.dto;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -33,5 +33,20 @@ public enum ResourceType {
     public String getConditionKey() {
         return conditionKey;
     }
-}
 
+    /**
+     * Returns the enum constant of this type with the specified value.
+     */
+    public static ResourceType fromValue(String value) {
+        if (value == null) {
+            throw new IllegalArgumentException("Resource type value cannot be null.");
+        }
+
+        for (ResourceType type : ResourceType.values()) {
+            if (type.getValue().equals(value)) {
+                return type;
+            }
+        }
+        throw new IllegalArgumentException("Invalid resource type: " + value);
+    }
+}
