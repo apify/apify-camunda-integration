@@ -1,15 +1,14 @@
 package io.camunda.connector.apify.inbound;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.api.annotation.InboundConnector;
-// TODO: check if this is needed
 import io.camunda.connector.api.inbound.Health;
 import io.camunda.connector.api.inbound.InboundConnectorContext;
-import io.camunda.connector.api.inbound.ProcessElement;
 import io.camunda.connector.api.inbound.webhook.MappedHttpRequest;
 import io.camunda.connector.api.inbound.webhook.WebhookConnectorExecutable;
 import io.camunda.connector.api.inbound.webhook.WebhookHttpResponse;
@@ -196,7 +195,15 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         LOGGER.debug("Getting callback URL from Camunda runtime context");
 
         // Get the inbound context from properties
-        Map<String, Object> inboundContext = (Map<String, Object>) context.getProperties().get("inbound");
+        Object inboundObj = context.getProperties().get("inbound");
+        Map<String, Object> inboundContext = inboundObj != null ? OBJECT_MAPPER.convertValue(
+                inboundObj,
+                new TypeReference<Map<String, Object>>() {
+                }) : null;
+        if (inboundContext == null) {
+            LOGGER.warn("Inbound context is not available.");
+            return null;
+        }
         String contextValue = (String) inboundContext.get("context");
 
         if (contextValue == null) {
