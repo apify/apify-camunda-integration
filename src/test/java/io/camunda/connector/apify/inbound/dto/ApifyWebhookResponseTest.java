@@ -31,9 +31,12 @@ class ApifyWebhookResponseTest {
 
     // ==================== fromEvent() Tests ====================
 
+    /**
+     * Tests that the fromEvent() method correctly converts an ApifyInboundEvent to
+     * an ApifyWebhookResponse.
+     */
     @Test
     void shouldConvertEventWithAllFields() throws Exception {
-        // given
         resourceNode.put("id", "run123");
         resourceNode.put("actId", "actor123");
         resourceNode.put("actorTaskId", "task123");
@@ -55,10 +58,8 @@ class ApifyWebhookResponseTest {
 
         ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        // when
         ApifyWebhookResponse response = ApifyWebhookResponse.fromEvent(event);
 
-        // then
         assertThat(response.eventType()).isEqualTo("ACTOR.RUN.SUCCEEDED");
         assertThat(response.userId()).isEqualTo("user123");
         assertThat(response.createdAt()).isEqualTo("2024-01-15T10:30:00.000Z");
@@ -74,9 +75,12 @@ class ApifyWebhookResponseTest {
         assertThat(response.eventData()).containsEntry("someKey", "someValue");
     }
 
+    /**
+     * Tests that the fromEvent() method correctly converts an ApifyInboundEvent to
+     * an ApifyWebhookResponse with minimal fields.
+     */
     @Test
     void shouldConvertEventWithMinimalFields() throws Exception {
-        // given
         String eventJson = """
                 {
                     "eventType": "ACTOR.RUN.FAILED"
@@ -85,10 +89,8 @@ class ApifyWebhookResponseTest {
 
         ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        // when
         ApifyWebhookResponse response = ApifyWebhookResponse.fromEvent(event);
 
-        // then
         assertThat(response.eventType()).isEqualTo("ACTOR.RUN.FAILED");
         assertThat(response.userId()).isNull();
         assertThat(response.createdAt()).isNull();
@@ -102,9 +104,12 @@ class ApifyWebhookResponseTest {
         assertThat(response.eventData()).isNull();
     }
 
+    /**
+     * Tests that the fromEvent() method correctly handles an ApifyInboundEvent with
+     * an empty resource object.
+     */
     @Test
     void shouldHandleEmptyResourceObject() throws Exception {
-        // given
         String eventJson = """
                 {
                     "eventType": "ACTOR.RUN.SUCCEEDED",
@@ -114,18 +119,19 @@ class ApifyWebhookResponseTest {
 
         ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        // when
         ApifyWebhookResponse response = ApifyWebhookResponse.fromEvent(event);
 
-        // then
         assertThat(response.eventType()).isEqualTo("ACTOR.RUN.SUCCEEDED");
         assertThat(response.runId()).isNull();
-        assertThat(response.resource()).isNull(); // Empty objects are converted to null
+        assertThat(response.resource()).isNull();
     }
 
+    /**
+     * Tests that the fromEvent() method correctly handles an ApifyInboundEvent with
+     * null event data.
+     */
     @Test
     void shouldHandleNullEventData() throws Exception {
-        // given
         resourceNode.put("id", "run123");
 
         String eventJson = String.format("""
@@ -138,18 +144,19 @@ class ApifyWebhookResponseTest {
 
         ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        // when
         ApifyWebhookResponse response = ApifyWebhookResponse.fromEvent(event);
 
-        // then
         assertThat(response.eventType()).isEqualTo("ACTOR.RUN.SUCCEEDED");
         assertThat(response.runId()).isEqualTo("run123");
         assertThat(response.eventData()).isNull();
     }
 
+    /**
+     * Tests that the fromEvent() method correctly handles an ApifyInboundEvent with
+     * a complex resource object.
+     */
     @Test
     void shouldConvertComplexResourceObject() throws Exception {
-        // given
         resourceNode.put("id", "run123");
         resourceNode.put("actId", "actor123");
         resourceNode.put("status", "SUCCEEDED");
@@ -166,10 +173,8 @@ class ApifyWebhookResponseTest {
 
         ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        // when
         ApifyWebhookResponse response = ApifyWebhookResponse.fromEvent(event);
 
-        // then
         assertThat(response.resource()).isNotNull();
         assertThat(response.resource()).containsKey("nestedObject");
         @SuppressWarnings("unchecked")
@@ -179,9 +184,11 @@ class ApifyWebhookResponseTest {
 
     // ==================== JSON Serialization Tests ====================
 
+    /**
+     * Tests that the ApifyWebhookResponse can be serialized to JSON correctly.
+     */
     @Test
     void shouldSerializeToJsonCorrectly() throws Exception {
-        // given
         ApifyWebhookResponse response = new ApifyWebhookResponse(
                 "ACTOR.RUN.SUCCEEDED",
                 "user123",
@@ -196,20 +203,20 @@ class ApifyWebhookResponseTest {
                 null // eventData
         );
 
-        // when
         String json = OBJECT_MAPPER.writeValueAsString(response);
         JsonNode jsonNode = OBJECT_MAPPER.readTree(json);
 
-        // then
         assertThat(jsonNode.has("eventType")).isTrue();
         assertThat(jsonNode.get("eventType").asText()).isEqualTo("ACTOR.RUN.SUCCEEDED");
-        assertThat(jsonNode.has("taskId")).isFalse(); // null values should be excluded
-        assertThat(jsonNode.has("eventData")).isFalse(); // null values should be excluded
+        assertThat(jsonNode.has("taskId")).isFalse();
+        assertThat(jsonNode.has("eventData")).isFalse();
     }
 
+    /**
+     * Tests that the ApifyWebhookResponse can be deserialized from JSON correctly.
+     */
     @Test
     void shouldDeserializeFromJsonCorrectly() throws Exception {
-        // given
         String json = """
                 {
                     "eventType": "ACTOR.RUN.SUCCEEDED",
@@ -219,10 +226,8 @@ class ApifyWebhookResponseTest {
                 }
                 """;
 
-        // when
         ApifyWebhookResponse response = OBJECT_MAPPER.readValue(json, ApifyWebhookResponse.class);
 
-        // then
         assertThat(response.eventType()).isEqualTo("ACTOR.RUN.SUCCEEDED");
         assertThat(response.userId()).isEqualTo("user123");
         assertThat(response.runId()).isEqualTo("run123");

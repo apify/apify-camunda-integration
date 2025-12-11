@@ -41,6 +41,9 @@ public class ApifyInboundExecutableTest {
 
     private ApifyInboundExecutable executable;
 
+    /**
+     * Setup test environment.
+     */
     @BeforeEach
     void setUp() {
         executable = new ApifyInboundExecutable();
@@ -48,15 +51,16 @@ public class ApifyInboundExecutableTest {
 
     // ==================== ApifyInboundProperties Tests ====================
 
+    /**
+     * Test that ApifyInboundProperties can be created with all fields.
+     */
     @Test
     void shouldCreatePropertiesWithAllFields() {
-        // given / when
         ApifyInboundProperties properties = new ApifyInboundProperties(
                 "test-token",
                 ACTOR,
                 "my-actor-id");
 
-        // then
         assertThat(properties.token()).isEqualTo("test-token");
         assertThat(properties.resourceType()).isEqualTo(ACTOR);
         assertThat(properties.resourceId()).isEqualTo("my-actor-id");
@@ -64,56 +68,59 @@ public class ApifyInboundExecutableTest {
 
     // ==================== Resource ID Normalization Tests ====================
 
+    /**
+     * Test that resource ID with slash is normalized.
+     */
     @Test
     void shouldNormalizeResourceIdWithSlash() {
-        // given
         ApifyInboundProperties properties = new ApifyInboundProperties(
                 "test-token",
                 ACTOR,
                 "apify/google-search-scraper");
 
-        // when
         String normalized = properties.getNormalizedResourceId();
 
-        // then
         assertThat(normalized).isEqualTo("apify~google-search-scraper");
     }
 
+    /**
+     * Test that resource ID without slash is not changed.
+     */
     @Test
     void shouldNotChangeResourceIdWithoutSlash() {
-        // given
         ApifyInboundProperties properties = new ApifyInboundProperties(
                 "test-token",
                 ACTOR,
                 "my-actor-id-123");
 
-        // when
         String normalized = properties.getNormalizedResourceId();
 
-        // then
         assertThat(normalized).isEqualTo("my-actor-id-123");
     }
 
+    /**
+     * Test that resource ID with multiple slashes is normalized.
+     * Not sure if this is valid actor name, but testing anyway
+     */
     @Test
     void shouldHandleMultipleSlashesInResourceId() {
-        // given
         ApifyInboundProperties properties = new ApifyInboundProperties(
                 "test-token",
                 TASK,
                 "username/category/task-name");
 
-        // when
         String normalized = properties.getNormalizedResourceId();
 
-        // then
         assertThat(normalized).isEqualTo("username~category~task-name");
     }
 
     // ==================== ApifyInboundEvent Tests ====================
 
+    /**
+     * Test that ApifyInboundEvent can be parsed from JSON with all fields.
+     */
     @Test
     void shouldParseEventWithAllFields() throws Exception {
-        // given
         String eventJson = """
                 {
                     "eventType": "ACTOR.RUN.SUCCEEDED",
@@ -133,10 +140,8 @@ public class ApifyInboundExecutableTest {
                 }
                 """;
 
-        // when
         ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        // then
         assertThat(event.eventType()).isEqualTo("ACTOR.RUN.SUCCEEDED");
         assertThat(event.userId()).isEqualTo("user123");
         assertThat(event.createdAt()).isEqualTo("2024-01-15T10:30:00.000Z");
@@ -148,19 +153,19 @@ public class ApifyInboundExecutableTest {
         assertThat(event.getDefaultKeyValueStoreId()).isEqualTo("kvstore123");
     }
 
+    /**
+     * Test that ApifyInboundEvent can be parsed from JSON with minimal fields.
+     */
     @Test
     void shouldParseEventWithMinimalFields() throws Exception {
-        // given
         String eventJson = """
                 {
                     "eventType": "ACTOR.RUN.FAILED"
                 }
                 """;
 
-        // when
         ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        // then
         assertThat(event.eventType()).isEqualTo("ACTOR.RUN.FAILED");
         assertThat(event.userId()).isNull();
         assertThat(event.resource()).isNull();
@@ -170,9 +175,11 @@ public class ApifyInboundExecutableTest {
 
     // ==================== Webhook Processing Tests ====================
 
+    /**
+     * Test that valid webhook payload is processed successfully.
+     */
     @Test
     void shouldProcessValidWebhookPayload() throws Exception {
-        // given
         String webhookBody = """
                 {
                     "eventType": "ACTOR.RUN.SUCCEEDED",
@@ -192,10 +199,8 @@ public class ApifyInboundExecutableTest {
         when(payload.headers()).thenReturn(Map.of("Content-Type", "application/json"));
         when(payload.params()).thenReturn(Map.of());
 
-        // when
         WebhookResult result = executable.triggerWebhook(payload);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.connectorData()).containsKey("eventType");
         assertThat(result.connectorData().get("eventType")).isEqualTo("ACTOR.RUN.SUCCEEDED");
@@ -203,25 +208,27 @@ public class ApifyInboundExecutableTest {
         assertThat(result.connectorData().get("status")).isEqualTo("SUCCEEDED");
     }
 
+    /**
+     * Test that empty webhook payload returns error result.
+     */
     @Test
     void shouldReturnErrorResultForEmptyBody() throws Exception {
-        // given
         WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
         when(payload.rawBody()).thenReturn(null);
         when(payload.headers()).thenReturn(Map.of());
         when(payload.params()).thenReturn(Map.of());
 
-        // when
         WebhookResult result = executable.triggerWebhook(payload);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.connectorData()).containsKey("error");
     }
 
+    /**
+     * Test that webhook with failed status is processed successfully.
+     */
     @Test
     void shouldProcessWebhookWithFailedStatus() throws Exception {
-        // given
         String webhookBody = """
                 {
                     "eventType": "ACTOR.RUN.FAILED",
@@ -237,10 +244,8 @@ public class ApifyInboundExecutableTest {
         when(payload.headers()).thenReturn(Map.of());
         when(payload.params()).thenReturn(Map.of());
 
-        // when
         WebhookResult result = executable.triggerWebhook(payload);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.connectorData().get("eventType")).isEqualTo("ACTOR.RUN.FAILED");
         assertThat(result.connectorData().get("status")).isEqualTo("FAILED");
@@ -248,9 +253,11 @@ public class ApifyInboundExecutableTest {
 
     // ==================== Activate Tests ====================
 
+    /**
+     * Test that activation is successful and health is reported as up.
+     */
     @Test
     void shouldActivateSuccessfullyAndReportHealthUp() throws Exception {
-        // given
         InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
         String webhookResponse = """
                 {
@@ -267,10 +274,8 @@ public class ApifyInboundExecutableTest {
                     when(mock.createWebhook(anyString(), anyString())).thenReturn(responseResult);
                 })) {
 
-            // when
             executable.activate(context);
 
-            // then
             verify(context).reportHealth(any(Health.class));
             assertThat(mockedClient.constructed()).hasSize(1);
             ApifyClient constructedClient = mockedClient.constructed().get(0);
@@ -278,9 +283,11 @@ public class ApifyInboundExecutableTest {
         }
     }
 
+    /**
+     * Test that activation fails and health is reported as down.
+     */
     @Test
     void shouldReportHealthDownAndCleanupWhenActivationFails() throws Exception {
-        // given
         InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
 
         try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
@@ -289,32 +296,33 @@ public class ApifyInboundExecutableTest {
                             .thenThrow(new IOException("Network error"));
                 })) {
 
-            // when / then
             assertThatThrownBy(() -> executable.activate(context))
                     .isInstanceOf(IOException.class)
                     .hasMessageContaining("Network error");
 
-            // Verify health was reported as down
+            // verify health was reported as down
             verify(context).reportHealth(any(Health.class));
 
-            // Verify client was closed during cleanup
+            // verify client was closed during cleanup
             assertThat(mockedClient.constructed()).hasSize(1);
             ApifyClient constructedClient = mockedClient.constructed().get(0);
             verify(constructedClient).close();
         }
     }
 
+    /**
+     * Test that activation fails and health is reported as down.
+     */
     @Test
     void shouldHandleMissingInboundContext() {
-        // given - context without inbound.context property
         InboundConnectorContext context = mock(InboundConnectorContext.class);
         ApifyInboundProperties properties = new ApifyInboundProperties("test-token", ACTOR, "my-actor-id");
         when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
-        when(context.getProperties()).thenReturn(Map.of("inbound", Map.of())); // No "context" key
+        when(context.getProperties()).thenReturn(Map.of("inbound", Map.of()));
 
-        // when / then - should handle gracefully (callbackUrl will be null)
-        // The behavior depends on implementation - it may return null or throw
-        // Based on current implementation, getCallbackUrl() returns null when context
+        // should handle gracefully (callbackUrl will be null)
+        // the behavior depends on implementation - it may return null or throw
+        // based on current implementation, getCallbackUrl() returns null when context
         // is missing
         try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
                 (mock, ctx) -> {
@@ -330,9 +338,12 @@ public class ApifyInboundExecutableTest {
 
     // ==================== Deactivate Tests ====================
 
+    /**
+     * Test that deactivation is successful and webhook is deleted.
+     */
     @Test
     void shouldDeactivateSuccessfullyAndDeleteWebhook() throws Exception {
-        // given - first activate to set up the webhook
+        // first activate to set up the webhook
         InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
         String webhookResponse = """
                 {
@@ -350,13 +361,11 @@ public class ApifyInboundExecutableTest {
                     when(mock.deleteWebhook(anyString(), anyString())).thenReturn(responseResult);
                 })) {
 
-            // Activate first
+            // activate first
             executable.activate(context);
 
-            // when
             executable.deactivate();
 
-            // then
             assertThat(mockedClient.constructed()).hasSize(1);
             ApifyClient constructedClient = mockedClient.constructed().get(0);
             verify(constructedClient).deleteWebhook(eq("test-token"), eq("webhook-123"));
@@ -364,9 +373,11 @@ public class ApifyInboundExecutableTest {
         }
     }
 
+    /**
+     * Test that deactivation fails and webhook is deleted.
+     */
     @Test
     void shouldHandleWebhookDeletionFailureGracefully() throws Exception {
-        // given
         InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
         String webhookResponse = """
                 {
@@ -385,64 +396,69 @@ public class ApifyInboundExecutableTest {
                             .thenThrow(new IOException("Failed to delete webhook"));
                 })) {
 
-            // Activate first
+            // activate first
             executable.activate(context);
 
-            // when - should not throw even though deletion fails
+            // should not throw even though deletion fails
             executable.deactivate();
 
-            // then - client should still be closed
+            // client should still be closed
             ApifyClient constructedClient = mockedClient.constructed().get(0);
             verify(constructedClient).deleteWebhook(eq("test-token"), eq("webhook-123"));
             verify(constructedClient).close();
         }
     }
 
+    /**
+     * Test that deactivate does not throw when executable was never activated.
+     */
     @Test
     void shouldHandleDeactivateWithoutPriorActivation() throws Exception {
-        // given - executable that was never activated
+        // executable that was never activated
 
-        // when / then - should not throw
+        // should not throw
         executable.deactivate();
 
-        // No assertions needed - just verify it doesn't throw
+        // no assertions needed - just verify it doesn't throw
     }
 
     @Test
     void shouldCloseClientEvenWhenNoWebhookWasCreated() throws Exception {
-        // given - activate fails before webhook is created, then deactivate is called
+        // activate fails before webhook is created, then deactivate is called
         InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
 
         try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
                 (mock, ctx) -> {
-                    // First call (during activate) throws before webhook is created
+                    // first call (during activate) throws before webhook is created
                     when(mock.createWebhook(anyString(), anyString()))
                             .thenThrow(new IOException("Network error"));
                 })) {
 
-            // Activate fails
+            // activate fails
             try {
                 executable.activate(context);
             } catch (IOException e) {
-                // Expected
+                // expected
             }
 
-            // when - deactivate after failed activation
+            // deactivate after failed activation
             executable.deactivate();
 
-            // then - client should have been closed during activation failure cleanup
+            // client should have been closed during activation failure cleanup
             // and deactivate should handle the null client gracefully
             ApifyClient constructedClient = mockedClient.constructed().get(0);
-            verify(constructedClient).close(); // Called during activation cleanup
-            verify(constructedClient, never()).deleteWebhook(anyString(), anyString()); // No webhook to delete
+            verify(constructedClient).close();
+            verify(constructedClient, never()).deleteWebhook(anyString(), anyString());
         }
     }
 
     // ==================== Additional Edge Case Tests ====================
 
+    /**
+     * Test that malformed JSON is handled gracefully.
+     */
     @Test
     void shouldReturnErrorResultForMalformedJson() throws Exception {
-        // given
         String malformedJson = "{ this is not valid json }";
 
         WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
@@ -450,34 +466,35 @@ public class ApifyInboundExecutableTest {
         when(payload.headers()).thenReturn(Map.of());
         when(payload.params()).thenReturn(Map.of());
 
-        // when
         WebhookResult result = executable.triggerWebhook(payload);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.connectorData()).containsKey("error");
         assertThat(result.connectorData().get("error").toString()).contains("Error processing webhook");
     }
 
+    /**
+     * Test that empty byte array is handled gracefully.
+     */
     @Test
     void shouldReturnErrorResultForEmptyByteArray() throws Exception {
-        // given
         WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
         when(payload.rawBody()).thenReturn(new byte[0]);
         when(payload.headers()).thenReturn(Map.of());
         when(payload.params()).thenReturn(Map.of());
 
-        // when
         WebhookResult result = executable.triggerWebhook(payload);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.connectorData()).containsKey("error");
     }
 
+    /**
+     * Test that event with resource but missing fields is handled gracefully.
+     */
     @Test
     void shouldHandleEventWithResourceButMissingFields() throws Exception {
-        // given - resource exists but specific fields are missing
+        // resource exists but specific fields are missing
         String eventJson = """
                 {
                     "eventType": "ACTOR.RUN.SUCCEEDED",
@@ -489,7 +506,7 @@ public class ApifyInboundExecutableTest {
 
         ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        // then - getters should return null for missing fields
+        // getters should return null for missing fields
         assertThat(event.getRunId()).isEqualTo("run123");
         assertThat(event.getActorId()).isNull();
         assertThat(event.getTaskId()).isNull();
@@ -498,24 +515,26 @@ public class ApifyInboundExecutableTest {
         assertThat(event.getDefaultKeyValueStoreId()).isNull();
     }
 
+    /**
+     * Test that null resource ID in properties is handled gracefully.
+     */
     @Test
     void shouldHandleNullResourceIdInProperties() {
-        // given
         ApifyInboundProperties properties = new ApifyInboundProperties(
                 "test-token",
                 ACTOR,
                 null);
 
-        // when
         String normalized = properties.getNormalizedResourceId();
 
-        // then
         assertThat(normalized).isNull();
     }
 
+    /**
+     * Test that webhook with TIMED_OUT status is processed gracefully.
+     */
     @Test
     void shouldProcessWebhookWithTimedOutStatus() throws Exception {
-        // given
         String webhookBody = """
                 {
                     "eventType": "ACTOR.RUN.TIMED_OUT",
@@ -531,18 +550,18 @@ public class ApifyInboundExecutableTest {
         when(payload.headers()).thenReturn(Map.of());
         when(payload.params()).thenReturn(Map.of());
 
-        // when
         WebhookResult result = executable.triggerWebhook(payload);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.connectorData().get("eventType")).isEqualTo("ACTOR.RUN.TIMED_OUT");
         assertThat(result.connectorData().get("status")).isEqualTo("TIMED-OUT");
     }
 
+    /**
+     * Test that webhook with ABORTED status is processed gracefully.
+     */
     @Test
     void shouldProcessWebhookWithAbortedStatus() throws Exception {
-        // given
         String webhookBody = """
                 {
                     "eventType": "ACTOR.RUN.ABORTED",
@@ -559,19 +578,19 @@ public class ApifyInboundExecutableTest {
         when(payload.headers()).thenReturn(Map.of());
         when(payload.params()).thenReturn(Map.of());
 
-        // when
         WebhookResult result = executable.triggerWebhook(payload);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.connectorData().get("eventType")).isEqualTo("ACTOR.RUN.ABORTED");
         assertThat(result.connectorData().get("status")).isEqualTo("ABORTED");
         assertThat(result.connectorData().get("actorId")).isEqualTo("actor999");
     }
 
+    /**
+     * Test that webhook with SUCCEEDED status is processed gracefully.
+     */
     @Test
     void shouldIncludeHeadersAndParamsInSuccessResult() throws Exception {
-        // given
         String webhookBody = """
                 {
                     "eventType": "ACTOR.RUN.SUCCEEDED",
@@ -591,19 +610,20 @@ public class ApifyInboundExecutableTest {
         when(payload.headers()).thenReturn(headers);
         when(payload.params()).thenReturn(params);
 
-        // when
         WebhookResult result = executable.triggerWebhook(payload);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.request()).isNotNull();
         assertThat(result.request().headers()).isEqualTo(headers);
         assertThat(result.request().params()).isEqualTo(params);
     }
 
+    /**
+     * Test that webhook with Task resource is processed gracefully.
+     */
     @Test
     void shouldProcessWebhookWithTaskResource() throws Exception {
-        // given - webhook for a Task (not Actor)
+        // webhook for a Task (not Actor)
         String webhookBody = """
                 {
                     "eventType": "ACTOR.RUN.SUCCEEDED",
@@ -621,24 +641,23 @@ public class ApifyInboundExecutableTest {
         when(payload.headers()).thenReturn(Map.of());
         when(payload.params()).thenReturn(Map.of());
 
-        // when
         WebhookResult result = executable.triggerWebhook(payload);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.connectorData().get("taskId")).isEqualTo("task456");
         assertThat(result.connectorData().get("runId")).isEqualTo("run456");
     }
 
+    /**
+     * Test that properties are created with Task resource type.
+     */
     @Test
     void shouldCreatePropertiesWithTaskResourceType() {
-        // given / when
         ApifyInboundProperties properties = new ApifyInboundProperties(
                 "test-token",
                 TASK,
                 "my-task-id");
 
-        // then
         assertThat(properties.resourceType()).isEqualTo(TASK);
         assertThat(properties.resourceType().getValue()).isEqualTo("task");
         assertThat(properties.resourceType().getConditionKey()).isEqualTo("actorTaskId");

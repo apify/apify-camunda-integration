@@ -35,9 +35,18 @@ import java.util.Map;
  * Run with: mvn test -Dtest=ApifyInboundExecutableIntegrationTest
  * 
  * Example:
+ * ```
  * export APIFY_TOKEN="your_token_here"
  * export APIFY_TEST_ACTOR_ID="apify/web-scraper"
  * mvn test -Dtest=ApifyInboundExecutableIntegrationTest
+ * ```
+ * 
+ * or
+ * 
+ * ```
+ * APIFY_TOKEN="your_token_here" APIFY_TEST_ACTOR_ID="apify/web-scraper" mvn
+ * test -Dtest=ApifyInboundExecutableIntegrationTest
+ * ```
  */
 @EnabledIfEnvironmentVariable(named = "APIFY_TOKEN", matches = ".+")
 public class ApifyInboundExecutableIntegrationTest {
@@ -53,17 +62,17 @@ public class ApifyInboundExecutableIntegrationTest {
     private String testActorId;
     private String createdWebhookId;
 
+    /**
+     * Sets up the test environment.
+     */
     @BeforeEach
     void setUp() {
-        // Get Apify token from environment
         apifyToken = System.getenv("APIFY_TOKEN");
         testActorId = System.getenv().getOrDefault("APIFY_TEST_ACTOR_ID", "apify/web-scraper");
 
-        // Initialize the executable and client
         executable = new ApifyInboundExecutable();
         apifyClient = new ApifyClient();
 
-        // Create mock context
         mockContext = createMockContext();
 
         LOGGER.info("=== Integration Test Setup ===");
@@ -71,6 +80,9 @@ public class ApifyInboundExecutableIntegrationTest {
         LOGGER.info("Callback URL: {}", TEST_CALLBACK_URL);
     }
 
+    /**
+     * Tears down the test environment.
+     */
     @AfterEach
     void tearDown() throws IOException {
         // Clean up any webhooks that might have been created
@@ -97,14 +109,11 @@ public class ApifyInboundExecutableIntegrationTest {
     void shouldCreateWebhookWhenActivated() throws Exception {
         LOGGER.info("\n=== Test: shouldCreateWebhookWhenActivated ===");
 
-        // when
         executable.activate(mockContext);
 
-        // then - verify webhook was created by checking if we can retrieve it
         String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
         JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
 
-        // Find webhook by request URL
         boolean webhookFound = false;
         JsonNode dataNode = webhooks.path("data");
         if (dataNode.has("items")) {
@@ -150,10 +159,10 @@ public class ApifyInboundExecutableIntegrationTest {
     void shouldDeleteWebhookWhenDeactivated() throws Exception {
         LOGGER.info("\n=== Test: shouldDeleteWebhookWhenDeactivated ===");
 
-        // given - first create a webhook
+        // first create a webhook
         executable.activate(mockContext);
 
-        // Find the created webhook ID
+        // find the created webhook ID
         String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
         JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
         JsonNode dataNode = webhooks.path("data");
@@ -176,10 +185,10 @@ public class ApifyInboundExecutableIntegrationTest {
 
         LOGGER.info("Webhook created: {}", webhookId);
 
-        // when - deactivate the connector
+        // deactivate the connector
         executable.deactivate();
 
-        // then - verify webhook no longer exists
+        // verify webhook no longer exists
         String webhooksAfterJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
         JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
         JsonNode dataNodeAfter = webhooksAfter.path("data");
@@ -209,18 +218,17 @@ public class ApifyInboundExecutableIntegrationTest {
     void shouldHandleMissingCallbackUrl() throws Exception {
         LOGGER.info("\n=== Test: shouldHandleMissingCallbackUrl ===");
 
-        // given - context without callback URL
+        // context without callback URL
         InboundConnectorContext contextWithoutUrl = createMockContextWithoutCallbackUrl();
 
-        // when
         executable.activate(contextWithoutUrl);
 
-        // then - should not throw exception, should report health as DOWN
-        // Verify no webhook was created
+        // should not throw exception, should report health as DOWN
+        // verify no webhook was created
         String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
         JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
 
-        // Count webhooks with our test URL (should be zero)
+        // count webhooks with our test URL (should be zero)
         int webhookCount = 0;
         JsonNode dataNode = webhooks.path("data");
         if (dataNode.has("items")) {
@@ -243,11 +251,9 @@ public class ApifyInboundExecutableIntegrationTest {
     void shouldHandleCompleteLifecycle() throws Exception {
         LOGGER.info("\n=== Test: shouldHandleCompleteLifecycle ===");
 
-        // 1. Activate
         LOGGER.info("Step 1: Activating connector");
         executable.activate(mockContext);
 
-        // 2. Verify webhook exists
         LOGGER.info("Step 2: Verifying webhook was created");
         String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
         JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
@@ -257,11 +263,9 @@ public class ApifyInboundExecutableIntegrationTest {
         createdWebhookId = webhookId;
         LOGGER.info("Webhook created: {}", webhookId);
 
-        // 3. Deactivate
         LOGGER.info("Step 3: Deactivating connector");
         executable.deactivate();
 
-        // 4. Verify webhook no longer exists
         LOGGER.info("Step 4: Verifying webhook was deleted");
         String webhooksAfterJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
         JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
@@ -281,7 +285,7 @@ public class ApifyInboundExecutableIntegrationTest {
     private InboundConnectorContext createMockContext() {
         InboundConnectorContext context = mock(InboundConnectorContext.class);
 
-        // Mock properties
+        // mock properties
         ApifyInboundProperties properties = new ApifyInboundProperties(
                 apifyToken,
                 ACTOR,
@@ -289,12 +293,12 @@ public class ApifyInboundExecutableIntegrationTest {
 
         when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
 
-        // Mock context properties (including callback URL)
+        // mock context properties (including callback URL)
         Map<String, Object> contextProperties = Map.of(
                 "inbound.connector.url", TEST_CALLBACK_URL);
         when(context.getProperties()).thenReturn(contextProperties);
 
-        // Mock definition with process elements
+        // mock definition with process elements
         InboundConnectorDefinition definition = mock(InboundConnectorDefinition.class);
         ProcessElement processElement = mock(ProcessElement.class);
         when(processElement.bpmnProcessId()).thenReturn("test-process");
@@ -317,7 +321,7 @@ public class ApifyInboundExecutableIntegrationTest {
                 testActorId);
 
         when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
-        when(context.getProperties()).thenReturn(Map.of()); // Empty properties
+        when(context.getProperties()).thenReturn(Map.of());
 
         InboundConnectorDefinition definition = mock(InboundConnectorDefinition.class);
         ProcessElement processElement = mock(ProcessElement.class);
