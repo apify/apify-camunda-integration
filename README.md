@@ -17,13 +17,13 @@ This connector is used to interact with the Apify API in the **Camunda 8** envir
 
 ## Prerequisites (Shared Setup)
 
-Follow these steps to set up the environment for both Outbound and Inbound connectors.
+Follow these steps to set up the environment for both _Outbound_ and _Inbound_ connectors.
 
 ### 1. Camunda Stack in Docker
 
-Locally spin up a Camunda stack using Docker Compose following [this quickstart guide](https://docs.camunda.io/docs/self-managed/quickstart/developer-quickstart/docker-compose).
+Locally spin up a Camunda stack using _Docker Compose_ following [this quickstart guide](https://docs.camunda.io/docs/self-managed/quickstart/developer-quickstart/docker-compose).
 
-📌 **Note: Make sure to install FULLY configured Camunda stack which includes the Modeler.**
+> **Note:** Make sure to install FULLY configured Camunda stack which includes the Modeler.
 
 In case you want to choose a specific version, you can find their `docker-compose.yaml` files in [Camunda's official repository](https://github.com/camunda/camunda-distributions/tree/main/docker-compose/versions).
 
@@ -53,9 +53,9 @@ Once the Camunda stack is running, you can access the following services:
 
 ## Connector Types
 
-This connector provides two types of connectors:
+The _Camunda_ provides two types of connectors:
 
-1. **Outbound Connector** - Calls the Apify API to run Actors, Tasks, or retrieve datasets
+1. **Outbound Connector** - Calls the Apify API to run Actors, tasks, or retrieve datasets
 2. **Inbound Connector** - Listens for webhook events from Apify to trigger or continue processes
 
 ---
@@ -129,7 +129,7 @@ export CONNECTOR_BASE_URL=http://example.com
 
 1. Install [ngrok](https://ngrok.com/) if you haven't already.
 
-2. Start ngrok to expose port 9898:
+2. Start ngrok to expose port 9898 (the default port for the inbound connector):
 
 ```bash
 ngrok http 9898
@@ -154,18 +154,22 @@ Keep this terminal running while you work with Camunda Modeler.
 ### Set up and Test the Inbound Connector
 
 1. Go to **Web Modeler** (http://localhost:8070/) and create a new project (or use an existing one).
+![Creating a new project](docs/modeler-create-project.png)
 
 2. Upload the inbound connector templates:
    - **Start Event template**: `element-templates/apify-inbound-connector.json`
    - **Intermediate Event template**: `element-templates/apify-inbound-intermediate-connector.json`
 
 3. **Publish** both templates to the project.
+![Publishing the connector template](docs/modeler-publish-inbound-template.png)
 
 4. Create a new **BPMN diagram**.
+![Creating a new BPMN diagram](docs/modeler-create-bpmp-diagram.png)
 
 5. Design a process with the following structure:
    - **Start Node**: Select the Apify Inbound Connector as the start event
    - **End Node**: Add an end event
+![Designing a process with the following structure](docs/modeler-select-inbound.png)
 
 6. Configure the **Start Node** with:
    - **Token**: Your Apify API token (OAuth is not yet implemented)
@@ -173,6 +177,8 @@ Keep this terminal running while you work with Camunda Modeler.
    - **Output Variable**: Create a variable name where the webhook result will be stored (e.g., `webhookResult`)
 
 7. **Deploy** the process. This will automatically create a webhook in Apify.
+
+![Deploying the process](docs/modeler-set-inputs-and-deploy.png)
 
 8. Verify the webhook was created:
    - Go to the Actor page on Apify
@@ -188,8 +194,9 @@ Keep this terminal running while you work with Camunda Modeler.
 11. Verify the process was triggered in **Camunda Operate** (http://localhost:8081/operate):
     - Navigate to the process instances
     - **Select "Finished" filter** to see completed processes
+![Go to the Processes tab](docs/operate-select.png)
     - Check the returned data in the process variables
-
+![Select the finished process](docs/operate-select-finished.png)
 ---
 
 ## 3. Inbound Connector (Intermediate Event)
