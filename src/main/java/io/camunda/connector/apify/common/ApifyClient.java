@@ -1,5 +1,6 @@
 package io.camunda.connector.apify.common;
 
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -81,14 +82,13 @@ public class ApifyClient implements AutoCloseable {
                     return result;
                 } else {
                     // Create an exception with status code information for retry logic
-                    HttpRequestException exception = new HttpRequestException(
+                    throw new HttpRequestException(
                         String.format(
                             "HTTP %s request to %s failed with status %d: %s",
                             method, url, statusCode, responseBody
                         ),
                         statusCode
                     );
-                    throw exception;
                 }
             } catch (HttpRequestException e) {
                 lastError = e;
@@ -204,6 +204,9 @@ public class ApifyClient implements AutoCloseable {
                 if (body != null && !body.isEmpty()) {
                     ((HttpPost) request).setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
                 }
+                break;
+            case DELETE:
+                request = new HttpDelete(url);
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported HTTP method: " + method);
@@ -322,7 +325,7 @@ public class ApifyClient implements AutoCloseable {
         boolean isRateLimitError = statusCode == HttpStatus.SC_TOO_MANY_REQUESTS;
         boolean isInternalError = statusCode >= HttpStatus.SC_INTERNAL_SERVER_ERROR;
         return isRateLimitError || isInternalError;
-        }
+    }
         
     /**
      * Runs an Apify Actor by its ID with optional parameters.
@@ -430,7 +433,7 @@ public class ApifyClient implements AutoCloseable {
         return executeRequest(Method.GET, "/v2/acts/" + actorId, authToken, null);
     }
 
-        /**
+    /**
      * Gets task details by its ID.
      * 
      * @param taskId The Task ID
@@ -464,6 +467,47 @@ public class ApifyClient implements AutoCloseable {
      */
     public ResponseResult getDefaultBuild(String actorId, String authToken) throws IOException {
         return executeRequest(Method.GET, "/v2/acts/" + actorId + "/builds/default", authToken, null);
+    }
+
+    /**
+     * Creates a new webhook in Apify.
+     * 
+     * The webhook JSON payload should include:
+     * - eventTypes: Array of event types (e.g., ["ACTOR.RUN.SUCCEEDED", "ACTOR.RUN.FAILED"])
+     * - condition: Object with actorId or actorTaskId to filter events
+     * - requestUrl: The URL where Apify will send webhook notifications
+     * - payloadTemplate: Template for the webhook payload (optional)
+     * 
+     * @param authToken The authentication token
+     * @param webhookJson The webhook configuration as JSON string
+     * @return ResponseResult containing the created webhook details
+     * @throws IOException if the request fails
+     */
+    public ResponseResult createWebhook(String authToken, String webhookJson) throws IOException {
+        return executeRequest(Method.POST, "/v2/webhooks", authToken, webhookJson);
+    }
+
+    /**
+     * Deletes a webhook from Apify by its ID.
+     * 
+     * @param authToken The authentication token
+     * @param webhookId The ID of the webhook to delete
+     * @return ResponseResult containing the deletion confirmation
+     * @throws IOException if the request fails
+     */
+    public ResponseResult deleteWebhook(String authToken, String webhookId) throws IOException {
+        return executeRequest(Method.DELETE, "/v2/webhooks/" + webhookId, authToken, null);
+    }
+    
+    /**
+     * Lists all webhooks for the authenticated user.
+     *
+     * @param authToken The Apify API authentication token
+     * @return ResponseResult containing the webhooks list as JSON
+     * @throws IOException if the HTTP request fails
+     */
+    public ResponseResult listWebhooks(String authToken) throws IOException {
+        return executeRequest(Method.GET, "/v2/webhooks", authToken, null);
     }
     
     /**
