@@ -43,18 +43,13 @@ public record ApifyInboundEvent(
          * Additional event data/metadata sent by Apify.
          */
         @JsonProperty("eventData") JsonNode eventData) {
-    // TODO: check if it's all necessary data, compare it with power automate for
-    // instance
     /**
      * Extracts the run ID from the resource.
      * 
      * @return The run ID, or null if not present
      */
     public String getRunId() {
-        if (resource != null && resource.has("id")) {
-            return resource.get("id").asText();
-        }
-        return null;
+        return getResourceField("id");
     }
 
     /**
@@ -63,10 +58,7 @@ public record ApifyInboundEvent(
      * @return The actor ID, or null if not present
      */
     public String getActorId() {
-        if (resource != null && resource.has("actId")) {
-            return resource.get("actId").asText();
-        }
-        return null;
+        return getResourceField("actId");
     }
 
     /**
@@ -75,10 +67,7 @@ public record ApifyInboundEvent(
      * @return The task ID, or null if not present
      */
     public String getTaskId() {
-        if (resource != null && resource.has("actorTaskId")) {
-            return resource.get("actorTaskId").asText();
-        }
-        return null;
+        return getResourceField("actorTaskId");
     }
 
     /**
@@ -87,10 +76,7 @@ public record ApifyInboundEvent(
      * @return The run status, or null if not present
      */
     public String getStatus() {
-        if (resource != null && resource.has("status")) {
-            return resource.get("status").asText();
-        }
-        return null;
+        return getResourceField("status");
     }
 
     /**
@@ -99,10 +85,7 @@ public record ApifyInboundEvent(
      * @return The default dataset ID, or null if not present
      */
     public String getDefaultDatasetId() {
-        if (resource != null && resource.has("defaultDatasetId")) {
-            return resource.get("defaultDatasetId").asText();
-        }
-        return null;
+        return getResourceField("defaultDatasetId");
     }
 
     /**
@@ -111,9 +94,16 @@ public record ApifyInboundEvent(
      * @return The default key-value store ID, or null if not present
      */
     public String getDefaultKeyValueStoreId() {
-        if (resource != null && resource.has("defaultKeyValueStoreId")) {
-            return resource.get("defaultKeyValueStoreId").asText();
-        }
-        return null;
+        return getResourceField("defaultKeyValueStoreId");
+    }
+
+    /**
+     * Extracts a field from the resource.
+     * 
+     * @param fieldName The name of the field to extract.
+     * @return The field value, or null if not present
+     */
+    private String getResourceField(String fieldName) {
+        return resource != null && resource.has(fieldName) ? resource.get(fieldName).asText() : null;
     }
 }

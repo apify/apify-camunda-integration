@@ -10,7 +10,7 @@ public final class ApifyPayloadTemplate {
             "}";
 
     private ApifyPayloadTemplate() {
-    } // Prevent instantiation
+    }
 
     public static String getContent() {
         return TEMPLATE_STRING;

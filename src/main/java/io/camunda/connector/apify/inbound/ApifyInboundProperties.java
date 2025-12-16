@@ -35,9 +35,6 @@ public record ApifyInboundProperties(
      * @return The normalized resource ID
      */
     public String getNormalizedResourceId() {
-        if (resourceId == null) {
-            return null;
-        }
         return resourceId.replace("/", "~");
     }
 }

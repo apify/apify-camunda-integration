@@ -34,11 +34,13 @@ import java.util.function.Function;
  */
 @InboundConnector(name = "Apify Inbound Connector", type = "io.camunda:apify-inbound:1")
 @ElementTemplate(id = "io.camunda.connector.inbound.Apify.v1", name = "Apify Connector", version = 1, description = "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.",
-        // TODO: update documentation link
-        documentationRef = "https://docs.camunda.io/docs/components/connectors/in-the-box-connectors/available-connectors-overview/", inputDataClass = ApifyInboundProperties.class)
+        documentationRef = "https://docs.camunda.io/docs/8.7/components/connectors/custom-built-connectors/build-connector", inputDataClass = ApifyInboundProperties.class)
 public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApifyInboundExecutable.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    /**
+     * Users can't subscribe to all event types at once, so we use all of them.
+     */
     private static final List<String> EVENT_TYPES = List.of(
             "ACTOR.RUN.SUCCEEDED",
             "ACTOR.RUN.FAILED",
@@ -139,9 +141,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         }
 
         try {
-            // Parse the webhook body
             String bodyString = new String(rawBody, StandardCharsets.UTF_8);
-            ApifyInboundEvent event = OBJECT_MAPPER.readValue(bodyString, ApifyInboundEvent.class);
+            JsonNode jsonNode = OBJECT_MAPPER.readTree(bodyString);
+
+            ApifyInboundEvent event = OBJECT_MAPPER.treeToValue(jsonNode, ApifyInboundEvent.class);
 
             if (event == null) {
                 LOGGER.warn("Failed to parse webhook body");
@@ -151,8 +154,8 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             // Build the result map to pass to the process
             ApifyWebhookResponse connectorData = buildConnectorData(event);
 
-            // Create MappedHttpRequest from payload
-            Object parsedBody = OBJECT_MAPPER.readValue(bodyString, Object.class);
+            // Reuse the parsed JSON for MappedHttpRequest
+            Object parsedBody = OBJECT_MAPPER.treeToValue(jsonNode, Object.class);
             MappedHttpRequest mappedRequest = new MappedHttpRequest(
                     parsedBody,
                     payload.headers(),
@@ -184,15 +187,15 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
     /**
      * Gets the callback URL from context properties.
+     * Camunda does not provide a default programmatic api to retrieve full
+     * redirect url
+     * Connector runtime must know its own listening address
+     * Camunda exposes just the path comonent via bpmn properties
      * 
      * @return The webhook callback URL, or null if not available
      * @throws IllegalArgumentException if the callback URL is not available
      */
     private String getCallbackUrl() {
-        // TODO: camunda does not provide a default programmatic api to retrieve full
-        // redirect url
-        // TODO: connector runtime must know its own listening address
-        // TODO: camunda exposes just the path comonent via bpmn properties
         LOGGER.debug("Getting callback URL from Camunda runtime context");
 
         // Get the inbound context from properties
