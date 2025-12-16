@@ -16,6 +16,7 @@ import io.camunda.connector.api.inbound.webhook.WebhookProcessingPayload;
 import io.camunda.connector.api.inbound.webhook.WebhookResult;
 import io.camunda.connector.api.inbound.webhook.WebhookResultContext;
 import io.camunda.connector.apify.common.ApifyClient;
+import io.camunda.connector.apify.common.URLValidator;
 import io.camunda.connector.apify.inbound.dto.ApifyWebhookResponse;
 import io.camunda.connector.apify.inbound.dto.ApifyPayloadTemplate;
 import io.camunda.connector.generator.java.annotation.ElementTemplate;
@@ -63,9 +64,14 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     public void activate(InboundConnectorContext context) throws Exception {
         LOGGER.debug("Activating Apify inbound connector");
         this.context = context;
-        this.properties = context.bindProperties(ApifyInboundProperties.class);
-        this.callbackUrl = getCallbackUrl();
+
         try {
+            this.properties = context.bindProperties(ApifyInboundProperties.class);
+            this.callbackUrl = getCallbackUrl();
+            
+            // Validate callback URL format
+            URLValidator.validateUrl(callbackUrl);
+        
             this.apifyClient = new ApifyClient();
 
             // Create webhook in Apify
@@ -137,7 +143,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
         if (rawBody == null || rawBody.length == 0) {
             LOGGER.warn("Received webhook with empty body.");
-            return createErrorResult(payload, "Empty request body");
+            return createErrorResult(payload, "Empty request body", 400);
         }
 
         try {
@@ -148,7 +154,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
             if (event == null) {
                 LOGGER.warn("Failed to parse webhook body");
-                return createErrorResult(payload, "Failed to parse webhook body");
+                return createErrorResult(payload, "Failed to parse webhook body", 400);
             }
 
             // Build the result map to pass to the process
@@ -166,7 +172,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
         } catch (Exception e) {
             LOGGER.error("Error processing webhook: {}", e.getMessage(), e);
-            return createErrorResult(payload, "Error processing webhook: " + e.getMessage());
+            return createErrorResult(payload, "Error processing webhook: " + e.getMessage(), 500);
         }
     }
 
@@ -306,14 +312,14 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      * @param errorMessage The error message.
      * @return The WebhookResult object.
      */
-    private WebhookResult createErrorResult(WebhookProcessingPayload payload, String errorMessage) {
+    private WebhookResult createErrorResult(WebhookProcessingPayload payload, String errorMessage, int statusCode) {
         LOGGER.debug("Creating error WebhookResult with error message: {}", errorMessage);
         MappedHttpRequest request = new MappedHttpRequest(
                 null,
                 payload.headers(),
                 payload.params());
 
-        return new ErrorWebhookResult(request, errorMessage);
+        return new ErrorWebhookResult(request, errorMessage, statusCode);
     }
 
     /**
@@ -340,7 +346,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
     /**
      * Record-based implementation of WebhookResult for error cases.
-     * Returns HTTP 400 with an error message.
+     * Returns error HTTP status code and error message.
      * 
      * @param request      The MappedHttpRequest object.
      * @param errorMessage The error message.
@@ -348,7 +354,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      */
     private record ErrorWebhookResult(
             MappedHttpRequest request,
-            String errorMessage) implements WebhookResult {
+            String errorMessage, int statusCode) implements WebhookResult {
 
         @Override
         public Map<String, Object> connectorData() {
@@ -360,7 +366,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             return ctx -> new WebhookHttpResponse(
                     Map.of("error", errorMessage),
                     Map.of("Content-Type", "application/json"),
-                    400);
+                    statusCode);
         }
     }
 }
