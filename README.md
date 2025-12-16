@@ -6,7 +6,7 @@ This connector is used to interact with the Apify API in the **Camunda 8** envir
 
 ## Table of Contents
 
-- [Prerequisites (Shared Setup)](#prerequisites-shared-setup)
+- [Prerequisites (shared setup)](#prerequisites-shared-setup)
 - [Connector Types](#connector-types)
   - [Outbound Connector](#1-outbound-connector)
   - [Inbound Connector (Start Event)](#2-inbound-connector-start-event)
@@ -27,6 +27,8 @@ Locally spin up a Camunda stack using _Docker Compose_ following [this quickstar
 
 In case you want to choose a specific version, you can find their `docker-compose.yaml` files in [Camunda's official repository](https://github.com/camunda/camunda-distributions/tree/main/docker-compose/versions).
 
+> **Note:** When developing this connector, we used the [Camunda 8.7](https://github.com/camunda/camunda-distributions/releases/download/docker-compose-8.7/docker-compose-8.7.zip) version.
+
 ### 2. Clone and Build the Connector
 
 Clone this repository and build the connector:
@@ -43,11 +45,11 @@ mvn clean package
 
 Once the Camunda stack is running, you can access the following services:
 
-| Service | URL | Credentials |
+| Service | URL | Credentials (username / password) |
 |---------|-----|-------------|
+| **Web Modeler** | http://localhost:8070/ | `demo` / `demo` |
 | **Camunda Operate** | http://localhost:8081/operate | `demo` / `demo` |
 | **Camunda Tasklist** | http://localhost:8082/tasklist | `demo` / `demo` |
-| **Web Modeler** | http://localhost:8070/ | `demo` / `demo` |
 
 ---
 
@@ -127,6 +129,8 @@ export CONNECTOR_BASE_URL=http://example.com
 
 **Option B: Using ngrok for actual webhook testing (recommended)**
 
+> **Note:** This approach simplifies iterative development by eliminating the need to repeatedly update the webhook URL for testing.
+
 1. Install [ngrok](https://ngrok.com/) if you haven't already.
 
 2. Start ngrok to expose port 9898 (the default port for the inbound connector):
@@ -164,7 +168,7 @@ Keep this terminal running while you work with Camunda Modeler.
 ![Publishing the connector template](docs/modeler-publish-inbound-template.png)
 
 4. Create a new **BPMN diagram**.
-![Creating a new BPMN diagram](docs/modeler-create-bpmp-diagram.png)
+![Creating a new BPMN diagram](docs/modeler-create-bpmn-diagram-inbound.png)
 
 5. Design a process with the following structure:
    - **Start Node**: Select the Apify Inbound Connector as the start event
@@ -216,7 +220,7 @@ The intermediate event connector template is available at:
 
 ### Cleaning Up Stale Webhooks
 
-During testing, you may accumulate webhooks in the background. Currently, there's no automated way to delete these webhooks from within the connector.
+During testing, you may accumulate webhooks in the Camunda background. Currently, there's no automated way to delete these webhooks from within the connector (at least not that I know of).
 
 **To start fresh:**
 
@@ -236,6 +240,8 @@ docker-compose up -d
 ```
 
 **Note:** This will delete all your data including deployed processes, process instances, and webhooks.
+
+**Note:** This won't delete created webhooks in Apify. You can delete them manually in the Apify console.
 
 ### Common Issues
 
