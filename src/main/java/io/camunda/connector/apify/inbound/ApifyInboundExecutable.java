@@ -19,6 +19,7 @@ import io.camunda.connector.apify.common.ApifyClient;
 import io.camunda.connector.apify.common.URLValidator;
 import io.camunda.connector.apify.inbound.dto.ApifyWebhookResponse;
 import io.camunda.connector.apify.inbound.dto.ApifyPayloadTemplate;
+import io.camunda.connector.apify.inbound.dto.ResourceType;
 import io.camunda.connector.generator.java.annotation.ElementTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +35,7 @@ import java.util.function.Function;
  * Apify Inbound Connector implementation that listens for Apify webhook events.
  */
 @InboundConnector(name = "Apify Inbound Connector", type = "io.camunda:apify-inbound:1")
-@ElementTemplate(id = "io.camunda.connector.inbound.Apify.v1", name = "Apify Connector", version = 1, description = "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.",
-        documentationRef = "https://docs.camunda.io/docs/8.7/components/connectors/custom-built-connectors/build-connector", inputDataClass = ApifyInboundProperties.class)
+@ElementTemplate(id = "io.camunda.connector.inbound.Apify.v1", name = "Apify Connector", version = 1, description = "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.", documentationRef = "https://docs.camunda.io/docs/8.7/components/connectors/custom-built-connectors/build-connector", inputDataClass = ApifyInboundProperties.class)
 public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApifyInboundExecutable.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -68,10 +68,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         try {
             this.properties = context.bindProperties(ApifyInboundProperties.class);
             this.callbackUrl = getCallbackUrl();
-            
+
             // Validate callback URL format
             URLValidator.validateUrl(callbackUrl);
-        
+
             this.apifyClient = new ApifyClient();
 
             // Create webhook in Apify
@@ -170,6 +170,9 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             // Return successful result with correlation data
             return createSuccessResult(mappedRequest, connectorData);
 
+        } catch (JsonProcessingException e) {
+            LOGGER.warn("Failed to parse webhook body", e);
+            return createErrorResult(payload, "Failed to parse webhook body", 400);
         } catch (Exception e) {
             LOGGER.error("Error processing webhook: {}", e.getMessage(), e);
             return createErrorResult(payload, "Error processing webhook: " + e.getMessage(), 500);
@@ -196,7 +199,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      * Camunda does not provide a default programmatic api to retrieve full
      * redirect url
      * Connector runtime must know its own listening address
-     * Camunda exposes just the path comonent via bpmn properties
+     * Camunda exposes just the path component via bpmn properties
      * 
      * @return The webhook callback URL, or null if not available
      * @throws IllegalArgumentException if the callback URL is not available
@@ -219,7 +222,16 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             throw new IllegalStateException("Inbound context path is not configured in BPMN element");
         }
 
-        return getBaseUrl() + "/inbound/" + contextValue;
+        String baseUrl = getBaseUrl();
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+
+        if (contextValue.startsWith("/")) {
+            contextValue = contextValue.substring(1);
+        }
+
+        return baseUrl + "/inbound/" + contextValue;
     }
 
     /**
@@ -229,6 +241,13 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      */
     private void createApifyWebhook() throws IOException {
         LOGGER.debug("Creating Apify webhook with callback URL: {}.", callbackUrl);
+
+        String existingWebhookId = findExistingWebhook();
+        if (existingWebhookId != null) {
+            this.webhookId = existingWebhookId;
+            LOGGER.info("Found existing Apify webhook with ID: {}", webhookId);
+            return;
+        }
 
         // Build the webhook payload
         String webhookJson = buildWebhookPayload();
@@ -278,6 +297,47 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         webhookNode.put("shouldInterpolateStrings", true);
 
         return OBJECT_MAPPER.writeValueAsString(webhookNode);
+    }
+
+    /**
+     * Checks if a webhook with the same callback URL already exists on Apify.
+     * Note: If the user will be able to define what events to listen to, this
+     * method will need to be updated to check for existing webhooks with the same
+     * callback URL and event types.
+     * Note: Maybe instead of checking for perfect match, we should check for
+     * existing webhooks with the same contextValue (Camunda webhook ID).
+     * 
+     * @return The ID of the existing webhook, or null if not found.
+     */
+    private String findExistingWebhook() {
+        try {
+            ApifyClient.ResponseResult listResult;
+            if (ResourceType.ACTOR.equals(properties.resourceType())) {
+                listResult = apifyClient.listWebhooksByActor(properties.token(), properties.getNormalizedResourceId());
+            } else {
+                listResult = apifyClient.listWebhooksByActorTask(properties.token(),
+                        properties.getNormalizedResourceId());
+            }
+
+            JsonNode listNode = OBJECT_MAPPER.readTree(listResult.getResponseBody());
+            JsonNode itemsNode = listNode.path("data").path("items");
+
+            // Fallback for different response structures
+            if (itemsNode.isMissingNode()) {
+                itemsNode = listNode.path("data");
+            }
+
+            if (itemsNode.isArray()) {
+                for (JsonNode webhook : itemsNode) {
+                    if (callbackUrl.equals(webhook.path("requestUrl").asText())) {
+                        return webhook.get("id").asText();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to check for existing webhooks: {}", e.getMessage());
+        }
+        return null;
     }
 
     /**

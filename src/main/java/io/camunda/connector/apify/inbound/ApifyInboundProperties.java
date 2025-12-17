@@ -37,4 +37,13 @@ public record ApifyInboundProperties(
     public String getNormalizedResourceId() {
         return resourceId.replace("/", "~");
     }
+
+    @Override
+    public String toString() {
+        return "ApifyInboundProperties[" +
+                "token='" + (token != null && !token.isEmpty() ? "****" : "null") + '\'' +
+                ", resourceType=" + resourceType +
+                ", resourceId='" + resourceId + '\'' +
+                ']';
+    }
 }

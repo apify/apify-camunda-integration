@@ -4,7 +4,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 /**
- * Validates URLs using Java's native URL/URI classes.
+ * Validates URLs format.
  */
 public class URLValidator {
     
