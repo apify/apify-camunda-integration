@@ -34,7 +34,8 @@
     },
     {
       "id": "trigger",
-      "label": "Trigger details"
+      "label": "Trigger details",
+      "tooltip": "Learn more about trigger in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
     },
     {
       "id": "activation",
@@ -42,7 +43,7 @@
     },
     {
       "id": "correlation",
-      "label": "Correlation",
+      "label": "Correlation details",
       "tooltip": "Learn more about message correlation in the <a href=\"https://docs.camunda.io/docs/components/concepts/messages/#message-correlation-overview\">documentation</a>."
     },
     {

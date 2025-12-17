@@ -32,7 +32,8 @@
     },
     {
       "id": "trigger",
-      "label": "Trigger details"
+      "label": "Trigger details",
+      "tooltip": "Learn more about trigger in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
     },
     {
       "id": "activation",
