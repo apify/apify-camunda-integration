@@ -3,6 +3,8 @@ package io.camunda.connector.apify.inbound.dto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -14,103 +16,92 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class ResourceTypeTest {
 
-    // ==================== getValue() Tests ====================
+    @Nested
+    @DisplayName("getValue()")
+    class GetValue {
 
-    /**
-     * Tests that the getValue() method returns the correct value for the ACTOR
-     * enum.
-     */
-    @Test
-    void shouldReturnCorrectValueForActor() {
-        assertThat(ResourceType.ACTOR.getValue()).isEqualTo("actor");
+        @Test
+        void shouldReturnCorrectValueForActor() {
+            assertThat(ResourceType.ACTOR.getValue()).isEqualTo("actor");
+        }
+
+        @Test
+        void shouldReturnCorrectValueForTask() {
+            assertThat(ResourceType.TASK.getValue()).isEqualTo("task");
+        }
     }
 
-    /**
-     * Tests that the getValue() method returns the correct value for the TASK
-     * enum.
-     */
-    @Test
-    void shouldReturnCorrectValueForTask() {
-        assertThat(ResourceType.TASK.getValue()).isEqualTo("task");
+    @Nested
+    @DisplayName("getConditionKey()")
+    class GetConditionKey {
+
+        @Test
+        void shouldReturnCorrectConditionKeyForActor() {
+            assertThat(ResourceType.ACTOR.getConditionKey()).isEqualTo("actorId");
+        }
+
+        @Test
+        void shouldReturnCorrectConditionKeyForTask() {
+            assertThat(ResourceType.TASK.getConditionKey()).isEqualTo("actorTaskId");
+        }
     }
 
-    // ==================== getConditionKey() Tests ====================
+    @Nested
+    @DisplayName("fromValue()")
+    class FromValue {
 
-    /**
-     * Tests that the getConditionKey() method returns the correct condition key
-     * for the ACTOR enum.
-     */
-    @Test
-    void shouldReturnCorrectConditionKeyForActor() {
-        assertThat(ResourceType.ACTOR.getConditionKey()).isEqualTo("actorId");
+        @ParameterizedTest
+        @CsvSource({
+                "actor, ACTOR",
+                "task, TASK"
+        })
+        void shouldParseValidResourceTypeValues(String value, ResourceType expected) {
+            ResourceType result = ResourceType.fromValue(value);
+
+            assertThat(result).isEqualTo(expected);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"ACTOR", "TASK", "Actor", "Task", "invalid", "actors", "", " "})
+        void shouldThrowExceptionForInvalidValues(String invalidValue) {
+            assertThatThrownBy(() -> ResourceType.fromValue(invalidValue))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Invalid resource type");
+        }
+
+        @ParameterizedTest
+        @NullSource
+        void shouldThrowExceptionForNullValue(String nullValue) {
+            assertThatThrownBy(() -> ResourceType.fromValue(nullValue))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("cannot be null");
+        }
     }
 
-    /**
-     * Tests that the getConditionKey() method returns the correct condition key
-     * for the TASK enum.
-     */
-    @Test
-    void shouldReturnCorrectConditionKeyForTask() {
-        assertThat(ResourceType.TASK.getConditionKey()).isEqualTo("actorTaskId");
-    }
+    @Nested
+    @DisplayName("Enum Consistency")
+    class EnumConsistency {
 
-    // ==================== fromValue() Tests ====================
+        @Test
+        void shouldHaveExactlyTwoResourceTypes() {
+            assertThat(ResourceType.values()).hasSize(2);
+        }
 
-    /**
-     * Tests that the fromValue() method returns the correct ResourceType for
-     * valid values.
-     */
-    @ParameterizedTest
-    @CsvSource({
-            "actor, ACTOR",
-            "task, TASK"
-    })
-    void shouldParseValidResourceTypeValues(String value, ResourceType expected) {
-        ResourceType result = ResourceType.fromValue(value);
+        @Test
+        void shouldRoundTripThroughFromValue() {
+            for (ResourceType type : ResourceType.values()) {
+                assertThat(ResourceType.fromValue(type.getValue())).isEqualTo(type);
+            }
+        }
 
-        assertThat(result).isEqualTo(expected);
-    }
+        @Test
+        void shouldHaveUniqueValues() {
+            assertThat(ResourceType.ACTOR.getValue()).isNotEqualTo(ResourceType.TASK.getValue());
+        }
 
-    /**
-     * Tests that the fromValue() method throws an exception for invalid values.
-     */
-    @ParameterizedTest
-    @ValueSource(strings = { "ACTOR", "TASK", "Actor", "Task", "invalid", "actors", "", " " })
-    void shouldThrowExceptionForInvalidValues(String invalidValue) {
-        assertThatThrownBy(() -> ResourceType.fromValue(invalidValue))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Invalid resource type");
-    }
-
-    /**
-     * Tests that the fromValue() method throws an exception for null values.
-     */
-    @ParameterizedTest
-    @NullSource
-    void shouldThrowExceptionForNullValue(String nullValue) {
-        assertThatThrownBy(() -> ResourceType.fromValue(nullValue))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("cannot be null");
-    }
-
-    // ==================== Enum Consistency Tests ====================
-
-    /**
-     * Tests that the enum has exactly two values.
-     */
-    @Test
-    void shouldHaveExactlyTwoResourceTypes() {
-        assertThat(ResourceType.values()).hasSize(2);
-    }
-
-    /**
-     * Tests that the enum values can be round-tripped through the fromValue()
-     * method.
-     */
-    @Test
-    void shouldRoundTripThroughFromValue() {
-        for (ResourceType type : ResourceType.values()) {
-            assertThat(ResourceType.fromValue(type.getValue())).isEqualTo(type);
+        @Test
+        void shouldHaveUniqueConditionKeys() {
+            assertThat(ResourceType.ACTOR.getConditionKey()).isNotEqualTo(ResourceType.TASK.getConditionKey());
         }
     }
 }

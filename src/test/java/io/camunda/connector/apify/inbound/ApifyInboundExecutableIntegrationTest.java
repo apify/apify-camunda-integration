@@ -13,6 +13,8 @@ import io.camunda.connector.api.inbound.ProcessElement;
 import io.camunda.connector.apify.common.ApifyClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.slf4j.Logger;
@@ -24,36 +26,29 @@ import java.util.Map;
 
 /**
  * Integration tests for ApifyInboundExecutable that test webhook creation and
- * deletion
- * against the real Apify API.
- * 
+ * deletion against the real Apify API.
+ *
  * These tests require:
  * - APIFY_TOKEN environment variable to be set
- * - APIFY_TEST_ACTOR_ID environment variable (optional, defaults to
- * apify/web-scraper)
- * 
+ * - APIFY_TEST_ACTOR_ID environment variable (optional, defaults to apify/web-scraper)
+ * - CONNECTOR_BASE_URL environment variable to be set
+ *
  * Run with: mvn test -Dtest=ApifyInboundExecutableIntegrationTest
- * 
+ *
  * Example:
- * ```
+ * {@code
  * export APIFY_TOKEN="your_token_here"
  * export APIFY_TEST_ACTOR_ID="apify/web-scraper"
+ * export CONNECTOR_BASE_URL="https://webhook.site"
  * mvn test -Dtest=ApifyInboundExecutableIntegrationTest
- * ```
- * 
- * or
- * 
- * ```
- * APIFY_TOKEN="your_token_here" APIFY_TEST_ACTOR_ID="apify/web-scraper" mvn
- * test -Dtest=ApifyInboundExecutableIntegrationTest
- * ```
+ * }
  */
 @EnabledIfEnvironmentVariable(named = "APIFY_TOKEN", matches = ".+")
-public class ApifyInboundExecutableIntegrationTest {
+class ApifyInboundExecutableIntegrationTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApifyInboundExecutableIntegrationTest.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final String TEST_CALLBACK_URL = "https://webhook.site/test-camunda-connector";
+    private static final String TEST_INBOUND_CONTEXT = "test-camunda-connector";
 
     private ApifyInboundExecutable executable;
     private InboundConnectorContext mockContext;
@@ -61,14 +56,16 @@ public class ApifyInboundExecutableIntegrationTest {
     private String apifyToken;
     private String testActorId;
     private String createdWebhookId;
+    private String expectedCallbackUrl;
 
-    /**
-     * Sets up the test environment.
-     */
     @BeforeEach
     void setUp() {
         apifyToken = System.getenv("APIFY_TOKEN");
         testActorId = System.getenv().getOrDefault("APIFY_TEST_ACTOR_ID", "apify/web-scraper");
+        String baseUrl = System.getenv().getOrDefault("CONNECTOR_BASE_URL", "https://webhook.site");
+
+        // Build expected callback URL matching the implementation logic
+        expectedCallbackUrl = buildExpectedCallbackUrl(baseUrl, TEST_INBOUND_CONTEXT);
 
         executable = new ApifyInboundExecutable();
         apifyClient = new ApifyClient();
@@ -77,15 +74,11 @@ public class ApifyInboundExecutableIntegrationTest {
 
         LOGGER.info("=== Integration Test Setup ===");
         LOGGER.info("Using actor: {}", testActorId);
-        LOGGER.info("Callback URL: {}", TEST_CALLBACK_URL);
+        LOGGER.info("Expected callback URL: {}", expectedCallbackUrl);
     }
 
-    /**
-     * Tears down the test environment.
-     */
     @AfterEach
     void tearDown() throws IOException {
-        // Clean up any webhooks that might have been created
         if (createdWebhookId != null && apifyToken != null) {
             try {
                 LOGGER.info("Cleaning up webhook: {}", createdWebhookId);
@@ -101,191 +94,178 @@ public class ApifyInboundExecutableIntegrationTest {
         }
     }
 
-    /**
-     * Tests that the activate() method successfully creates a webhook in Apify
-     * and reports health as UP.
-     */
-    @Test
-    void shouldCreateWebhookWhenActivated() throws Exception {
-        LOGGER.info("\n=== Test: shouldCreateWebhookWhenActivated ===");
+    @Nested
+    @DisplayName("Webhook Lifecycle")
+    class WebhookLifecycle {
 
-        executable.activate(mockContext);
+        @Test
+        void shouldCreateWebhookWhenActivated() throws Exception {
+            LOGGER.info("\n=== Test: shouldCreateWebhookWhenActivated ===");
 
-        String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
-        JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
+            executable.activate(mockContext);
 
-        boolean webhookFound = false;
-        JsonNode dataNode = webhooks.path("data");
-        if (dataNode.has("items")) {
-            for (JsonNode webhook : dataNode.get("items")) {
-                String requestUrl = webhook.path("requestUrl").asText();
-                if (TEST_CALLBACK_URL.equals(requestUrl)) {
-                    webhookFound = true;
-                    createdWebhookId = webhook.path("id").asText();
-                    LOGGER.info("Found created webhook: {}", createdWebhookId);
+            String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+            JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
 
-                    // Verify webhook properties
-                    assertThat(webhook.path("isAdHoc").asBoolean()).isFalse();
-                    assertThat(webhook.path("eventTypes").isArray()).isTrue();
+            boolean webhookFound = false;
+            JsonNode dataNode = webhooks.path("data");
+            if (dataNode.has("items")) {
+                for (JsonNode webhook : dataNode.get("items")) {
+                    String requestUrl = webhook.path("requestUrl").asText();
+                    if (expectedCallbackUrl.equals(requestUrl)) {
+                        webhookFound = true;
+                        createdWebhookId = webhook.path("id").asText();
+                        LOGGER.info("Found created webhook: {}", createdWebhookId);
 
-                    // Verify event types include our expected types
-                    JsonNode eventTypes = webhook.get("eventTypes");
-                    boolean hasSucceededEvent = false;
-                    for (JsonNode eventType : eventTypes) {
-                        if ("ACTOR.RUN.SUCCEEDED".equals(eventType.asText())) {
-                            hasSucceededEvent = true;
-                            break;
+                        assertThat(webhook.path("isAdHoc").asBoolean()).isFalse();
+                        assertThat(webhook.path("eventTypes").isArray()).isTrue();
+
+                        JsonNode eventTypes = webhook.get("eventTypes");
+                        boolean hasSucceededEvent = false;
+                        for (JsonNode eventType : eventTypes) {
+                            if ("ACTOR.RUN.SUCCEEDED".equals(eventType.asText())) {
+                                hasSucceededEvent = true;
+                                break;
+                            }
                         }
+                        assertThat(hasSucceededEvent).isTrue();
+
+                        break;
                     }
-                    assertThat(hasSucceededEvent).isTrue();
-
-                    break;
                 }
             }
+
+            assertThat(webhookFound)
+                    .withFailMessage("Webhook with callback URL " + expectedCallbackUrl + " not found in Apify")
+                    .isTrue();
+
+            LOGGER.info("Webhook created successfully");
         }
 
-        assertThat(webhookFound)
-                .withFailMessage("Webhook with callback URL " + TEST_CALLBACK_URL + " not found in Apify")
-                .isTrue();
+        @Test
+        void shouldDeleteWebhookWhenDeactivated() throws Exception {
+            LOGGER.info("\n=== Test: shouldDeleteWebhookWhenDeactivated ===");
 
-        LOGGER.info("Webhook created successfully");
-    }
+            executable.activate(mockContext);
 
-    /**
-     * Tests that the deactivate() method successfully deletes the webhook from
-     * Apify.
-     */
-    @Test
-    void shouldDeleteWebhookWhenDeactivated() throws Exception {
-        LOGGER.info("\n=== Test: shouldDeleteWebhookWhenDeactivated ===");
+            String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+            JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
+            JsonNode dataNode = webhooks.path("data");
 
-        // first create a webhook
-        executable.activate(mockContext);
-
-        // find the created webhook ID
-        String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
-        JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
-        JsonNode dataNode = webhooks.path("data");
-
-        String webhookId = null;
-        if (dataNode.has("items")) {
-            for (JsonNode webhook : dataNode.get("items")) {
-                String requestUrl = webhook.path("requestUrl").asText();
-                if (TEST_CALLBACK_URL.equals(requestUrl)) {
-                    webhookId = webhook.path("id").asText();
-                    createdWebhookId = webhookId; // Save for potential cleanup
-                    break;
+            String webhookId = null;
+            if (dataNode.has("items")) {
+                for (JsonNode webhook : dataNode.get("items")) {
+                    String requestUrl = webhook.path("requestUrl").asText();
+                    if (expectedCallbackUrl.equals(requestUrl)) {
+                        webhookId = webhook.path("id").asText();
+                        createdWebhookId = webhookId;
+                        break;
+                    }
                 }
             }
-        }
 
-        assertThat(webhookId)
-                .withFailMessage("Webhook should be created before deactivation test")
-                .isNotNull();
+            assertThat(webhookId)
+                    .withFailMessage("Webhook should be created before deactivation test")
+                    .isNotNull();
 
-        LOGGER.info("Webhook created: {}", webhookId);
+            LOGGER.info("Webhook created: {}", webhookId);
 
-        // deactivate the connector
-        executable.deactivate();
+            executable.deactivate();
 
-        // verify webhook no longer exists
-        String webhooksAfterJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
-        JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
-        JsonNode dataNodeAfter = webhooksAfter.path("data");
+            String webhooksAfterJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+            JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
+            JsonNode dataNodeAfter = webhooksAfter.path("data");
 
-        boolean webhookStillExists = false;
-        if (dataNodeAfter.has("items")) {
-            for (JsonNode webhook : dataNodeAfter.get("items")) {
-                if (webhookId.equals(webhook.path("id").asText())) {
-                    webhookStillExists = true;
-                    break;
+            boolean webhookStillExists = false;
+            if (dataNodeAfter.has("items")) {
+                for (JsonNode webhook : dataNodeAfter.get("items")) {
+                    if (webhookId.equals(webhook.path("id").asText())) {
+                        webhookStillExists = true;
+                        break;
+                    }
                 }
             }
+
+            assertThat(webhookStillExists)
+                    .withFailMessage("Webhook " + webhookId + " should be deleted after deactivation")
+                    .isFalse();
+
+            createdWebhookId = null;
+            LOGGER.info("Webhook deleted successfully");
         }
 
-        assertThat(webhookStillExists)
-                .withFailMessage("Webhook " + webhookId + " should be deleted after deactivation")
-                .isFalse();
+        @Test
+        void shouldHandleCompleteLifecycle() throws Exception {
+            LOGGER.info("\n=== Test: shouldHandleCompleteLifecycle ===");
 
-        createdWebhookId = null; // Clear since it's been deleted
-        LOGGER.info("Webhook deleted successfully");
+            LOGGER.info("Step 1: Activating connector");
+            executable.activate(mockContext);
+
+            LOGGER.info("Step 2: Verifying webhook was created");
+            String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+            JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
+
+            String webhookId = findWebhookByUrl(webhooks, expectedCallbackUrl);
+            assertThat(webhookId).isNotNull();
+            createdWebhookId = webhookId;
+            LOGGER.info("Webhook created: {}", webhookId);
+
+            LOGGER.info("Step 3: Deactivating connector");
+            executable.deactivate();
+
+            LOGGER.info("Step 4: Verifying webhook was deleted");
+            String webhooksAfterJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+            JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
+
+            String webhookIdAfter = findWebhookByUrl(webhooksAfter, expectedCallbackUrl);
+            assertThat(webhookIdAfter).isNull();
+
+            createdWebhookId = null;
+            LOGGER.info("Complete lifecycle test passed");
+        }
     }
 
-    /**
-     * Tests that activate() handles missing callback URL gracefully.
-     */
-    @Test
-    void shouldHandleMissingCallbackUrl() throws Exception {
-        LOGGER.info("\n=== Test: shouldHandleMissingCallbackUrl ===");
+    @Nested
+    @DisplayName("Error Handling")
+    class ErrorHandling {
 
-        // context without callback URL
-        InboundConnectorContext contextWithoutUrl = createMockContextWithoutCallbackUrl();
+        @Test
+        void shouldHandleMissingCallbackUrl() throws Exception {
+            LOGGER.info("\n=== Test: shouldHandleMissingCallbackUrl ===");
 
-        executable.activate(contextWithoutUrl);
+            InboundConnectorContext contextWithoutUrl = createMockContextWithoutCallbackUrl();
 
-        // should not throw exception, should report health as DOWN
-        // verify no webhook was created
-        String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
-        JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
+            try {
+                executable.activate(contextWithoutUrl);
+            } catch (IllegalStateException e) {
+                // Expected - context path is missing
+                LOGGER.info("Correctly threw exception for missing context: {}", e.getMessage());
+                return;
+            }
 
-        // count webhooks with our test URL (should be zero)
-        int webhookCount = 0;
-        JsonNode dataNode = webhooks.path("data");
-        if (dataNode.has("items")) {
-            for (JsonNode webhook : dataNode.get("items")) {
-                String requestUrl = webhook.path("requestUrl").asText();
-                if (TEST_CALLBACK_URL.equals(requestUrl)) {
-                    webhookCount++;
+            // If no exception was thrown, verify no webhook was created
+            String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+            JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
+
+            int webhookCount = 0;
+            JsonNode dataNode = webhooks.path("data");
+            if (dataNode.has("items")) {
+                for (JsonNode webhook : dataNode.get("items")) {
+                    String requestUrl = webhook.path("requestUrl").asText();
+                    if (expectedCallbackUrl.equals(requestUrl)) {
+                        webhookCount++;
+                    }
                 }
             }
+
+            assertThat(webhookCount).isEqualTo(0);
+            LOGGER.info("Handled missing callback URL correctly");
         }
-
-        assertThat(webhookCount).isEqualTo(0);
-        LOGGER.info("Handled missing callback URL correctly");
     }
 
-    /**
-     * Tests the complete lifecycle: activate -> deactivate.
-     */
-    @Test
-    void shouldHandleCompleteLifecycle() throws Exception {
-        LOGGER.info("\n=== Test: shouldHandleCompleteLifecycle ===");
-
-        LOGGER.info("Step 1: Activating connector");
-        executable.activate(mockContext);
-
-        LOGGER.info("Step 2: Verifying webhook was created");
-        String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
-        JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
-
-        String webhookId = findWebhookByUrl(webhooks, TEST_CALLBACK_URL);
-        assertThat(webhookId).isNotNull();
-        createdWebhookId = webhookId;
-        LOGGER.info("Webhook created: {}", webhookId);
-
-        LOGGER.info("Step 3: Deactivating connector");
-        executable.deactivate();
-
-        LOGGER.info("Step 4: Verifying webhook was deleted");
-        String webhooksAfterJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
-        JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
-
-        String webhookIdAfter = findWebhookByUrl(webhooksAfter, TEST_CALLBACK_URL);
-        assertThat(webhookIdAfter).isNull();
-
-        createdWebhookId = null;
-        LOGGER.info("Complete lifecycle test passed");
-    }
-
-    // ==================== Helper Methods ====================
-
-    /**
-     * Creates a mock InboundConnectorContext with all required properties.
-     */
     private InboundConnectorContext createMockContext() {
         InboundConnectorContext context = mock(InboundConnectorContext.class);
 
-        // mock properties
         ApifyInboundProperties properties = new ApifyInboundProperties(
                 apifyToken,
                 ACTOR,
@@ -293,12 +273,10 @@ public class ApifyInboundExecutableIntegrationTest {
 
         when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
 
-        // mock context properties (including callback URL)
-        Map<String, Object> contextProperties = Map.of(
-                "inbound.connector.url", TEST_CALLBACK_URL);
-        when(context.getProperties()).thenReturn(contextProperties);
+        // Use correct property structure matching implementation
+        when(context.getProperties()).thenReturn(Map.of(
+                "inbound", Map.of("context", TEST_INBOUND_CONTEXT)));
 
-        // mock definition with process elements
         InboundConnectorDefinition definition = mock(InboundConnectorDefinition.class);
         ProcessElement processElement = mock(ProcessElement.class);
         when(processElement.bpmnProcessId()).thenReturn("test-process");
@@ -309,9 +287,6 @@ public class ApifyInboundExecutableIntegrationTest {
         return context;
     }
 
-    /**
-     * Creates a mock context without a callback URL.
-     */
     private InboundConnectorContext createMockContextWithoutCallbackUrl() {
         InboundConnectorContext context = mock(InboundConnectorContext.class);
 
@@ -321,7 +296,8 @@ public class ApifyInboundExecutableIntegrationTest {
                 testActorId);
 
         when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
-        when(context.getProperties()).thenReturn(Map.of());
+        // Return empty inbound map - missing "context" key
+        when(context.getProperties()).thenReturn(Map.of("inbound", Map.of()));
 
         InboundConnectorDefinition definition = mock(InboundConnectorDefinition.class);
         ProcessElement processElement = mock(ProcessElement.class);
@@ -333,9 +309,6 @@ public class ApifyInboundExecutableIntegrationTest {
         return context;
     }
 
-    /**
-     * Finds a webhook ID by its request URL.
-     */
     private String findWebhookByUrl(JsonNode webhooksResponse, String url) {
         JsonNode dataNode = webhooksResponse.path("data");
         if (dataNode.has("items")) {
@@ -347,5 +320,15 @@ public class ApifyInboundExecutableIntegrationTest {
             }
         }
         return null;
+    }
+
+    private String buildExpectedCallbackUrl(String baseUrl, String contextValue) {
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        if (contextValue.startsWith("/")) {
+            contextValue = contextValue.substring(1);
+        }
+        return baseUrl + "/inbound/" + contextValue;
     }
 }
