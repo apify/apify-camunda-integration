@@ -28,25 +28,25 @@
   "groups": [
     {
       "id": "authentication",
-      "label": "Authentication"
+      "label": "Authentication details"
     },
     {
       "id": "trigger",
-      "label": "Trigger Details"
+      "label": "Trigger details"
     },
     {
       "id": "activation",
-      "label": "Activation"
+      "label": "Activation details"
     },
     {
       "id": "output",
-      "label": "Output Mapping"
+      "label": "Output mapping"
     }
   ],
   "properties": [
     {
       "id": "method",
-      "label": "Authentication Method",
+      "label": "Authentication method",
       "description": "Method to authenticate with the Apify API",
       "optional": false,
       "value": "token",
@@ -61,7 +61,7 @@
       "type": "Dropdown",
       "choices": [
         {
-          "name": "API Token",
+          "name": "Apify API token",
           "value": "token"
         },
         {
@@ -72,7 +72,7 @@
     },
     {
       "id": "token",
-      "label": "API Token",
+      "label": "Apify API token",
       "description": "The Apify API token for authentication",
       "type": "String",
       "feel": "optional",
@@ -92,7 +92,7 @@
     },
     {
       "id": "resourceType",
-      "label": "Resource Type",
+      "label": "Actor/Task selection method",
       "description": "The type of Apify resource to listen for events from",
       "type": "Dropdown",
       "group": "trigger",
@@ -117,8 +117,8 @@
     },
     {
       "id": "resourceId",
-      "label": "Resource ID",
-      "description": "Actor ID or Task ID (e.g., 'apify/google-search-scraper' or 'username/actor-name').",
+      "label": "Actor/Task ID",
+      "description": "Actor ID or Task ID (e.g., 'E2jjCZBezvAZnX8Rb' or 'apify/hello-world').",
       "type": "String",
       "feel": "optional",
       "group": "trigger",
@@ -149,7 +149,7 @@
     },
     {
       "id": "activationCondition",
-      "label": "Activation Condition",
+      "label": "Activation condition",
       "description": "Optional FEEL expression to filter events (e.g., '=status = \"SUCCEEDED\"'). Use this to only start processes for successful Actor runs, ignore failures, etc. Leave empty to process all events.",
       "type": "Text",
       "feel": "required",
@@ -162,7 +162,7 @@
     },
     {
       "id": "resultVariable",
-      "label": "Result Variable",
+      "label": "Result variable",
       "description": "Name of the variable to store the webhook event data. The event includes: eventType, runId, status, actorId, taskId, defaultDatasetId, and more. See documentation for full list.",
       "type": "String",
       "group": "output",
@@ -174,7 +174,7 @@
     },
     {
       "id": "resultExpression",
-      "label": "Result Expression",
+      "label": "Result expression",
       "description": "Optional FEEL expression to transform the webhook data before storing. Example: '={runId: runId, status: status, datasetId: defaultDatasetId}'",
       "type": "Text",
       "feel": "required",
