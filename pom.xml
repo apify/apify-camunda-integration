@@ -17,7 +17,7 @@
         <version.connectors>8.7.8</version.connectors>
         <version.assertj>3.27.6</version.assertj>
         <version.junit-jupiter>5.14.1</version.junit-jupiter>
-        <version.mockito>5.21.0</version.mockito>
+        <version.mockito>5.20.0</version.mockito>
         <version.httpclient>5.5.1</version.httpclient>
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
@@ -135,7 +135,26 @@
                                 </file>
                             </files>
                         </connector>
+                        <connector>
+                            <connectorClass>io.camunda.connector.apify.inbound.ApifyInboundExecutable</connectorClass>
+                            <files>
+                                <file>
+                                    <templateId>io.camunda.connector.inbound.Apify.v1</templateId>
+                                    <templateFileName>apify-inbound-connector.json</templateFileName>
+                                </file>
+                            </files>
+                        </connector>
                     </connectors>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <environmentVariables>
+                        <CONNECTOR_BASE_URL>http://example.com</CONNECTOR_BASE_URL>
+                    </environmentVariables>
                 </configuration>
             </plugin>
         </plugins>

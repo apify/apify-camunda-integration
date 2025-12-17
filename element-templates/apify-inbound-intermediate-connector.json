@@ -1,0 +1,283 @@
+{
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "Apify Connector",
+  "id": "io.camunda.connector.inbound.Apify.v1:IntermediateCatchEvent",
+  "version": 1,
+  "description": "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.",
+  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/docs/INTERMEDIATE_EVENT_EXAMPLE.md",
+  "metadata": {
+    "keywords": [
+      "apify",
+      "connector",
+      "webhook",
+      "inbound",
+      "actor",
+      "task"
+    ]
+  },
+  "category": {
+    "id": "connectors",
+    "name": "Connectors"
+  },
+  "appliesTo": [
+    "bpmn:IntermediateCatchEvent",
+    "bpmn:IntermediateThrowEvent"
+  ],
+  "elementType": {
+    "value": "bpmn:IntermediateCatchEvent",
+    "eventDefinition": "bpmn:MessageEventDefinition"
+  },
+  "groups": [
+    {
+      "id": "authentication",
+      "label": "Authentication details"
+    },
+    {
+      "id": "trigger",
+      "label": "Trigger details",
+      "tooltip": "Learn more about trigger in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
+    },
+    {
+      "id": "activation",
+      "label": "Activation details"
+    },
+    {
+      "id": "correlation",
+      "label": "Correlation details",
+      "tooltip": "Learn more about message correlation in the <a href=\"https://docs.camunda.io/docs/components/concepts/messages/#message-correlation-overview\">documentation</a>."
+    },
+    {
+      "id": "output",
+      "label": "Output mapping"
+    }
+  ],
+  "properties": [
+    {
+      "id": "method",
+      "label": "Authentication method",
+      "description": "Method to authenticate with the Apify API",
+      "optional": false,
+      "value": "token",
+      "constraints": {
+        "notEmpty": true
+      },
+      "group": "authentication",
+      "binding": {
+        "name": "method",
+        "type": "zeebe:property"
+      },
+      "type": "Dropdown",
+      "choices": [
+        {
+          "name": "Apify API token",
+          "value": "token"
+        },
+        {
+          "name": "Sign in with Apify",
+          "value": "oauth"
+        }
+      ]
+    },
+    {
+      "id": "token",
+      "label": "Apify API token",
+      "description": "The Apify API token for authentication",
+      "type": "String",
+      "feel": "optional",
+      "group": "authentication",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "token"
+      },
+      "condition": {
+        "property": "method",
+        "equals": "token",
+        "type": "simple"
+      },
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+    {
+      "id": "resourceType",
+      "label": "Actor/Task selection method",
+      "description": "The type of Apify resource to listen for events from",
+      "type": "Dropdown",
+      "group": "trigger",
+      "value": "actor",
+      "choices": [
+        {
+          "name": "Actor",
+          "value": "actor"
+        },
+        {
+          "name": "Task",
+          "value": "task"
+        }
+      ],
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resourceType"
+      },
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+    {
+      "id": "resourceId",
+      "label": "Actor/Task ID",
+      "description": "Actor ID or Task ID (e.g., 'E2jjCZBezvAZnX8Rb' or 'apify/hello-world').",
+      "type": "String",
+      "feel": "optional",
+      "group": "trigger",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resourceId"
+      },
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+    {
+      "id": "context",
+      "label": "Webhook ID",
+      "description": "Unique identifier for this webhook endpoint (auto-generated)",
+      "type": "String",
+      "group": "activation",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "inbound.context"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "generatedValue": {
+        "type": "uuid"
+      }
+    },
+    {
+      "id": "activationCondition",
+      "label": "Activation condition",
+      "description": "Optional FEEL expression to filter events (e.g., '=status = \"SUCCEEDED\"'). Use this to only start processes for successful Actor runs, ignore failures, etc. Leave empty to process all events.",
+      "type": "Text",
+      "feel": "required",
+      "group": "activation",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:property",
+        "name": "activationCondition"
+      }
+    },
+    {
+      "id": "correlationKeyProcess",
+      "label": "Correlation key (process)",
+      "description": "Sets up the correlation key from process variables",
+      "constraints": {
+        "notEmpty": true
+      },
+      "feel": "required",
+      "group": "correlation",
+      "binding": {
+        "name": "correlationKey",
+        "type": "bpmn:Message#zeebe:subscription#property"
+      },
+      "type": "String"
+    },
+    {
+      "id": "correlationKeyPayload",
+      "label": "Correlation key (payload)",
+      "description": "Extracts the correlation key from the incoming message payload",
+      "constraints": {
+        "notEmpty": true
+      },
+      "feel": "required",
+      "group": "correlation",
+      "binding": {
+        "name": "correlationKeyExpression",
+        "type": "zeebe:property"
+      },
+      "type": "String"
+    },
+    {
+      "id": "messageIdExpression",
+      "label": "Message ID expression",
+      "description": "Expression to extract unique identifier of a message",
+      "optional": true,
+      "feel": "required",
+      "group": "correlation",
+      "binding": {
+        "name": "messageIdExpression",
+        "type": "zeebe:property"
+      },
+      "type": "String"
+    },
+    {
+      "id": "messageTtl",
+      "label": "Message TTL",
+      "description": "Time-to-live for the message in the broker (ISO-8601 duration)",
+      "optional": true,
+      "constraints": {
+        "notEmpty": false,
+        "pattern": {
+          "value": "^(PT.*|)$",
+          "message": "must be an ISO-8601 duration"
+        }
+      },
+      "feel": "optional",
+      "group": "correlation",
+      "binding": {
+        "name": "messageTtl",
+        "type": "zeebe:property"
+      },
+      "type": "String"
+    },
+    {
+      "id": "messageNameUuid",
+      "generatedValue": {
+        "type": "uuid"
+      },
+      "group": "correlation",
+      "binding": {
+        "name": "name",
+        "type": "bpmn:Message#property"
+      },
+      "type": "Hidden"
+    },
+    {
+      "id": "resultVariable",
+      "label": "Result variable",
+      "description": "Name of the variable to store the webhook event data. The event includes: eventType, runId, status, actorId, taskId, defaultDatasetId, and more. See documentation for full list.",
+      "type": "String",
+      "group": "output",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resultVariable"
+      }
+    },
+    {
+      "id": "resultExpression",
+      "label": "Result expression",
+      "description": "Optional FEEL expression to transform the webhook data before storing. Example: '={runId: runId, status: status, datasetId: defaultDatasetId}'",
+      "type": "Text",
+      "feel": "required",
+      "group": "output",
+      "optional": true,
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resultExpression"
+      }
+    },
+    {
+      "value": "io.camunda:apify-inbound:1",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "inbound.type"
+      },
+      "type": "Hidden"
+    }
+  ],
+  "icon": {
+    "contents": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE4LjM1MTIgMEgzMS41MTUyQzMxLjc4MjkgMCAzMiAwLjIxNzA3NCAzMiAwLjQ4NDg0OFYyMC42MDI1QzMyIDIxLjA4NDQgMzEuMzczMyAyMS4yNzEyIDMxLjEwOTQgMjAuODY4TDE3Ljk0NTUgMC43NTAzMjNDMTcuNzM0NSAwLjQyNzg1OSAxNy45NjU5IDAgMTguMzUxMiAwWiIgZmlsbD0iIzI0NkRGRiIvPgo8cGF0aCBkPSJNMTMuNjQ4OCAwSDAuNDg0ODQ4QzAuMjE3MDc0IDAgMCAwLjIxNzA3NCAwIDAuNDg0ODQ4VjIwLjYwMjVDMCAyMS4wODQ0IDAuNjI2NzE3IDIxLjI3MTIgMC44OTA1NTkgMjAuODY4TDE0LjA1NDUgMC43NTAzMjNDMTQuMjY1NSAwLjQyNzg1OSAxNC4wMzQxIDAgMTMuNjQ4OCAwWiIgZmlsbD0iIzIwQTM0RSIvPgo8cGF0aCBkPSJNMTUuNzc0NSAxNi4xMDY5TDAuODIwMjM1IDMxLjE3MzZDMC41MTY1NiAzMS40Nzk2IDAuNzMzMjc3IDMyIDEuMTY0MzYgMzJIMzAuODQ4QzMxLjI3NzMgMzIgMzEuNDk0OCAzMS40ODMyIDMxLjE5NDcgMzEuMTc2MkwxNi40NjUzIDE2LjEwOTVDMTYuMjc2MSAxNS45MTYgMTUuOTY1MSAxNS45MTQ4IDE1Ljc3NDUgMTYuMTA2OVoiIGZpbGw9IiNGODY2MDYiLz4KPC9zdmc+Cg=="
+  }
+}
