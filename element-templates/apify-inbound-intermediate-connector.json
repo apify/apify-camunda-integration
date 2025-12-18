@@ -4,7 +4,7 @@
   "id": "io.camunda.connector.inbound.Apify.v1:IntermediateCatchEvent",
   "version": 1,
   "description": "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.",
-  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/docs/INTERMEDIATE_EVENT_EXAMPLE.md",
+  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/README.md#2-inbound-connector-start-event",
   "metadata": {
     "keywords": [
       "apify",
