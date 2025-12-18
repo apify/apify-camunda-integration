@@ -12,7 +12,6 @@ import io.camunda.connector.apify.common.ApifyClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.slf4j.Logger;
@@ -27,7 +26,8 @@ import java.util.Map;
  *
  * These tests require:
  * - APIFY_TOKEN environment variable to be set
- * - APIFY_TEST_ACTOR_ID environment variable (optional, defaults to apify/web-scraper)
+ * - APIFY_TEST_ACTOR_ID environment variable (optional, defaults to
+ * apify/web-scraper)
  * - CONNECTOR_BASE_URL environment variable to be set
  *
  * Run with: mvn test -Dtest=ApifyInboundExecutableIntegrationTest

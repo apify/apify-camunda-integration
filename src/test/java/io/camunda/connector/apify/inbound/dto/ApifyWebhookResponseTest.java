@@ -145,7 +145,6 @@ class ApifyWebhookResponseTest {
     @Nested
     @DisplayName("JSON Serialization")
     class JsonSerialization {
-
         @Test
         void shouldSerializeToJsonCorrectly() throws Exception {
             ApifyWebhookResponse response = new ApifyWebhookResponse(
@@ -184,8 +183,7 @@ class ApifyWebhookResponseTest {
                     null,
                     null,
                     null,
-                    null
-            );
+                    null);
 
             String json = OBJECT_MAPPER.writeValueAsString(response);
             JsonNode jsonNode = OBJECT_MAPPER.readTree(json);
@@ -197,6 +195,5 @@ class ApifyWebhookResponseTest {
             assertThat(jsonNode.has("createdAt")).isFalse();
             assertThat(jsonNode.has("actorId")).isFalse();
         }
-
     }
 }

@@ -118,8 +118,10 @@ public final class InboundTestFixtures {
     }
 
     /**
-     * Default mock initializer for ApifyClient that sets up successful webhook operations.
-     * Configures listWebhooksByActor to return empty list and createWebhook to succeed.
+     * Default mock initializer for ApifyClient that sets up successful webhook
+     * operations.
+     * Configures listWebhooksByActor to return empty list and createWebhook to
+     * succeed.
      *
      * @return A MockInitializer for ApifyClient.
      */
@@ -136,8 +138,10 @@ public final class InboundTestFixtures {
     }
 
     /**
-     * Default mock initializer for ApifyClient that sets up successful webhook operations for tasks.
-     * Configures listWebhooksByActorTask to return empty list and createWebhook to succeed.
+     * Default mock initializer for ApifyClient that sets up successful webhook
+     * operations for tasks.
+     * Configures listWebhooksByActorTask to return empty list and createWebhook to
+     * succeed.
      *
      * @return A MockInitializer for ApifyClient.
      */
@@ -186,7 +190,8 @@ public final class InboundTestFixtures {
     }
 
     /**
-     * Mock initializer for ApifyClient that fails to list webhooks but succeeds at creation.
+     * Mock initializer for ApifyClient that fails to list webhooks but succeeds at
+     * creation.
      *
      * @return A MockInitializer for ApifyClient.
      */
@@ -219,7 +224,8 @@ public final class InboundTestFixtures {
     }
 
     /**
-     * Mock initializer for ApifyClient with full lifecycle support (create and delete).
+     * Mock initializer for ApifyClient with full lifecycle support (create and
+     * delete).
      *
      * @return A MockInitializer for ApifyClient.
      */
@@ -256,4 +262,3 @@ public final class InboundTestFixtures {
         };
     }
 }
-

@@ -62,56 +62,56 @@ class ApifyInboundExecutableTest {
     @DisplayName("ApifyInboundProperties")
     class ApifyInboundPropertiesTests {
 
-    @Test
-    void shouldCreatePropertiesWithAllFields() {
-        ApifyInboundProperties properties = new ApifyInboundProperties(
-                "test-token",
-                ACTOR,
-                "my-actor-id");
+        @Test
+        void shouldCreatePropertiesWithAllFields() {
+            ApifyInboundProperties properties = new ApifyInboundProperties(
+                    "test-token",
+                    ACTOR,
+                    "my-actor-id");
 
-        assertThat(properties.token()).isEqualTo("test-token");
-        assertThat(properties.resourceType()).isEqualTo(ACTOR);
-        assertThat(properties.resourceId()).isEqualTo("my-actor-id");
-    }
+            assertThat(properties.token()).isEqualTo("test-token");
+            assertThat(properties.resourceType()).isEqualTo(ACTOR);
+            assertThat(properties.resourceId()).isEqualTo("my-actor-id");
+        }
 
         @Nested
         @DisplayName("Resource ID Normalization")
         class ResourceIdNormalization {
 
-    @Test
-    void shouldNormalizeResourceIdWithSlash() {
-        ApifyInboundProperties properties = new ApifyInboundProperties(
-                "test-token",
-                ACTOR,
-                "apify/google-search-scraper");
+            @Test
+            void shouldNormalizeResourceIdWithSlash() {
+                ApifyInboundProperties properties = new ApifyInboundProperties(
+                        "test-token",
+                        ACTOR,
+                        "apify/google-search-scraper");
 
-        String normalized = properties.getNormalizedResourceId();
+                String normalized = properties.getNormalizedResourceId();
 
-        assertThat(normalized).isEqualTo("apify~google-search-scraper");
-    }
+                assertThat(normalized).isEqualTo("apify~google-search-scraper");
+            }
 
-    @Test
-    void shouldNotChangeResourceIdWithoutSlash() {
-        ApifyInboundProperties properties = new ApifyInboundProperties(
-                "test-token",
-                ACTOR,
-                "my-actor-id-123");
+            @Test
+            void shouldNotChangeResourceIdWithoutSlash() {
+                ApifyInboundProperties properties = new ApifyInboundProperties(
+                        "test-token",
+                        ACTOR,
+                        "my-actor-id-123");
 
-        String normalized = properties.getNormalizedResourceId();
+                String normalized = properties.getNormalizedResourceId();
 
-        assertThat(normalized).isEqualTo("my-actor-id-123");
-    }
+                assertThat(normalized).isEqualTo("my-actor-id-123");
+            }
 
-    @Test
-    void shouldHandleMultipleSlashesInResourceId() {
-        ApifyInboundProperties properties = new ApifyInboundProperties(
-                "test-token",
-                ACTOR,
-                "username/category/actor-name");
+            @Test
+            void shouldHandleMultipleSlashesInResourceId() {
+                ApifyInboundProperties properties = new ApifyInboundProperties(
+                        "test-token",
+                        ACTOR,
+                        "username/category/actor-name");
 
-        String normalized = properties.getNormalizedResourceId();
+                String normalized = properties.getNormalizedResourceId();
 
-        assertThat(normalized).isEqualTo("username~category~actor-name");
+                assertThat(normalized).isEqualTo("username~category~actor-name");
             }
         }
 
@@ -221,56 +221,56 @@ class ApifyInboundExecutableTest {
     @DisplayName("ApifyInboundEvent Parsing")
     class ApifyInboundEventTests {
 
-    @Test
-    void shouldParseEventWithAllFields() throws Exception {
-        String eventJson = """
-                {
-                    "eventType": "ACTOR.RUN.SUCCEEDED",
-                    "userId": "user123",
-                    "createdAt": "2024-01-15T10:30:00.000Z",
-                    "resource": {
-                        "id": "run123",
-                        "actId": "actor123",
-                        "actorTaskId": "task123",
-                        "status": "SUCCEEDED",
-                        "defaultDatasetId": "dataset123",
-                        "defaultKeyValueStoreId": "kvstore123"
-                    },
-                    "eventData": {
-                        "someKey": "someValue"
+        @Test
+        void shouldParseEventWithAllFields() throws Exception {
+            String eventJson = """
+                    {
+                        "eventType": "ACTOR.RUN.SUCCEEDED",
+                        "userId": "user123",
+                        "createdAt": "2024-01-15T10:30:00.000Z",
+                        "resource": {
+                            "id": "run123",
+                            "actId": "actor123",
+                            "actorTaskId": "task123",
+                            "status": "SUCCEEDED",
+                            "defaultDatasetId": "dataset123",
+                            "defaultKeyValueStoreId": "kvstore123"
+                        },
+                        "eventData": {
+                            "someKey": "someValue"
+                        }
                     }
-                }
-                """;
+                    """;
 
-        ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
+            ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        assertThat(event.eventType()).isEqualTo("ACTOR.RUN.SUCCEEDED");
-        assertThat(event.userId()).isEqualTo("user123");
-        assertThat(event.createdAt()).isEqualTo("2024-01-15T10:30:00.000Z");
-        assertThat(event.getRunId()).isEqualTo("run123");
-        assertThat(event.getActorId()).isEqualTo("actor123");
-        assertThat(event.getTaskId()).isEqualTo("task123");
-        assertThat(event.getStatus()).isEqualTo("SUCCEEDED");
-        assertThat(event.getDefaultDatasetId()).isEqualTo("dataset123");
-        assertThat(event.getDefaultKeyValueStoreId()).isEqualTo("kvstore123");
-    }
+            assertThat(event.eventType()).isEqualTo("ACTOR.RUN.SUCCEEDED");
+            assertThat(event.userId()).isEqualTo("user123");
+            assertThat(event.createdAt()).isEqualTo("2024-01-15T10:30:00.000Z");
+            assertThat(event.getRunId()).isEqualTo("run123");
+            assertThat(event.getActorId()).isEqualTo("actor123");
+            assertThat(event.getTaskId()).isEqualTo("task123");
+            assertThat(event.getStatus()).isEqualTo("SUCCEEDED");
+            assertThat(event.getDefaultDatasetId()).isEqualTo("dataset123");
+            assertThat(event.getDefaultKeyValueStoreId()).isEqualTo("kvstore123");
+        }
 
-    @Test
-    void shouldParseEventWithMinimalFields() throws Exception {
-        String eventJson = """
-                {
-                    "eventType": "ACTOR.RUN.FAILED"
-                }
-                """;
+        @Test
+        void shouldParseEventWithMinimalFields() throws Exception {
+            String eventJson = """
+                    {
+                        "eventType": "ACTOR.RUN.FAILED"
+                    }
+                    """;
 
-        ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
+            ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
 
-        assertThat(event.eventType()).isEqualTo("ACTOR.RUN.FAILED");
-        assertThat(event.userId()).isNull();
-        assertThat(event.resource()).isNull();
-        assertThat(event.getRunId()).isNull();
-        assertThat(event.getActorId()).isNull();
-    }
+            assertThat(event.eventType()).isEqualTo("ACTOR.RUN.FAILED");
+            assertThat(event.userId()).isNull();
+            assertThat(event.resource()).isNull();
+            assertThat(event.getRunId()).isNull();
+            assertThat(event.getActorId()).isNull();
+        }
 
     }
 
@@ -278,84 +278,84 @@ class ApifyInboundExecutableTest {
     @DisplayName("Webhook Processing")
     class WebhookProcessingTests {
 
-    @Test
+        @Test
         void shouldProcessValidWebhookPayload() throws Exception {
-        String webhookBody = """
-                {
-                    "eventType": "ACTOR.RUN.SUCCEEDED",
-                    "userId": "user123",
-                    "createdAt": "2024-01-15T10:30:00.000Z",
-                    "resource": {
-                        "id": "run123",
-                        "actId": "actor123",
-                        "status": "SUCCEEDED",
-                        "defaultDatasetId": "dataset123"
+            String webhookBody = """
+                    {
+                        "eventType": "ACTOR.RUN.SUCCEEDED",
+                        "userId": "user123",
+                        "createdAt": "2024-01-15T10:30:00.000Z",
+                        "resource": {
+                            "id": "run123",
+                            "actId": "actor123",
+                            "status": "SUCCEEDED",
+                            "defaultDatasetId": "dataset123"
+                        }
                     }
-                }
-                """;
+                    """;
 
             WebhookProcessingPayload payload = createMockPayload(webhookBody);
 
             WebhookResult result = executable.triggerWebhook(payload);
 
-        assertThat(result).isNotNull();
-        assertThat(result.connectorData()).containsKey("eventType");
-        assertThat(result.connectorData().get("eventType")).isEqualTo("ACTOR.RUN.SUCCEEDED");
-        assertThat(result.connectorData().get("runId")).isEqualTo("run123");
-        assertThat(result.connectorData().get("status")).isEqualTo("SUCCEEDED");
-    }
+            assertThat(result).isNotNull();
+            assertThat(result.connectorData()).containsKey("eventType");
+            assertThat(result.connectorData().get("eventType")).isEqualTo("ACTOR.RUN.SUCCEEDED");
+            assertThat(result.connectorData().get("runId")).isEqualTo("run123");
+            assertThat(result.connectorData().get("status")).isEqualTo("SUCCEEDED");
+        }
 
-    @Test
+        @Test
         void shouldReturnErrorResultForEmptyBody() throws Exception {
-        WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
-        when(payload.rawBody()).thenReturn(null);
-        when(payload.headers()).thenReturn(Map.of());
-        when(payload.params()).thenReturn(Map.of());
+            WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
+            when(payload.rawBody()).thenReturn(null);
+            when(payload.headers()).thenReturn(Map.of());
+            when(payload.params()).thenReturn(Map.of());
 
             WebhookResult result = executable.triggerWebhook(payload);
 
-        assertThat(result).isNotNull();
-        assertThat(result.connectorData()).containsKey("error");
-    }
+            assertThat(result).isNotNull();
+            assertThat(result.connectorData()).containsKey("error");
+        }
 
-    @Test
+        @Test
         void shouldReturnErrorResultForMalformedJson() throws Exception {
-        String malformedJson = "{ this is not valid json }";
+            String malformedJson = "{ this is not valid json }";
 
             WebhookProcessingPayload payload = createMockPayload(malformedJson);
 
             WebhookResult result = executable.triggerWebhook(payload);
 
-        assertThat(result).isNotNull();
-        assertThat(result.connectorData()).containsKey("error");
-        assertThat(result.connectorData().get("error").toString()).contains("Failed to parse webhook body");
-    }
+            assertThat(result).isNotNull();
+            assertThat(result.connectorData()).containsKey("error");
+            assertThat(result.connectorData().get("error").toString()).contains("Failed to parse webhook body");
+        }
 
-    @Test
+        @Test
         void shouldIncludeHeadersAndParamsInSuccessResult() throws Exception {
-        String webhookBody = """
-                {
-                    "eventType": "ACTOR.RUN.SUCCEEDED",
-                    "resource": {
-                        "id": "run123"
+            String webhookBody = """
+                    {
+                        "eventType": "ACTOR.RUN.SUCCEEDED",
+                        "resource": {
+                            "id": "run123"
+                        }
                     }
-                }
-                """;
+                    """;
 
-        Map<String, String> headers = Map.of(
-                "Content-Type", "application/json",
-                "X-Custom-Header", "custom-value");
-        Map<String, String> params = Map.of("queryParam", "paramValue");
+            Map<String, String> headers = Map.of(
+                    "Content-Type", "application/json",
+                    "X-Custom-Header", "custom-value");
+            Map<String, String> params = Map.of("queryParam", "paramValue");
 
-        WebhookProcessingPayload payload = createMockPayload(webhookBody, headers, params);
+            WebhookProcessingPayload payload = createMockPayload(webhookBody, headers, params);
 
             WebhookResult result = executable.triggerWebhook(payload);
 
-        assertThat(result).isNotNull();
-        assertThat(result.request()).isNotNull();
-        assertThat(result.request().headers()).isEqualTo(headers);
-        assertThat(result.request().params()).isEqualTo(params);
-    }
+            assertThat(result).isNotNull();
+            assertThat(result.request()).isNotNull();
+            assertThat(result.request().headers()).isEqualTo(headers);
+            assertThat(result.request().params()).isEqualTo(params);
+        }
 
     }
 
@@ -363,7 +363,7 @@ class ApifyInboundExecutableTest {
     @DisplayName("Activation")
     class ActivationTests {
 
-    @Test
+        @Test
         void shouldActivateSuccessfullyAndReportHealthUp() throws Exception {
             InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
 
@@ -407,65 +407,70 @@ class ApifyInboundExecutableTest {
         @DisplayName("Existing Webhook Reuse")
         class ExistingWebhookReuse {
 
-    @Test
-    void shouldReuseExistingWebhookIfFound() throws Exception {
-        InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
+            @Test
+            void shouldReuseExistingWebhookIfFound() throws Exception {
+                InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
+                        "test-context-123");
 
-        try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                existingActorWebhookMock("existing-webhook-456", "http://example.com/inbound/test-context-123"))) {
+                try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
+                        existingActorWebhookMock("existing-webhook-456",
+                                "http://example.com/inbound/test-context-123"))) {
 
-            executable.activate(context);
+                    executable.activate(context);
 
-            ApifyClient constructedClient = mockedClient.constructed().get(0);
-            verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
-            verify(constructedClient, never()).createWebhook(anyString(), anyString());
-
-                    ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
-                    verify(context).reportHealth(healthCaptor.capture());
-                    assertThat(healthCaptor.getValue().getStatus()).isEqualTo(Health.Status.UP);
-        }
-    }
-
-    @Test
-    void shouldProceedWithCreationIfListWebhooksFails() throws Exception {
-        InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
-
-        try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                listFailsButCreateSucceedsMock())) {
-
-            executable.activate(context);
-
-            ApifyClient constructedClient = mockedClient.constructed().get(0);
-            verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
-            verify(constructedClient).createWebhook(eq("test-token"), anyString());
+                    ApifyClient constructedClient = mockedClient.constructed().get(0);
+                    verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
+                    verify(constructedClient, never()).createWebhook(anyString(), anyString());
 
                     ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
                     verify(context).reportHealth(healthCaptor.capture());
                     assertThat(healthCaptor.getValue().getStatus()).isEqualTo(Health.Status.UP);
-        }
-    }
+                }
+            }
 
-    @Test
-    void shouldCreateNewWebhookIfExistingWebhookHasDifferentCallbackUrl() throws Exception {
-        InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
+            @Test
+            void shouldProceedWithCreationIfListWebhooksFails() throws Exception {
+                InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
+                        "test-context-123");
 
-        try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                (mock, ctx) -> {
-                    ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                    when(listResult.getResponseBody()).thenReturn(
-                            webhookListResponse("different-webhook-999", "http://different-url.com/inbound/other-context"));
-                    when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
+                try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
+                        listFailsButCreateSucceedsMock())) {
 
-                    ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
+                    executable.activate(context);
+
+                    ApifyClient constructedClient = mockedClient.constructed().get(0);
+                    verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
+                    verify(constructedClient).createWebhook(eq("test-token"), anyString());
+
+                    ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
+                    verify(context).reportHealth(healthCaptor.capture());
+                    assertThat(healthCaptor.getValue().getStatus()).isEqualTo(Health.Status.UP);
+                }
+            }
+
+            @Test
+            void shouldCreateNewWebhookIfExistingWebhookHasDifferentCallbackUrl() throws Exception {
+                InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
+                        "test-context-123");
+
+                try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
+                        (mock, ctx) -> {
+                            ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
+                            when(listResult.getResponseBody()).thenReturn(
+                                    webhookListResponse("different-webhook-999",
+                                            "http://different-url.com/inbound/other-context"));
+                            when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
+
+                            ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
                             when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                    when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
-                })) {
+                            when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
+                        })) {
 
-            executable.activate(context);
+                    executable.activate(context);
 
-            ApifyClient constructedClient = mockedClient.constructed().get(0);
-            verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
-            verify(constructedClient).createWebhook(eq("test-token"), anyString());
+                    ApifyClient constructedClient = mockedClient.constructed().get(0);
+                    verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
+                    verify(constructedClient).createWebhook(eq("test-token"), anyString());
                 }
             }
         }
@@ -625,6 +630,5 @@ class ApifyInboundExecutableTest {
                 assertThat(payload).doesNotContain("//leading-slash-context");
             }
         }
-
     }
 }

@@ -15,7 +15,6 @@ import org.junit.jupiter.params.provider.ValueSource;
  * Unit tests for ResourceType enum.
  */
 class ResourceTypeTest {
-
     @ParameterizedTest
     @CsvSource({
             "ACTOR, actor, actorId",
@@ -30,7 +29,6 @@ class ResourceTypeTest {
     @Nested
     @DisplayName("fromValue()")
     class FromValue {
-
         @ParameterizedTest
         @CsvSource({
                 "actor, ACTOR",
@@ -41,7 +39,7 @@ class ResourceTypeTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"ACTOR", "TASK", "Actor", "Task", "invalid", "actors", "", " "})
+        @ValueSource(strings = { "ACTOR", "TASK", "Actor", "Task", "invalid", "actors", "", " " })
         void shouldThrowExceptionForInvalidValues(String invalidValue) {
             assertThatThrownBy(() -> ResourceType.fromValue(invalidValue))
                     .isInstanceOf(IllegalArgumentException.class)

@@ -14,7 +14,6 @@ import java.util.regex.Pattern;
  * Unit tests for ApifyPayloadTemplate.
  */
 class ApifyPayloadTemplateTest {
-
     @Nested
     @DisplayName("Template Content")
     class TemplateContent {
@@ -84,7 +83,7 @@ class ApifyPayloadTemplateTest {
             long openingCount = content.chars().filter(ch -> ch == '{').count();
             long closingCount = content.chars().filter(ch -> ch == '}').count();
             assertThat(openingCount).isEqualTo(closingCount);
-            
+
             // Verify exactly 5 placeholders
             long placeholderCount = Pattern.compile(Pattern.quote("{{")).matcher(content).results().count();
             assertThat(placeholderCount).isEqualTo(5);
