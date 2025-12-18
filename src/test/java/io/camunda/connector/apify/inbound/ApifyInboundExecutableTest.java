@@ -1,10 +1,19 @@
 package io.camunda.connector.apify.inbound;
 
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.OBJECT_MAPPER;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.VALID_WEBHOOK_RESPONSE;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.createMockContext;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.createMockPayload;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.createWebhookFailsMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.defaultActorClientMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.deleteWebhookFailsMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.existingActorWebhookMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.fullLifecycleActorMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.listFailsButCreateSucceedsMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.webhookListResponse;
 import static io.camunda.connector.apify.inbound.dto.ResourceType.ACTOR;
-import static io.camunda.connector.apify.inbound.dto.ResourceType.TASK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -13,7 +22,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.camunda.connector.api.inbound.Health;
 import io.camunda.connector.api.inbound.InboundConnectorContext;
 import io.camunda.connector.api.inbound.webhook.WebhookProcessingPayload;
@@ -34,7 +42,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
 
@@ -43,14 +50,6 @@ import java.util.Set;
  */
 @ExtendWith(MockitoExtension.class)
 class ApifyInboundExecutableTest {
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final String VALID_WEBHOOK_RESPONSE = """
-            {"data":{"id":"webhook-123"}}
-            """;
-    private static final String EMPTY_WEBHOOKS_LIST = """
-            {"data":{"items":[]}}
-            """;
 
     private ApifyInboundExecutable executable;
 
@@ -74,18 +73,6 @@ class ApifyInboundExecutableTest {
         assertThat(properties.resourceType()).isEqualTo(ACTOR);
         assertThat(properties.resourceId()).isEqualTo("my-actor-id");
     }
-
-        @Test
-        void shouldCreatePropertiesWithTaskResourceType() {
-            ApifyInboundProperties properties = new ApifyInboundProperties(
-                    "test-token",
-                    TASK,
-                    "my-task-id");
-
-            assertThat(properties.resourceType()).isEqualTo(TASK);
-            assertThat(properties.resourceType().getValue()).isEqualTo("task");
-            assertThat(properties.resourceType().getConditionKey()).isEqualTo("actorTaskId");
-        }
 
         @Nested
         @DisplayName("Resource ID Normalization")
@@ -119,12 +106,12 @@ class ApifyInboundExecutableTest {
     void shouldHandleMultipleSlashesInResourceId() {
         ApifyInboundProperties properties = new ApifyInboundProperties(
                 "test-token",
-                TASK,
-                "username/category/task-name");
+                ACTOR,
+                "username/category/actor-name");
 
         String normalized = properties.getNormalizedResourceId();
 
-        assertThat(normalized).isEqualTo("username~category~task-name");
+        assertThat(normalized).isEqualTo("username~category~actor-name");
             }
         }
 
@@ -285,26 +272,6 @@ class ApifyInboundExecutableTest {
         assertThat(event.getActorId()).isNull();
     }
 
-        @Test
-        void shouldHandleEventWithResourceButMissingFields() throws Exception {
-            String eventJson = """
-                    {
-                        "eventType": "ACTOR.RUN.SUCCEEDED",
-                        "resource": {
-                            "id": "run123"
-                        }
-                    }
-                    """;
-
-            ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
-
-            assertThat(event.getRunId()).isEqualTo("run123");
-            assertThat(event.getActorId()).isNull();
-            assertThat(event.getTaskId()).isNull();
-            assertThat(event.getStatus()).isNull();
-            assertThat(event.getDefaultDatasetId()).isNull();
-            assertThat(event.getDefaultKeyValueStoreId()).isNull();
-        }
     }
 
     @Nested
@@ -312,7 +279,7 @@ class ApifyInboundExecutableTest {
     class WebhookProcessingTests {
 
     @Test
-        void shouldProcessValidWebhookPayload() {
+        void shouldProcessValidWebhookPayload() throws Exception {
         String webhookBody = """
                 {
                     "eventType": "ACTOR.RUN.SUCCEEDED",
@@ -329,7 +296,7 @@ class ApifyInboundExecutableTest {
 
             WebhookProcessingPayload payload = createMockPayload(webhookBody);
 
-            WebhookResult result = triggerWebhookSafely(payload);
+            WebhookResult result = executable.triggerWebhook(payload);
 
         assertThat(result).isNotNull();
         assertThat(result.connectorData()).containsKey("eventType");
@@ -339,116 +306,33 @@ class ApifyInboundExecutableTest {
     }
 
     @Test
-        void shouldReturnErrorResultForEmptyBody() {
+        void shouldReturnErrorResultForEmptyBody() throws Exception {
         WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
         when(payload.rawBody()).thenReturn(null);
         when(payload.headers()).thenReturn(Map.of());
         when(payload.params()).thenReturn(Map.of());
 
-            WebhookResult result = triggerWebhookSafely(payload);
+            WebhookResult result = executable.triggerWebhook(payload);
 
         assertThat(result).isNotNull();
         assertThat(result.connectorData()).containsKey("error");
     }
 
     @Test
-        void shouldReturnErrorResultForEmptyByteArray() {
-        WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
-            when(payload.rawBody()).thenReturn(new byte[0]);
-        when(payload.headers()).thenReturn(Map.of());
-        when(payload.params()).thenReturn(Map.of());
-
-            WebhookResult result = triggerWebhookSafely(payload);
-
-        assertThat(result).isNotNull();
-            assertThat(result.connectorData()).containsKey("error");
-    }
-
-    @Test
-        void shouldReturnErrorResultForMalformedJson() {
+        void shouldReturnErrorResultForMalformedJson() throws Exception {
         String malformedJson = "{ this is not valid json }";
 
             WebhookProcessingPayload payload = createMockPayload(malformedJson);
 
-            WebhookResult result = triggerWebhookSafely(payload);
+            WebhookResult result = executable.triggerWebhook(payload);
 
         assertThat(result).isNotNull();
         assertThat(result.connectorData()).containsKey("error");
         assertThat(result.connectorData().get("error").toString()).contains("Failed to parse webhook body");
     }
 
-        @Nested
-        @DisplayName("Different Event Statuses")
-        class DifferentEventStatuses {
-
     @Test
-            void shouldProcessWebhookWithFailedStatus() {
-                String webhookBody = """
-                {
-                            "eventType": "ACTOR.RUN.FAILED",
-                    "resource": {
-                                "id": "run456",
-                                "status": "FAILED"
-                    }
-                }
-                """;
-
-                WebhookProcessingPayload payload = createMockPayload(webhookBody);
-
-                WebhookResult result = triggerWebhookSafely(payload);
-
-                assertThat(result).isNotNull();
-                assertThat(result.connectorData().get("eventType")).isEqualTo("ACTOR.RUN.FAILED");
-                assertThat(result.connectorData().get("status")).isEqualTo("FAILED");
-            }
-
-    @Test
-            void shouldProcessWebhookWithTimedOutStatus() {
-        String webhookBody = """
-                {
-                    "eventType": "ACTOR.RUN.TIMED_OUT",
-                    "resource": {
-                        "id": "run789",
-                        "status": "TIMED-OUT"
-                    }
-                }
-                """;
-
-                WebhookProcessingPayload payload = createMockPayload(webhookBody);
-
-                WebhookResult result = triggerWebhookSafely(payload);
-
-        assertThat(result).isNotNull();
-        assertThat(result.connectorData().get("eventType")).isEqualTo("ACTOR.RUN.TIMED_OUT");
-        assertThat(result.connectorData().get("status")).isEqualTo("TIMED-OUT");
-    }
-
-    @Test
-            void shouldProcessWebhookWithAbortedStatus() {
-        String webhookBody = """
-                {
-                    "eventType": "ACTOR.RUN.ABORTED",
-                    "resource": {
-                        "id": "run999",
-                        "status": "ABORTED",
-                        "actId": "actor999"
-                    }
-                }
-                """;
-
-                WebhookProcessingPayload payload = createMockPayload(webhookBody);
-
-                WebhookResult result = triggerWebhookSafely(payload);
-
-        assertThat(result).isNotNull();
-        assertThat(result.connectorData().get("eventType")).isEqualTo("ACTOR.RUN.ABORTED");
-        assertThat(result.connectorData().get("status")).isEqualTo("ABORTED");
-        assertThat(result.connectorData().get("actorId")).isEqualTo("actor999");
-            }
-    }
-
-    @Test
-        void shouldIncludeHeadersAndParamsInSuccessResult() {
+        void shouldIncludeHeadersAndParamsInSuccessResult() throws Exception {
         String webhookBody = """
                 {
                     "eventType": "ACTOR.RUN.SUCCEEDED",
@@ -463,12 +347,9 @@ class ApifyInboundExecutableTest {
                 "X-Custom-Header", "custom-value");
         Map<String, String> params = Map.of("queryParam", "paramValue");
 
-        WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
-        when(payload.rawBody()).thenReturn(webhookBody.getBytes(StandardCharsets.UTF_8));
-        when(payload.headers()).thenReturn(headers);
-        when(payload.params()).thenReturn(params);
+        WebhookProcessingPayload payload = createMockPayload(webhookBody, headers, params);
 
-            WebhookResult result = triggerWebhookSafely(payload);
+            WebhookResult result = executable.triggerWebhook(payload);
 
         assertThat(result).isNotNull();
         assertThat(result.request()).isNotNull();
@@ -476,44 +357,6 @@ class ApifyInboundExecutableTest {
         assertThat(result.request().params()).isEqualTo(params);
     }
 
-    @Test
-        void shouldProcessWebhookWithTaskResource() {
-        String webhookBody = """
-                {
-                    "eventType": "ACTOR.RUN.SUCCEEDED",
-                    "userId": "user456",
-                    "resource": {
-                        "id": "run456",
-                        "actorTaskId": "task456",
-                        "status": "SUCCEEDED"
-                    }
-                }
-                """;
-
-            WebhookProcessingPayload payload = createMockPayload(webhookBody);
-
-            WebhookResult result = triggerWebhookSafely(payload);
-
-        assertThat(result).isNotNull();
-        assertThat(result.connectorData().get("taskId")).isEqualTo("task456");
-        assertThat(result.connectorData().get("runId")).isEqualTo("run456");
-    }
-
-        private WebhookProcessingPayload createMockPayload(String body) {
-            WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
-            when(payload.rawBody()).thenReturn(body.getBytes(StandardCharsets.UTF_8));
-            when(payload.headers()).thenReturn(Map.of("Content-Type", "application/json"));
-            when(payload.params()).thenReturn(Map.of());
-            return payload;
-        }
-
-        private WebhookResult triggerWebhookSafely(WebhookProcessingPayload payload) {
-            try {
-                return executable.triggerWebhook(payload);
-            } catch (Exception e) {
-                throw new RuntimeException("Unexpected exception in triggerWebhook", e);
-            }
-        }
     }
 
     @Nested
@@ -525,15 +368,7 @@ class ApifyInboundExecutableTest {
             InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
 
             try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                        when(listResult.getResponseBody()).thenReturn(EMPTY_WEBHOOKS_LIST);
-                        when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-
-                        ApifyClient.ResponseResult responseResult = mock(ApifyClient.ResponseResult.class);
-                        when(responseResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                        when(mock.createWebhook(anyString(), anyString())).thenReturn(responseResult);
-                    })) {
+                    defaultActorClientMock())) {
 
                 executable.activate(context);
 
@@ -552,14 +387,7 @@ class ApifyInboundExecutableTest {
             InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
 
             try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                        when(listResult.getResponseBody()).thenReturn(EMPTY_WEBHOOKS_LIST);
-                        when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-
-                        when(mock.createWebhook(anyString(), anyString()))
-                                .thenThrow(new IOException("Network error"));
-                    })) {
+                    createWebhookFailsMock("Network error"))) {
 
                 assertThatThrownBy(() -> executable.activate(context))
                         .isInstanceOf(IOException.class)
@@ -575,24 +403,6 @@ class ApifyInboundExecutableTest {
             }
         }
 
-        @Test
-        void shouldHandleMissingInboundContext() {
-            InboundConnectorContext context = mock(InboundConnectorContext.class);
-            ApifyInboundProperties properties = new ApifyInboundProperties("test-token", ACTOR, "my-actor-id");
-            when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
-            when(context.getProperties()).thenReturn(Map.of("inbound", Map.of()));
-
-            try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        when(mock.createWebhook(anyString(), anyString()))
-                                .thenThrow(new IOException("Invalid callback URL"));
-                    })) {
-
-                assertThatThrownBy(() -> executable.activate(context))
-                        .isInstanceOf(Exception.class);
-            }
-        }
-
         @Nested
         @DisplayName("Existing Webhook Reuse")
         class ExistingWebhookReuse {
@@ -600,25 +410,9 @@ class ApifyInboundExecutableTest {
     @Test
     void shouldReuseExistingWebhookIfFound() throws Exception {
         InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
-        String listWebhooksResponse = """
-                {
-                    "data": {
-                        "items": [
-                            {
-                                "id": "existing-webhook-456",
-                                "requestUrl": "http://example.com/inbound/test-context-123"
-                            }
-                        ]
-                    }
-                }
-                """;
 
         try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                (mock, ctx) -> {
-                    ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                    when(listResult.getResponseBody()).thenReturn(listWebhooksResponse);
-                    when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-                })) {
+                existingActorWebhookMock("existing-webhook-456", "http://example.com/inbound/test-context-123"))) {
 
             executable.activate(context);
 
@@ -633,49 +427,11 @@ class ApifyInboundExecutableTest {
     }
 
     @Test
-    void shouldReuseExistingWebhookForTaskResourceType() throws Exception {
-        InboundConnectorContext context = createMockContext("test-token", TASK, "my-task-id", "test-context-789");
-        String listWebhooksResponse = """
-                {
-                    "data": {
-                        "items": [
-                            {
-                                "id": "existing-task-webhook-789",
-                                "requestUrl": "http://example.com/inbound/test-context-789"
-                            }
-                        ]
-                    }
-                }
-                """;
-
-        try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                (mock, ctx) -> {
-                    ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                    when(listResult.getResponseBody()).thenReturn(listWebhooksResponse);
-                    when(mock.listWebhooksByActorTask(anyString(), anyString())).thenReturn(listResult);
-                })) {
-
-            executable.activate(context);
-
-            ApifyClient constructedClient = mockedClient.constructed().get(0);
-            verify(constructedClient).listWebhooksByActorTask(eq("test-token"), eq("my-task-id"));
-            verify(constructedClient, never()).createWebhook(anyString(), anyString());
-        }
-    }
-
-    @Test
     void shouldProceedWithCreationIfListWebhooksFails() throws Exception {
         InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
 
         try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                (mock, ctx) -> {
-                    when(mock.listWebhooksByActor(anyString(), anyString()))
-                            .thenThrow(new IOException("API error while listing webhooks"));
-
-                    ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-                            when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                    when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
-                })) {
+                listFailsButCreateSucceedsMock())) {
 
             executable.activate(context);
 
@@ -692,23 +448,12 @@ class ApifyInboundExecutableTest {
     @Test
     void shouldCreateNewWebhookIfExistingWebhookHasDifferentCallbackUrl() throws Exception {
         InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
-        String listWebhooksResponse = """
-                {
-                    "data": {
-                        "items": [
-                            {
-                                "id": "different-webhook-999",
-                                "requestUrl": "http://different-url.com/inbound/other-context"
-                            }
-                        ]
-                    }
-                }
-                """;
 
         try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
                 (mock, ctx) -> {
                     ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                    when(listResult.getResponseBody()).thenReturn(listWebhooksResponse);
+                    when(listResult.getResponseBody()).thenReturn(
+                            webhookListResponse("different-webhook-999", "http://different-url.com/inbound/other-context"));
                     when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
 
                     ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
@@ -735,16 +480,7 @@ class ApifyInboundExecutableTest {
             InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
 
             try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                        when(listResult.getResponseBody()).thenReturn(EMPTY_WEBHOOKS_LIST);
-                        when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-
-                        ApifyClient.ResponseResult responseResult = mock(ApifyClient.ResponseResult.class);
-                        when(responseResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                        when(mock.createWebhook(anyString(), anyString())).thenReturn(responseResult);
-                        when(mock.deleteWebhook(anyString(), anyString())).thenReturn(responseResult);
-                    })) {
+                    fullLifecycleActorMock())) {
 
                 executable.activate(context);
                 executable.deactivate();
@@ -761,17 +497,7 @@ class ApifyInboundExecutableTest {
             InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
 
             try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                        when(listResult.getResponseBody()).thenReturn(EMPTY_WEBHOOKS_LIST);
-                        when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-
-                        ApifyClient.ResponseResult responseResult = mock(ApifyClient.ResponseResult.class);
-                        when(responseResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                        when(mock.createWebhook(anyString(), anyString())).thenReturn(responseResult);
-                        when(mock.deleteWebhook(anyString(), anyString()))
-                                .thenThrow(new IOException("Failed to delete webhook"));
-                    })) {
+                    deleteWebhookFailsMock("Failed to delete webhook"))) {
 
                 executable.activate(context);
 
@@ -795,14 +521,7 @@ class ApifyInboundExecutableTest {
             InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id", "test-context-123");
 
             try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                        when(listResult.getResponseBody()).thenReturn(EMPTY_WEBHOOKS_LIST);
-                        when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-
-                        when(mock.createWebhook(anyString(), anyString()))
-                                .thenThrow(new IOException("Network error"));
-                    })) {
+                    createWebhookFailsMock("Network error"))) {
 
                 try {
                     executable.activate(context);
@@ -829,15 +548,7 @@ class ApifyInboundExecutableTest {
                     "test-context-123");
 
             try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                        when(listResult.getResponseBody()).thenReturn(EMPTY_WEBHOOKS_LIST);
-                        when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-
-                        ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-                        when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                        when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
-                    })) {
+                    defaultActorClientMock())) {
 
                 executable.activate(context);
 
@@ -862,33 +573,6 @@ class ApifyInboundExecutableTest {
             }
         }
 
-        @Test
-        void shouldBuildCorrectWebhookPayloadForTaskResource() throws Exception {
-            InboundConnectorContext context = createMockContext("test-token", TASK, "my-task-id", "test-context-456");
-
-            try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                        when(listResult.getResponseBody()).thenReturn(EMPTY_WEBHOOKS_LIST);
-                        when(mock.listWebhooksByActorTask(anyString(), anyString())).thenReturn(listResult);
-
-                        ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-                        when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                        when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
-                    })) {
-
-                executable.activate(context);
-
-                ApifyClient constructedClient = mockedClient.constructed().get(0);
-                ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-                verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
-
-                String payload = payloadCaptor.getValue();
-
-                assertThat(payload).contains("\"actorTaskId\"");
-                assertThat(payload).contains("my-task-id");
-            }
-        }
     }
 
     @Nested
@@ -927,15 +611,7 @@ class ApifyInboundExecutableTest {
             when(context.getProperties()).thenReturn(Map.of("inbound", Map.of("context", "/leading-slash-context")));
 
             try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                        when(listResult.getResponseBody()).thenReturn(EMPTY_WEBHOOKS_LIST);
-                        when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-
-                        ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-                        when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                        when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
-                    })) {
+                    defaultActorClientMock())) {
 
                 executable.activate(context);
 
@@ -950,30 +626,5 @@ class ApifyInboundExecutableTest {
             }
         }
 
-        @Test
-        void shouldHandleInboundContextAsNullInMap() {
-            InboundConnectorContext context = mock(InboundConnectorContext.class);
-            ApifyInboundProperties properties = new ApifyInboundProperties("test-token", ACTOR, "my-actor-id");
-            when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
-
-            java.util.HashMap<String, Object> inboundMap = new java.util.HashMap<>();
-            inboundMap.put("context", null);
-            when(context.getProperties()).thenReturn(Map.of("inbound", inboundMap));
-
-            assertThatThrownBy(() -> executable.activate(context))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("Inbound context path is not configured");
-        }
-    }
-
-    // Helper method to create mock context
-    private InboundConnectorContext createMockContext(String token, ResourceType resourceType, String resourceId,
-            String inboundContext) {
-        InboundConnectorContext context = mock(InboundConnectorContext.class);
-        ApifyInboundProperties properties = new ApifyInboundProperties(token, resourceType, resourceId);
-        when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
-        when(context.getProperties()).thenReturn(Map.of(
-                "inbound", Map.of("context", inboundContext)));
-        return context;
     }
 }

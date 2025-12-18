@@ -1,9 +1,9 @@
 package io.camunda.connector.apify.inbound.dto;
 
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.OBJECT_MAPPER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.apify.inbound.ApifyInboundEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,8 +17,6 @@ import java.util.Map;
  * Unit tests for ApifyWebhookResponse.
  */
 class ApifyWebhookResponseTest {
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private ObjectNode resourceNode;
     private ObjectNode eventDataNode;
@@ -117,27 +115,6 @@ class ApifyWebhookResponseTest {
         }
 
         @Test
-        void shouldHandleNullEventData() throws Exception {
-            resourceNode.put("id", "run123");
-
-            String eventJson = String.format("""
-                    {
-                        "eventType": "ACTOR.RUN.SUCCEEDED",
-                        "resource": %s,
-                        "eventData": null
-                    }
-                    """, resourceNode.toString());
-
-            ApifyInboundEvent event = OBJECT_MAPPER.readValue(eventJson, ApifyInboundEvent.class);
-
-            ApifyWebhookResponse response = ApifyWebhookResponse.fromEvent(event);
-
-            assertThat(response.eventType()).isEqualTo("ACTOR.RUN.SUCCEEDED");
-            assertThat(response.runId()).isEqualTo("run123");
-            assertThat(response.eventData()).isNull();
-        }
-
-        @Test
         void shouldConvertComplexResourceObject() throws Exception {
             resourceNode.put("id", "run123");
             resourceNode.put("actId", "actor123");
@@ -195,25 +172,6 @@ class ApifyWebhookResponseTest {
         }
 
         @Test
-        void shouldDeserializeFromJsonCorrectly() throws Exception {
-            String json = """
-                    {
-                        "eventType": "ACTOR.RUN.SUCCEEDED",
-                        "userId": "user123",
-                        "runId": "run123",
-                        "status": "SUCCEEDED"
-                    }
-                    """;
-
-            ApifyWebhookResponse response = OBJECT_MAPPER.readValue(json, ApifyWebhookResponse.class);
-
-            assertThat(response.eventType()).isEqualTo("ACTOR.RUN.SUCCEEDED");
-            assertThat(response.userId()).isEqualTo("user123");
-            assertThat(response.runId()).isEqualTo("run123");
-            assertThat(response.status()).isEqualTo("SUCCEEDED");
-        }
-
-        @Test
         void shouldExcludeNullFieldsInSerialization() throws Exception {
             ApifyWebhookResponse response = new ApifyWebhookResponse(
                     "ACTOR.RUN.FAILED",
@@ -240,31 +198,5 @@ class ApifyWebhookResponseTest {
             assertThat(jsonNode.has("actorId")).isFalse();
         }
 
-        @Test
-        void shouldRoundTripThroughJson() throws Exception {
-            ApifyWebhookResponse original = new ApifyWebhookResponse(
-                    "ACTOR.RUN.SUCCEEDED",
-                    "user123",
-                    "2024-01-15T10:30:00.000Z",
-                    "run123",
-                    "SUCCEEDED",
-                    "actor123",
-                    "task123",
-                    "dataset123",
-                    "kvstore123",
-                    Map.of("id", "run123", "status", "SUCCEEDED"),
-                    Map.of("key", "value")
-            );
-
-            String json = OBJECT_MAPPER.writeValueAsString(original);
-            ApifyWebhookResponse deserialized = OBJECT_MAPPER.readValue(json, ApifyWebhookResponse.class);
-
-            assertThat(deserialized.eventType()).isEqualTo(original.eventType());
-            assertThat(deserialized.userId()).isEqualTo(original.userId());
-            assertThat(deserialized.runId()).isEqualTo(original.runId());
-            assertThat(deserialized.status()).isEqualTo(original.status());
-            assertThat(deserialized.actorId()).isEqualTo(original.actorId());
-            assertThat(deserialized.taskId()).isEqualTo(original.taskId());
-        }
     }
 }

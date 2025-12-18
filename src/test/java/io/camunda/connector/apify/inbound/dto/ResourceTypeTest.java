@@ -16,34 +16,15 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class ResourceTypeTest {
 
-    @Nested
-    @DisplayName("getValue()")
-    class GetValue {
-
-        @Test
-        void shouldReturnCorrectValueForActor() {
-            assertThat(ResourceType.ACTOR.getValue()).isEqualTo("actor");
-        }
-
-        @Test
-        void shouldReturnCorrectValueForTask() {
-            assertThat(ResourceType.TASK.getValue()).isEqualTo("task");
-        }
-    }
-
-    @Nested
-    @DisplayName("getConditionKey()")
-    class GetConditionKey {
-
-        @Test
-        void shouldReturnCorrectConditionKeyForActor() {
-            assertThat(ResourceType.ACTOR.getConditionKey()).isEqualTo("actorId");
-        }
-
-        @Test
-        void shouldReturnCorrectConditionKeyForTask() {
-            assertThat(ResourceType.TASK.getConditionKey()).isEqualTo("actorTaskId");
-        }
+    @ParameterizedTest
+    @CsvSource({
+            "ACTOR, actor, actorId",
+            "TASK, task, actorTaskId"
+    })
+    @DisplayName("Should return correct value and conditionKey for each type")
+    void shouldReturnCorrectValueAndConditionKey(ResourceType type, String expectedValue, String expectedConditionKey) {
+        assertThat(type.getValue()).isEqualTo(expectedValue);
+        assertThat(type.getConditionKey()).isEqualTo(expectedConditionKey);
     }
 
     @Nested
@@ -56,9 +37,7 @@ class ResourceTypeTest {
                 "task, TASK"
         })
         void shouldParseValidResourceTypeValues(String value, ResourceType expected) {
-            ResourceType result = ResourceType.fromValue(value);
-
-            assertThat(result).isEqualTo(expected);
+            assertThat(ResourceType.fromValue(value)).isEqualTo(expected);
         }
 
         @ParameterizedTest
@@ -92,16 +71,6 @@ class ResourceTypeTest {
             for (ResourceType type : ResourceType.values()) {
                 assertThat(ResourceType.fromValue(type.getValue())).isEqualTo(type);
             }
-        }
-
-        @Test
-        void shouldHaveUniqueValues() {
-            assertThat(ResourceType.ACTOR.getValue()).isNotEqualTo(ResourceType.TASK.getValue());
-        }
-
-        @Test
-        void shouldHaveUniqueConditionKeys() {
-            assertThat(ResourceType.ACTOR.getConditionKey()).isNotEqualTo(ResourceType.TASK.getConditionKey());
         }
     }
 }
