@@ -205,14 +205,53 @@ Keep this terminal running while you work with Camunda Modeler.
 
 ## 3. Inbound Connector (Intermediate Event)
 
-The Intermediate Event connector allows you to pause a running process and wait for an Apify webhook event before continuing.
+The Intermediate Event connector allows you to pause a running process and wait for an Apify webhook event before continuing. This is perfect for long-running Actors where you want to continue the process only when the specific run finishes.
 
-### TODO
-
-> This section is still under development. Testing is in progress to determine the exact setup and behavior.
+> **Prerequisite:** Before setting up the intermediate event, ensure you have followed the [Inbound Connector (Start Event)](#2-inbound-connector-start-event) instructions for **Setting up Environment Variables** and **Running the Connector Locally**.
 
 The intermediate event connector template is available at:
 - `element-templates/apify-inbound-intermediate-connector.json`
+
+### How Correlation Works
+
+Unlike the Start Event, an Intermediate Event needs to know **which** specific process instance to wake up. This is done via **Correlation Keys**.
+
+Think of it as matching a ticket:
+1. **Correlation key (process)**: The "Ticket Number" stored in your process (e.g., a `userId` or `runId` from a previous step).
+2. **Correlation key (payload)**: The "Ticket Number" found in the incoming Apify webhook.
+
+When they match, the process continues.
+
+### Set up and Test the inbound connector events (start and intermediate)
+
+This setup is a demonstration of how the **Inbound Start Event** and **Inbound Intermediate Event** work together using correlation. While this specific flow (linking two webhooks by userId) is a test example, it illustrates the core mechanics of process continuation.
+
+1. **Design your BPMN process**:
+   - Start with an **Apify Inbound Start Event** (or any other start event).
+   - Add an **Apify Inbound Intermediate Event** later in the flow.
+   - Select the **Apify Inbound Intermediate Event** template for the catch event.
+
+![Designing a process with an intermediate catch event](docs/modeler-intermediate-design.png)
+
+2. **Configure the Start Event**:
+   - Set the **Result Variable** to `start_res`.
+   - This variable will store the payload data from the first webhook, including the `userId` or `runId`.
+
+3. **Configure the Intermediate Event**:
+   - **Authentication & Trigger**: Set your token and the Actor/Task ID you want to wait for.
+   - **Correlation key (process)**: `=start_res.request.body.userId` (matches the ID stored from the start).
+   - **Correlation key (payload)**: `=request.body.userId` (extracts the ID from the incoming webhook).
+   - **Result Variable**: Set to `inter_res`.
+
+![Configuring correlation keys](docs/modeler-intermediate-correlation.png)
+
+4. **Deploy and Run**:
+   - **Deploy** the process to your Camunda instance.
+   - **Trigger the Start Event**: Run the first Actor on Apify. You will see a new process instance waiting at the Intermediate Event in **Camunda Operate**.
+   - **Trigger the Intermediate Event**: Run the second Actor on Apify.
+   - **Match**: If the `userId` (or `runId`) matches, the process instance will successfully finish.
+
+![Verifying matching in Operate](docs/operate-intermediate-success.png)
 
 ---
 
