@@ -139,10 +139,10 @@ export CONNECTOR_BASE_URL=http://example.com
 ngrok http 9898
 ```
 
-3. Copy the generated public URL (e.g., `https://abc123.ngrok.io`) and set it:
+3. Copy the generated public URL (e.g., `https://<random_string>.ngrok-free.app`) and set it:
 
 ```bash
-export CONNECTOR_BASE_URL=https://abc123.ngrok.io
+export CONNECTOR_BASE_URL=https://<random_string>.ngrok-free.app
 ```
 
 ### Run the Inbound Connector Locally
