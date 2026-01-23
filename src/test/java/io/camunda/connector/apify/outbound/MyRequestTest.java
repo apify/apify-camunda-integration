@@ -10,7 +10,7 @@ import io.camunda.connector.apify.outbound.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
 import io.camunda.connector.apify.outbound.dto.RunActorInput;
-import io.camunda.connector.test.outbound.OutboundConnectorContextBuilder;
+import io.camunda.connector.runtime.test.outbound.OutboundConnectorContextBuilder;
 
 import org.junit.jupiter.api.Test;
 

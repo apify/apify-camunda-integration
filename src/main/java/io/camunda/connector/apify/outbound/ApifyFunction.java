@@ -427,7 +427,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
           
           if (propertiesNode.isObject()) {
             // Iterate through each property
-            propertiesNode.fields().forEachRemaining(entry -> {
+            propertiesNode.properties().forEach(entry -> {
               String propertyName = entry.getKey();
               JsonNode propertyNode = entry.getValue();
               
@@ -462,7 +462,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       return objectMapper.convertValue(node, Object.class);
     } else if (node.isObject()) {
       Map<String, Object> map = new HashMap<>();
-      node.fields().forEachRemaining(entry -> {
+      node.properties().forEach(entry -> {
         map.put(entry.getKey(), convertJsonNodeToObject(entry.getValue()));
       });
       return map;
@@ -481,7 +481,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       return new HashMap<>();
     }
     Map<String, Object> map = new HashMap<>();
-    node.fields().forEachRemaining(entry -> {
+    node.properties().forEach(entry -> {
       map.put(entry.getKey(), convertJsonNodeToObject(entry.getValue()));
     });
     return map;
