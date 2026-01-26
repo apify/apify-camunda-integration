@@ -65,7 +65,7 @@ mvn test-compile exec:java \
 
 ### 4. Open Web Modeler
 
-Go to http://localhost:8070/ (credentials: `demo` / `demo`) and start creating processes with the Apify connector!
+Go to http://localhost:8070/ (credentials: `demo` / `demo`) and start creating processes with the Apify connector.
 
 ---
 
@@ -176,7 +176,7 @@ Use the Start Event to begin a new process instance when an Apify webhook fires 
 
 1. Go to **Web Modeler** (http://localhost:8070/) and create a new project (or use an existing one).
 
-![Creating a new project](docs/modeler-create-project.png)
+![Creating a new project](docs/modeler-create-new-project.png)
 
 2. Upload the inbound connector templates:
    - **Start Event**: `element-templates/apify-inbound-connector.json`
