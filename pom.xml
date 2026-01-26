@@ -121,41 +121,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>io.camunda.connector</groupId>
-                <artifactId>element-template-generator-maven-plugin</artifactId>
-                <version>${version.connectors}</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>generate-templates</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <connectors>
-                        <connector>
-                            <connectorClass>io.camunda.connector.apify.outbound.ApifyFunction</connectorClass>
-                            <files>
-                                <file>
-                                    <templateId>io.camunda.connector.outbound.Apify.v1</templateId>
-                                    <templateFileName>apify-outbound-connector.json</templateFileName>
-                                </file>
-                            </files>
-                        </connector>
-                        <connector>
-                            <connectorClass>io.camunda.connector.apify.inbound.ApifyInboundExecutable</connectorClass>
-                            <files>
-                                <file>
-                                    <templateId>io.camunda.connector.inbound.Apify.v1</templateId>
-                                    <templateFileName>apify-inbound-connector.json</templateFileName>
-                                </file>
-                            </files>
-                        </connector>
-                    </connectors>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.4</version>
@@ -207,5 +172,56 @@
             <url>https://artifacts.camunda.com/artifactory/connectors-snapshots/</url>
         </pluginRepository>
     </pluginRepositories>
+
+    <profiles>
+        <profile>
+            <id>generate-templates</id>
+            <activation>
+                <property>
+                    <name>generate.templates</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.camunda.connector</groupId>
+                        <artifactId>element-template-generator-maven-plugin</artifactId>
+                        <version>${version.connectors}</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>generate-templates</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <connectors>
+                                <connector>
+                                    <connectorClass>io.camunda.connector.apify.outbound.ApifyFunction</connectorClass>
+                                    <files>
+                                        <file>
+                                            <templateId>io.camunda.connector.outbound.Apify.v1</templateId>
+                                            <templateFileName>apify-outbound-connector.json</templateFileName>
+                                        </file>
+                                    </files>
+                                </connector>
+                                <connector>
+                                    <connectorClass>io.camunda.connector.apify.inbound.ApifyInboundExecutable</connectorClass>
+                                    <files>
+                                        <file>
+                                            <templateId>io.camunda.connector.inbound.Apify.v1</templateId>
+                                            <templateFileName>apify-inbound-connector.json</templateFileName>
+                                        </file>
+                                    </files>
+                                </connector>
+                            </connectors>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>
