@@ -220,47 +220,145 @@ Use the Start Event to begin a new process instance when an Apify webhook fires 
 
 ### Intermediate Event
 
-Use the Intermediate Event to pause a running process and wait for an Apify webhook before continuing. This is ideal for long-running Actors where you want to continue only when a specific run finishes.
+Use the Intermediate Event to launch Actors asynchronously and wait for their completion via webhooks. This enables powerful workflow patterns that aren't possible with synchronous polling.
+
+#### Why Use Intermediate Events?
+
+| Approach | Best For |
+|----------|----------|
+| `waitForFinish: true` | Simple, single Actor workflows |
+| **Intermediate Events** | Parallel Actors, doing work while waiting, event-driven architectures |
+
+**Real-World Use Cases:**
+
+- **Parallel execution**: Launch multiple Actors simultaneously (e.g., scrape 5 competitor websites), do other work (send notifications, prepare templates), then wait for all to complete using parallel gateways
+- **Non-blocking workflows**: Start a long-running Actor, perform other tasks in parallel branches, synchronize when the Actor finishes
+- **Resource efficiency**: Push-based webhooks instead of polling loops, scales better with many Actors
+
+> **Important**: Use **Parallel Gateways** for multiple Actors. Event-based gateways are exclusive (first event wins) and won't work correctly.
 
 #### How Correlation Works
 
 Unlike Start Events, Intermediate Events need to know **which** process instance to wake up. This is done via **Correlation Keys**.
 
 Think of it as matching tickets:
-1. **Correlation key (process)**: A value stored in your process (e.g., `userId` or `runId` from a previous step)
+1. **Correlation key (process)**: A value stored in your process (e.g., `userId` from Actor launch response)
 2. **Correlation key (payload)**: The same value extracted from the incoming webhook
 
 When they match, the waiting process continues.
 
-#### Setup Steps
+#### Tutorial: Setting Up Correlation
 
-1. **Design your BPMN process**:
-   - Start with any start event (can be an Apify Inbound Start Event)
-   - Add an **Apify Inbound Intermediate Event** as a catch event
+The following example demonstrates how to configure correlation keys and the recommended pattern using parallel gateways.
 
-![Process with intermediate event](docs/modeler-intermediate-design.png)
+**Flow Overview:**
 
-2. **Configure the Start Event** (if using Apify):
-   - Set **Result Variable** to `start_res`
-   - This stores the webhook payload including any IDs for correlation
+```
+                              ┌→ [ther work can happen here...] ──────┐
+[Start] → [Run Scraper] → [Fork]                                    [Join] → ... → [End]
+                              └→ [Wait for WebhookO] ─────────────────┘
+```
 
-3. **Configure the Intermediate Event**:
-   - **Token**: Your Apify API token
-   - **Resource ID**: Actor/Task ID to wait for
-   - **Correlation key (process)**: `=start_res.request.body.userId` (value from process)
-   - **Correlation key (payload)**: `=request.body.userId` (value from incoming webhook)
-   - **Result Variable**: `inter_res`
+![Intermediate flow](docs/modeler-intermediate-flow.png)
 
-![Correlation configuration](docs/modeler-intermediate-correlation.png)
+> **Why use a Parallel Gateway?** Place the Intermediate Event in a parallel branch immediately after the async Actor launch. This ensures the webhook listener is active before the Actor could finish. If you place the Intermediate Event too far down the main flow, a fast Actor might complete before the process reaches the waiting state, causing the webhook to be missed.
 
-4. **Deploy and Test**:
-   - Deploy the process
-   - Trigger the Start Event (run the first Actor)
-   - The process will wait at the Intermediate Event
-   - Trigger the Intermediate Event (run the second Actor)
-   - If correlation keys match, the process completes
+**1. Start Event**
 
-![Successful correlation](docs/operate-intermediate-success.png)
+Add a regular Start Event to begin the process.
+
+**2. Run Actor (Website Content Crawler) - Async Launch**
+
+Configure the outbound connector to scrape apify.com:
+
+| Setting | Value |
+|---------|-------|
+| **Operation** | Run Actor |
+| **Actor ID** | `aYG0l9s7dbB7j3gbS` (Website Content Crawler) |
+| **Input JSON** | `{"startUrls":[{"url":"https://apify.com"}],"maxCrawlPages":1}` |
+| **Wait for Finish** | `false` (critical!) |
+| **Result Variable** | `scrp_res` |
+| **Result Expression** | `scrp_res` |
+
+> **Important**: Set `Wait for Finish` to `false` so the Actor launches asynchronously.
+
+**3. Parallel Gateway (Fork)**
+
+Add an **Inclusive Gateway** (or Parallel Gateway) immediately after the Run Actor task. This splits the flow into branches:
+- **Branch 1**: The Intermediate Event that waits for the webhook
+- **Branch 2**: Any other work you want to do while waiting (optional)
+
+**4. Intermediate Event (Wait for Webhook)**
+
+In one branch, add an Apify Inbound Intermediate Event to wait for the Actor to complete:
+
+| Setting | Value |
+|---------|-------|
+| **Token** | Your Apify API token |
+| **Resource Type** | Actor |
+| **Resource ID** | `aYG0l9s7dbB7j3gbS` (same Actor) |
+| **Correlation key (process)** | `scrp_res.data.userId` |
+| **Correlation key (payload)** | `request.body.userId` |
+| **Result Variable** | `wbhk_scrp_res` |
+| **Result Expression** | `wbhk_scrp_res` |
+
+**Where do these values come from?**
+
+- **`scrp_res.data.userId`**: This comes from the [Run Actor API response](https://docs.apify.com/api/v2#/reference/actors/run-collection/run-actor). When you start an Actor, Apify returns a JSON object containing run details including `userId`, `id` (runId), `defaultDatasetId`, etc.
+
+- **`request.body.userId`**: This comes from the webhook payload that Apify sends when the Actor completes. The webhook body contains the same fields. See [Apify Webhooks documentation](https://docs.apify.com/platform/integrations/webhooks) for the full payload structure.
+
+This branch will pause until the Actor completes and sends a webhook.
+
+**5. Parallel Gateway (Join)**
+
+Add another Inclusive/Parallel Gateway to merge the branches. The flow continues only after all branches complete (including the webhook being received).
+
+**6. Get Dataset Items**
+
+After the join, retrieve the scraped data from the Actor's dataset:
+
+| Setting | Value |
+|---------|-------|
+| **Operation** | Get Dataset Items |
+| **Dataset ID** | `scrp_res.data.defaultDatasetId` |
+| **Result Variable** | `data_res` |
+| **Result Expression** | `data_res` |
+
+**7. Run Actor (Hello World) - Log Results**
+
+Use Hello World Actor to verify the gathered data:
+
+| Setting | Value |
+|---------|-------|
+| **Operation** | Run Actor |
+| **Actor ID** | `E2jjCZBezvAZnX8Rb` (Hello World) |
+| **Input JSON** | `{"message": data_res}` |
+| **Wait for Finish** | `true` |
+
+**8. Deploy and Test**
+
+1. Deploy & start the process
+1. The scraper launches asynchronously
+1. The parallel gateway splits: one branch immediately starts waiting for the webhook
+1. When the Actor completes, Apify sends a webhook
+1. The webhook wakes up the waiting branch (correlation keys match on `userId`)
+1. The join gateway waits for all branches to complete
+1. Dataset items are retrieved and passed to Hello World Actor
+
+
+#### Tips
+
+**Correlation Keys**
+- `userId` works well when all Actors run under the same Apify account
+- For more specific correlation, use `=scrp_res.data.id` (runId) with `=request.body.actorRunId`
+
+**Handling Failures**
+- Webhooks fire for `SUCCEEDED`, `FAILED`, `TIMED_OUT`, and `ABORTED` events
+- Use **Activation Condition** to filter: `=status = "SUCCEEDED"`
+
+**Timeouts**
+- Add a **Timer Boundary Event** for timeout handling
 
 ---
 
