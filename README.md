@@ -33,7 +33,6 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 - [Reference](#reference)
   - [Camunda Architecture](#camunda-architecture)
   - [Service URLs](#service-urls)
-  - [Keycloak Configuration](#keycloak-configuration)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -504,31 +503,7 @@ The Camunda platform consists of several services:
 | **Elasticsearch** | http://localhost:9200/ | - | Data storage |
 | **Mailpit** | http://localhost:8075/ | - | Email testing |
 
-**API Endpoints:**
-
-| API | URL | Protocol |
-|-----|-----|----------|
-| **Zeebe gRPC** | `grpc://localhost:26500` | gRPC |
-| **Orchestration REST** | `http://localhost:8088` | HTTP/REST |
-
-### Keycloak Configuration
-
-| Property | Value |
-|----------|-------|
-| **URL** | http://localhost:18080/auth |
-| **Admin Console** | http://localhost:18080/auth/admin |
-| **Admin Credentials** | `admin` / `admin` |
-| **Realm** | `camunda-platform` |
-| **Token Endpoint** | `http://localhost:18080/auth/realms/camunda-platform/protocol/openid-connect/token` |
-
-**Pre-configured OAuth Clients:**
-
-| Client ID | Secret | Audience | Purpose |
-|-----------|--------|----------|---------|
-| `connectors` | `demo-connectors-secret` | `orchestration-api` | Connector runtime |
-| `orchestration` | `demo-orchestration-secret` | `orchestration-api` | Orchestration service |
-| `console` | `demo-console-secret` | `console` | Console webapp |
-| `optimize` | `demo-optimize-secret` | `optimize-api` | Optimize |
+> **Note:** For API endpoints and Keycloak OAuth client configuration details, see [`src/test/resources/application.properties`](src/test/resources/application.properties).
 
 ---
 
