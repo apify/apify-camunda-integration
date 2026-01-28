@@ -82,7 +82,7 @@
     {
       "id": "apifyRequestInput.runActorInput.actorId",
       "label": "Actor ID",
-      "description": "Actor ID or a tilde-separated owner's username and Actor name",
+      "description": "Actor ID or the actor's name (e.g. 'apify/website-content-crawler')",
       "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
