@@ -81,8 +81,8 @@
     },
     {
       "id": "apifyRequestInput.runActorInput.actorId",
-      "label": "Actor ID",
-      "description": "Actor ID or the actor's name (e.g. 'apify/website-content-crawler')",
+      "label": "Actor",
+      "description": "Actor identifier to run. Supply the Actor ID or the Actor's name (e.g., 'apify/website-content-crawler').",
       "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
@@ -100,9 +100,10 @@
     },
     {
       "id": "apifyRequestInput.runActorInput.inputJson",
-      "label": "Input JSON",
-      "description": "JSON string with actor input (optional)",
-      "optional": true,
+      "label": "Input body",
+      "description": "Input the actor's input as a JSON string.",
+      "optional": false,
+      "constraints": { "notEmpty": true },
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
