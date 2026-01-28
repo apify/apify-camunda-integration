@@ -218,7 +218,7 @@
     },
     {
       "id": "apifyRequestInput.runTaskInput.inputJson",
-      "label": "Input body",
+      "label": "Override input",
       "optional": true,
       "description": "Optional: JSON object to override the task's pre-configured input.",
       "feel": "required",
