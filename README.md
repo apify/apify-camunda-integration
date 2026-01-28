@@ -21,11 +21,9 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 
 - [Quick Start](#quick-start)
 - [Running the Connector](#running-the-connector)
-- [Actor ID vs Actor name](#actor-id-vs-actor-name)
 - [Using the Outbound Connector](#using-the-outbound-connector)
 - [Using the Inbound Connectors](#using-the-inbound-connectors)
   - [Start Event](#start-event)
-    - [Actor ID vs Actor Name](#actor-id-vs-actor-name)
   - [Intermediate Event](#intermediate-event)
     - [Understanding FEEL Expressions](#understanding-feel-expressions)
     - [Correlation Key Best Practices](#correlation-key-best-practices)
@@ -127,26 +125,6 @@ mvn clean package -Dgenerate.templates=true -X
 
 ---
 
-## Actor ID vs Actor Name
-
-> **Note:** Currently, only Actor IDs are supported due to a known limitation. Support for Actor names is planned for a future patch.
-
-When configuring connectors, always use the **Actor ID**, not the Actor name:
-
-| Type | Example | Use In Connector? |
-|------|---------|-------------------|
-| **Actor ID** | `aYG0l9s7dbB7j3gbS` | Yes |
-| **Actor Name** | `apify/website-content-crawler` | Planned |
-| **Actor Name (with tilde)** | `apify~website-content-crawler` | Planned |
-
-**How to find the Actor ID:**
-1. Go to the Actor page on [Apify Console](https://console.apify.com/actors)
-2. The ID is in the URL: `https://console.apify.com/actors/aYG0l9s7dbB7j3gbS`
-3. Or find it in the Actor's **Settings** tab under "Actor ID"
-
-
----
-
 ## Using the Outbound Connector
 
 The Outbound connector allows you to call the Apify API from your BPMN process.
@@ -220,7 +198,7 @@ Use the Start Event to begin a new process instance when an Apify webhook fires 
 
 6. Configure the **Start Event** with:
    - **Token**: Your Apify API token
-   - **Resource ID**: The Actor/Task **ID** (see [Actor ID vs Actor Name](#actor-id-vs-actor-name))
+   - **Resource ID**: The Actor/Task **ID** or **name**
    - **Output Variable**: Variable name for the webhook result (e.g., `webhookResult`)
 
 7. **Deploy** the process. This automatically creates a webhook in Apify.
@@ -514,7 +492,6 @@ The Camunda platform consists of several services:
 | Issue | Solution |
 |-------|----------|
 | Webhook not received | Ensure ngrok is running and `CONNECTOR_BASE_URL` is set to the ngrok URL |
-| "Resource ID not found" | Use the Actor/Task **ID** (e.g., `abcdef123456`), not the name with tilde (e.g., `username~actor-name`) |
 | Process not visible in Operate | Check the **Finished** filter - completed processes may not show in default view |
 | Connector crashes on startup | Ensure `CONNECTOR_BASE_URL` environment variable is set |
 | `ProcessDefinitionImporter` errors | Ensure `audience=orchestration-api` in config (not `zeebe-api`) |
