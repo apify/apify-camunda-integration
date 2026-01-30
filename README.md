@@ -28,6 +28,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
     - [Understanding FEEL Expressions](#understanding-feel-expressions)
     - [Correlation Key Best Practices](#correlation-key-best-practices)
     - [Activation Condition](#activation-condition)
+  - [Testing Flows in the Modeler](#testing-flows-in-the-modeler)
 - [Reference](#reference)
   - [Camunda Architecture](#camunda-architecture)
   - [Service URLs](#service-urls)
@@ -47,7 +48,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 
 Follow the [Camunda Docker Compose quickstart](https://docs.camunda.io/docs/self-managed/quickstart/developer-quickstart/docker-compose) to spin up the full stack locally.
 
-> **Note:** Install the FULLY configured stack which includes Web Modeler. This connector was tested with [Camunda 8.8](https://github.com/camunda/camunda-distributions/releases/tag/docker-compose-8.8).
+> **Note:** Install the **fully** configured stack which includes Web Modeler. This connector was tested with [Camunda 8.8](https://github.com/camunda/camunda-distributions/releases/tag/docker-compose-8.8).
 
 ### 2. Clone and Build
 
@@ -115,7 +116,9 @@ Keep this terminal running while working with Camunda Modeler.
 
 ### Regenerating Element Templates
 
-The templates in `element-templates/` were generated and then customized for Apify. If you want to regenerate the original (base) templates, including all possible versions, use the command below. We use two inbound and one outbound template; several additional inbound templates exist, but you typically shouldn't regenerate unless you're sure, as Apify-specific changes may be lost.
+The templates in `element-templates/` were generated and then customized for Apify. We use two inbound and one outbound template.
+
+If you want to regenerate the original (base) templates, use the command below. **Warning:** Apify-specific customizations may be lost when regenerating.
 
 
 ```bash
@@ -201,11 +204,15 @@ Use the Start Event to begin a new process instance when an Apify webhook fires 
    - **Resource ID**: The Actor/Task **ID** or **name**
    - **Output Variable**: Variable name for the webhook result (e.g., `webhookResult`)
 
-7. **Deploy** the process. This automatically creates a webhook in Apify.
+7. **Deploy** or **Play** the process:
+   - **Deploy**: Creates a persistent webhook in Apify that listens for events continuously
+   - **Play**: Runs the process once in the modeler's playground without creating persistent webhooks
 
 ![Deploying the process](docs/modeler/set-inputs-and-deploy.png)
 
-8. Verify the webhook was created in Apify (Actor page → **Integrations** tab).
+> **Tip:** For testing inbound connectors, prefer using **Play mode** instead of deploying. See [Testing Flows in the Modeler](#testing-flows-in-the-modeler) for details.
+
+8. If you deployed, verify the webhook was created in Apify (Actor page → **Integrations** tab).
 
 9. If you used `http://example.com` as the connector base URL, update the webhook URL in Apify to your ngrok URL.
 
@@ -244,7 +251,7 @@ Use the Intermediate Event to launch Actors asynchronously and wait for their co
 Unlike Start Events, Intermediate Events need to know **which** process instance to wake up. This is done via **Correlation Keys**.
 
 Think of it as matching tickets:
-1. **Correlation key (process)**: A value stored in your process (e.g., `userId` from Actor launch response)
+1. **Correlation key (process)**: A value stored in your process (e.g., run `id` from Actor launch response)
 2. **Correlation key (payload)**: The same value extracted from the incoming webhook
 
 When they match, the waiting process continues.
@@ -254,8 +261,8 @@ When they match, the waiting process continues.
 Correlation keys and other connector fields use **FEEL** (Friendly Enough Expression Language), Camunda's expression language for accessing process variables and webhook data.
 
 **Key syntax:**
-- Expressions start with `=` (e.g., `=scrp_res.data.userId`)
-- Use dot notation to access nested fields (e.g., `request.body.userId`)
+- Expressions start with `=` (e.g., `=scrp_res.data.id`)
+- Use dot notation to access nested fields (e.g., `request.body.resource.id`)
 - Without `=`, values are treated as literal strings
 
 **Common patterns:**
@@ -264,12 +271,12 @@ Correlation keys and other connector fields use **FEEL** (Friendly Enough Expres
 |------------|-------------|
 | `=myVariable` | Access a process variable |
 | `=response.data.id` | Access nested field from a variable |
-| `=request.body.userId` | Access field from incoming webhook payload |
+| `=request.body.resource.id` | Access field from incoming webhook payload |
 | `="literal"` | Literal string value |
 
 **In the context of this connector:**
-- **Process expressions** (like `=scrp_res.data.userId`) reference variables set earlier in the process
-- **Payload expressions** (like `=request.body.userId`) reference fields in the incoming webhook HTTP request
+- **Process expressions** (like `=scrp_res.data.id`) reference variables set earlier in the process
+- **Payload expressions** (like `=request.body.resource.id`) reference fields in the incoming webhook HTTP request
 
 For more details, see [Camunda FEEL documentation](https://docs.camunda.io/docs/components/modeler/feel/what-is-feel/).
 
@@ -310,7 +317,7 @@ Configure the outbound connector to scrape apify.com:
 
 **3. Parallel Gateway (Fork)**
 
-Add an **Inclusive Gateway** (or Parallel Gateway) immediately after the Run Actor task. This splits the flow into branches:
+Add a **Parallel Gateway** immediately after the Run Actor task. This splits the flow into branches:
 - **Branch 1**: The Intermediate Event that waits for the webhook
 - **Branch 2**: Any other work you want to do while waiting (optional)
 
@@ -323,22 +330,22 @@ In one branch, add an Apify Inbound Intermediate Event to wait for the Actor to 
 | **Token** | Your Apify API token |
 | **Resource Type** | Actor |
 | **Resource ID** | `aYG0l9s7dbB7j3gbS` (same Actor) |
-| **Correlation key (process)** | `=scrp_res.data.userId` |
-| **Correlation key (payload)** | `=request.body.userId` |
+| **Correlation key (process)** | `=scrp_res.data.id` |
+| **Correlation key (payload)** | `=request.body.resource.id` |
 | **Result Variable** | `wbhk_scrp_res` |
 | **Result Expression** | `=wbhk_scrp_res` |
 
 **Where do these values come from?**
 
-- **`scrp_res.data.userId`**: This comes from the [Run Actor API response](https://docs.apify.com/api/v2#/reference/actors/run-collection/run-actor). When you start an Actor, Apify returns a JSON object containing run details including `userId`, `id` (runId), `defaultDatasetId`, etc.
+- **`scrp_res.data.id`**: This comes from the [Run Actor API response](https://docs.apify.com/api/v2#/reference/actors/run-collection/run-actor). When you start an Actor, Apify returns a JSON object containing run details including `id` (the run ID), `userId`, `defaultDatasetId`, etc.
 
-- **`request.body.userId`**: This comes from the webhook payload that Apify sends when the Actor completes. The webhook body contains the same fields. See [Apify Webhooks documentation](https://docs.apify.com/platform/integrations/webhooks) for the full payload structure.
+- **`request.body.resource.id`**: This comes from the webhook payload that Apify sends when the Actor completes. The `resource` object contains details about the run, including its `id`. See [Apify Webhooks documentation](https://docs.apify.com/platform/integrations/webhooks) for the full payload structure.
 
 This branch will pause until the Actor completes and sends a webhook.
 
 **5. Parallel Gateway (Join)**
 
-Add another Inclusive/Parallel Gateway to merge the branches. The flow continues only after all branches complete (including the webhook being received).
+Add another **Parallel Gateway** to merge the branches. The flow continues only after all branches complete (including the webhook being received).
 
 **6. Get Dataset Items**
 
@@ -359,36 +366,39 @@ Use Hello World Actor to verify the gathered data:
 |---------|-------|
 | **Operation** | Run Actor |
 | **Actor ID** | `E2jjCZBezvAZnX8Rb` (Hello World) |
-| **Input JSON** | `{"message": data_res}` |
+| **Input JSON** | `={"message": data_res}` |
 | **Wait for Finish** | `true` |
 
-**8. Deploy and Test**
+**8. Run or Deploy**
 
-1. Deploy & start the process
-1. The scraper launches asynchronously
-1. The parallel gateway splits: one branch immediately starts waiting for the webhook
-1. When the Actor completes, Apify sends a webhook
-1. The webhook wakes up the waiting branch (correlation keys match on `userId`)
-1. The join gateway waits for all branches to complete
-1. Dataset items are retrieved and passed to Hello World Actor
+You have two options to test your process:
 
+- **Play mode** (recommended for testing): Click **Play** next to the Implement tab to run the process once without creating persistent webhooks. Results appear in Camunda Operate.
+- **Deploy & run**: Creates persistent webhooks that continue listening for Apify events after the process completes.
+
+**What happens when you run the process:**
+
+1. The process starts and the scraper launches asynchronously
+2. The parallel gateway splits: one branch immediately starts waiting for the webhook
+3. When the Actor completes, Apify sends a webhook
+4. The webhook wakes up the waiting branch (correlation keys match on run ID)
+5. The join gateway waits for all branches to complete
+6. Dataset items are retrieved and passed to Hello World Actor
+
+> **Note:** Both Play mode and Deploy & run show results in Camunda Operate. Use Play mode during development to avoid accumulating webhook listeners.
 
 #### Tips
 
 **Correlation Key Best Practices**
 
-Correlation keys ensure that incoming webhooks are matched to the correct waiting process instance. Choose the right key based on your use case:
+Correlation keys ensure that incoming webhooks are matched to the correct waiting process instance. The recommended approach uses the Actor Run ID for precise matching:
 
 | Correlation Key | Process Expression | Payload Expression | Best For |
 |-----------------|-------------------|-------------------|----------|
-| **User ID** | `=scrp_res.data.userId` | `=request.body.userId` | Single Apify account, simple workflows |
-| **Actor Run ID** *(planned)* | `=scrp_res.data.id` | `=request.body.actorRunId` | Multiple concurrent runs of the same Actor |
-
-**Current limitation:** Only `userId` is available in webhook payloads. Support for `actorRunId` correlation is planned for a future release, which will enable more precise matching when running multiple instances of the same Actor concurrently.
+| **Actor Run ID** | `=scrp_res.data.id` | `=request.body.resource.id` | All use cases (recommended) |
 
 **Recommendations:**
-- For most use cases with a single Apify account, `userId` correlation is sufficient
-- If you need to run the same Actor multiple times in parallel within different process instances, consider using unique identifiers in your workflow design until `actorRunId` support is added
+- Use the Actor Run ID for correlation - it uniquely identifies each run and works correctly even when running multiple instances of the same Actor concurrently
 - Always test correlation in a development environment before deploying to production
 
 **Activation Condition**
@@ -414,6 +424,35 @@ This prevents your workflow from continuing (and potentially failing) when an Ac
 
 **Timeouts**
 - Add a **Timer Boundary Event** for timeout handling when Actors may take longer than expected
+
+---
+
+### Testing Flows in the Modeler
+
+When developing and testing inbound connectors, you have two options:
+
+| Mode | Webhooks | Best For |
+|------|----------|----------|
+| **Play mode** | Temporary (deleted after run) | Development and testing |
+| **Deploy & run** | Persistent (keep listening) | Production workflows |
+
+**Recommended: Use Play mode during development**
+
+Play mode offers several advantages for testing:
+- **No webhook cleanup**: Webhooks are automatically removed after the process completes
+- **Same visibility**: Results still appear in Camunda Operate for debugging
+- **Faster iteration**: No need to manually delete webhooks between test runs
+
+**How to use Play mode:**
+1. Click the **Play** button (next to the Implement tab) in Web Modeler
+2. Configure any required input variables
+3. Start the process
+4. Trigger the Apify event (e.g., run the Actor)
+5. View results in Camunda Operate
+
+**When to use Deploy & run:**
+- Production workflows that need to continuously listen for Apify events
+- Long-running processes that should persist across connector restarts
 
 ---
 
@@ -500,7 +539,7 @@ The Camunda platform consists of several services:
 
 ### Cleaning Up Stale Webhooks
 
-During testing, you may accumulate webhooks. To start fresh:
+During testing, you may accumulate webhooks. To start fresh, reset your Camunda Docker Compose stack:
 
 ```bash
 cd docker-compose-8.8
