@@ -6,10 +6,10 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 
 **Outbound Operations** (call Apify from your process):
 - **Run Actor** - Start an Apify Actor and get results
-- **Run Task** - Execute a saved Actor task
-- **Get Dataset Items** - Retrieve data from Apify datasets
-- **Get Key-Value Store Record** - Fetch stored data by key
-- **Scrape Single URL** - Quick web scraping for a single page
+- **Run task** - Execute a saved Actor task
+- **Get dataset items** - Retrieve data from Apify datasets
+- **Get key-value store record** - Fetch stored data by key
+- **Scrape single URL** - Quick web scraping for a single page
 
 **Inbound Operations** (trigger processes from Apify):
 - **Start Event** - Start a new process when an Apify webhook fires
@@ -118,7 +118,9 @@ Keep this terminal running while working with Camunda Modeler.
 
 The templates in `element-templates/` were generated and then customized for Apify. We use two inbound and one outbound template.
 
-If you want to regenerate the original (base) templates, use the command below. **Warning:** Apify-specific customizations may be lost when regenerating.
+If you want to regenerate the original (base) templates, use the command below. 
+
+> **Warning:** Apify-specific customizations may be lost when regenerating.
 
 
 ```bash
@@ -136,7 +138,7 @@ The Outbound connector allows you to call the Apify API from your BPMN process.
 
 ### Setup Steps
 
-1. Go to **Web Modeler** (http://localhost:8070/) and create a new project.
+1. Go to **Web Modeler** (http://localhost:8070/, see [Service URLs](#service-urls) for credentials) and create a new project (see [Service URLs](#service-urls) for credentials).
 
 ![Creating a new project](docs/modeler/create-project.png)
 
@@ -161,7 +163,7 @@ The Outbound connector allows you to call the Apify API from your BPMN process.
 
 ![Setting the connector input variables](docs/modeler/set-inputs-and-run.png)
 
-7. Verify the run status and result in **Camunda Operate** (http://localhost:8088/).
+7. Verify the run status and result in **Camunda Operate** (http://localhost:8088/, see [Service URLs](#service-urls) for credentials).
 
 ![Verifying the result in Camunda Operate](docs/operate/check-run-result.png)
 
@@ -179,7 +181,7 @@ Use the Start Event to begin a new process instance when an Apify webhook fires 
 
 #### Setup Steps
 
-1. Go to **Web Modeler** (http://localhost:8070/) and create a new project (or use an existing one).
+1. Go to **Web Modeler** (http://localhost:8070/, see [Service URLs](#service-urls) for credentials) and create a new project (or use an existing one).
 
 ![Creating a new project](docs/modeler/create-new-project.png)
 
@@ -218,7 +220,7 @@ Use the Start Event to begin a new process instance when an Apify webhook fires 
 
 10. **Trigger the event** by running the Actor on Apify.
 
-11. Verify the process in **Camunda Operate** (http://localhost:8088/):
+11. Verify the process in **Camunda Operate** (http://localhost:8088/, see [Service URLs](#service-urls) for credentials):
     - Select the **Finished** filter to see completed processes
 
 ![Process in Operate](docs/operate/select.png)
@@ -261,8 +263,8 @@ When they match, the waiting process continues.
 Correlation keys and other connector fields use **FEEL** (Friendly Enough Expression Language), Camunda's expression language for accessing process variables and webhook data.
 
 **Key syntax:**
-- Expressions start with `=` (e.g., `=scrp_res.data.id`)
-- Use dot notation to access nested fields (e.g., `request.body.resource.id`)
+- Expressions start with `=` (e.g., `=actor_res.data.id`)
+- Use dot notation to access nested fields (e.g., `request.body.eventData.actorRunId`)
 - Without `=`, values are treated as literal strings
 
 **Common patterns:**
@@ -271,12 +273,12 @@ Correlation keys and other connector fields use **FEEL** (Friendly Enough Expres
 |------------|-------------|
 | `=myVariable` | Access a process variable |
 | `=response.data.id` | Access nested field from a variable |
-| `=request.body.resource.id` | Access field from incoming webhook payload |
+| `=request.body.eventData.actorRunId` | Access field from incoming webhook payload |
 | `="literal"` | Literal string value |
 
 **In the context of this connector:**
-- **Process expressions** (like `=scrp_res.data.id`) reference variables set earlier in the process
-- **Payload expressions** (like `=request.body.resource.id`) reference fields in the incoming webhook HTTP request
+- **Process expressions** (like `=actor_res.data.id`) reference variables set earlier in the process
+- **Payload expressions** (like `=request.body.eventData.actorRunId`) reference fields in the incoming webhook HTTP request
 
 For more details, see [Camunda FEEL documentation](https://docs.camunda.io/docs/components/modeler/feel/what-is-feel/).
 
@@ -310,8 +312,8 @@ Configure the outbound connector to scrape apify.com:
 | **Actor ID** | `aYG0l9s7dbB7j3gbS` (Website Content Crawler) |
 | **Input JSON** | `{"startUrls":[{"url":"https://apify.com"}],"maxCrawlPages":1}` |
 | **Wait for Finish** | `false` (critical!) |
-| **Result Variable** | `scrp_res` |
-| **Result Expression** | `=scrp_res` |
+| **Result Variable** | `actor_res` |
+| **Result Expression** | _optional_ |
 
 > **Important**: Set `Wait for Finish` to `false` so the Actor launches asynchronously.
 
@@ -330,16 +332,16 @@ In one branch, add an Apify Inbound Intermediate Event to wait for the Actor to 
 | **Token** | Your Apify API token |
 | **Resource Type** | Actor |
 | **Resource ID** | `aYG0l9s7dbB7j3gbS` (same Actor) |
-| **Correlation key (process)** | `=scrp_res.data.id` |
-| **Correlation key (payload)** | `=request.body.resource.id` |
-| **Result Variable** | `wbhk_scrp_res` |
-| **Result Expression** | `=wbhk_scrp_res` |
+| **Correlation key (process)** | `=actor_res.data.id` |
+| **Correlation key (payload)** | `=request.body.eventData.actorRunId` |
+| **Result Variable** | _optional_ |
+| **Result Expression** | _optional_ |
 
 **Where do these values come from?**
 
-- **`scrp_res.data.id`**: This comes from the [Run Actor API response](https://docs.apify.com/api/v2#/reference/actors/run-collection/run-actor). When you start an Actor, Apify returns a JSON object containing run details including `id` (the run ID), `userId`, `defaultDatasetId`, etc.
+- **`actor_res.data.id`**: This comes from the [Run Actor API response](https://docs.apify.com/api/v2#/reference/actors/run-collection/run-actor). When you start an Actor, Apify returns a JSON object containing run details including `id` (the run ID), `userId`, `defaultDatasetId`, etc.
 
-- **`request.body.resource.id`**: This comes from the webhook payload that Apify sends when the Actor completes. The `resource` object contains details about the run, including its `id`. See [Apify Webhooks documentation](https://docs.apify.com/platform/integrations/webhooks) for the full payload structure.
+- **`request.body.eventData.actorRunId`**: This comes from the webhook payload that Apify sends when the Actor completes. The `resource` object contains details about the run, including its `id`. See [Apify Webhooks documentation](https://docs.apify.com/platform/integrations/webhooks/actions#default-payload-example) for the full payload structure.
 
 This branch will pause until the Actor completes and sends a webhook.
 
@@ -354,22 +356,11 @@ After the join, retrieve the scraped data from the Actor's dataset:
 | Setting | Value |
 |---------|-------|
 | **Operation** | Get Dataset Items |
-| **Dataset ID** | `=scrp_res.data.defaultDatasetId` |
+| **Dataset ID** | `=actor_res.data.defaultDatasetId` |
 | **Result Variable** | `data_res` |
-| **Result Expression** | `=data_res` |
+| **Result Expression** | _optional_ |
 
-**7. Run Actor (Hello World) - Log Results**
-
-Use Hello World Actor to verify the gathered data:
-
-| Setting | Value |
-|---------|-------|
-| **Operation** | Run Actor |
-| **Actor ID** | `E2jjCZBezvAZnX8Rb` (Hello World) |
-| **Input JSON** | `={"message": data_res}` |
-| **Wait for Finish** | `true` |
-
-**8. Run or Deploy**
+**7. Run or Deploy**
 
 You have two options to test your process:
 
@@ -378,12 +369,12 @@ You have two options to test your process:
 
 **What happens when you run the process:**
 
-1. The process starts and the scraper launches asynchronously
-2. The parallel gateway splits: one branch immediately starts waiting for the webhook
-3. When the Actor completes, Apify sends a webhook
-4. The webhook wakes up the waiting branch (correlation keys match on run ID)
-5. The join gateway waits for all branches to complete
-6. Dataset items are retrieved and passed to Hello World Actor
+1. The process starts and runs actors/tasks async
+1. The parallel splits: one branch immediately starts waiting for the webhook
+1. When the Actor completes, Apify sends a webhook
+1. The webhook wakes up the waiting branch (correlation keys match on run ID)
+1. The join gateway waits for all branches to complete
+1. Result is retrieved from dataset
 
 > **Note:** Both Play mode and Deploy & run show results in Camunda Operate. Use Play mode during development to avoid accumulating webhook listeners.
 
@@ -395,7 +386,7 @@ Correlation keys ensure that incoming webhooks are matched to the correct waitin
 
 | Correlation Key | Process Expression | Payload Expression | Best For |
 |-----------------|-------------------|-------------------|----------|
-| **Actor Run ID** | `=scrp_res.data.id` | `=request.body.resource.id` | All use cases (recommended) |
+| **Actor Run ID** | `=actor_res.data.id` | `=request.body.eventData.actorRunId` | All use cases (recommended) |
 
 **Recommendations:**
 - Use the Actor Run ID for correlation - it uniquely identifies each run and works correctly even when running multiple instances of the same Actor concurrently
@@ -449,6 +440,10 @@ Play mode offers several advantages for testing:
 3. Start the process
 4. Trigger the Apify event (e.g., run the Actor)
 5. View results in Camunda Operate
+
+The example below shows Play mode using the [Intermediate Event](#intermediate-event) flow:
+
+![Using Play mode with intermediate flow](docs/modeler/intermediate-flow-play.png)
 
 **When to use Deploy & run:**
 - Production workflows that need to continuously listen for Apify events
