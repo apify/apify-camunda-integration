@@ -37,7 +37,7 @@
     },
     {
       "id": "activation",
-      "label": "Activation condition"
+      "label": "Activation details"
     },
     {
       "id": "output",
@@ -122,7 +122,7 @@
     {
       "id": "activationCondition",
       "label": "Activation Condition",
-      "description": "A FEEL expression to filter events (e.g., '=request.connectorData.status = \"SUCCEEDED\"'). Use this to only start processes for successful Actor runs, ignore failures, etc. Default: empty (process all events).",
+      "description": "A FEEL expression to filter events (e.g., '=connectorData.status = \"SUCCEEDED\"'). Use this to only start processes for successful Actor runs, ignore failures, etc. Default: empty (process all events).",
       "type": "Text",
       "feel": "required",
       "group": "activation",
@@ -131,7 +131,7 @@
         "type": "zeebe:property",
         "name": "activationCondition"
       },
-      "placeholder": "=request.connectorData.status = \"SUCCEEDED\""
+      "placeholder": "=connectorData.status = \"SUCCEEDED\""
     },
     {
       "id": "resultVariable",

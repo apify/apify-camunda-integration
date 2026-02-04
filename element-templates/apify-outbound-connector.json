@@ -471,7 +471,7 @@
         "key": "resultExpression",
         "type": "zeebe:taskHeader"
       },
-      "placeholder": "={ result: response }",
+      "placeholder": "={ result: data }",
       "type": "Text"
     },
     {
