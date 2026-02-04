@@ -236,23 +236,18 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
     /**
      * Creates a webhook subscription in Apify for the configured resource.
+     * Uses idempotencyKey to ensure the same webhook is not created multiple times.
+     * If a webhook with the same idempotencyKey already exists, Apify returns the existing webhook.
      * 
      * @throws IOException If the webhook creation fails.
      */
     private void createApifyWebhook() throws IOException {
         LOGGER.debug("Creating Apify webhook with callback URL: {}.", callbackUrl);
 
-        String existingWebhookId = findExistingWebhook();
-        if (existingWebhookId != null) {
-            this.webhookId = existingWebhookId;
-            LOGGER.info("Found existing Apify webhook with ID: {}", webhookId);
-            return;
-        }
-
-        // Build the webhook payload
+        // Build the webhook payload with idempotencyKey
         String webhookJson = buildWebhookPayload();
 
-        // Create the webhook
+        // Create the webhook (or get existing one if idempotencyKey matches)
         ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.token(), webhookJson);
         String responseBody = result.getResponseBody();
         JsonNode responseNode = OBJECT_MAPPER.readTree(responseBody);
@@ -266,7 +261,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         // Extract webhook ID from response
         if (dataNode.has("id")) {
             webhookId = dataNode.get("id").asText();
-            LOGGER.info("Created Apify webhook with ID: {}", webhookId);
+            LOGGER.info("Apify webhook ready with ID: {}", webhookId);
         } else {
             throw new IOException("Failed to extract webhook ID from response: " + responseBody);
         }
@@ -274,6 +269,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
     /**
      * Builds the JSON payload for creating an Apify webhook.
+     * Includes an idempotencyKey based on the callback URL to prevent duplicate webhooks.
      * 
      * @return The JSON payload for creating an Apify webhook.
      * @throws JsonProcessingException If the JSON payload cannot be created.
@@ -295,50 +291,11 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         webhookNode.put("requestUrl", callbackUrl);
         webhookNode.put("payloadTemplate", PAYLOAD_TEMPLATE);
         webhookNode.put("shouldInterpolateStrings", true);
+        webhookNode.put("idempotencyKey", callbackUrl);
 
         return OBJECT_MAPPER.writeValueAsString(webhookNode);
     }
 
-    /**
-     * Checks if a webhook with the same callback URL already exists on Apify.
-     * Note: If the user will be able to define what events to listen to, this
-     * method will need to be updated to check for existing webhooks with the same
-     * callback URL and event types.
-     * Note: Maybe instead of checking for perfect match, we should check for
-     * existing webhooks with the same contextValue (Camunda webhook ID).
-     * 
-     * @return The ID of the existing webhook, or null if not found.
-     */
-    private String findExistingWebhook() {
-        try {
-            ApifyClient.ResponseResult listResult;
-            if (ResourceType.ACTOR.equals(properties.resourceType())) {
-                listResult = apifyClient.listWebhooksByActor(properties.token(), properties.getNormalizedResourceId());
-            } else {
-                listResult = apifyClient.listWebhooksByActorTask(properties.token(),
-                        properties.getNormalizedResourceId());
-            }
-
-            JsonNode listNode = OBJECT_MAPPER.readTree(listResult.getResponseBody());
-            JsonNode itemsNode = listNode.path("data").path("items");
-
-            // Fallback for different response structures
-            if (itemsNode.isMissingNode()) {
-                itemsNode = listNode.path("data");
-            }
-
-            if (itemsNode.isArray()) {
-                for (JsonNode webhook : itemsNode) {
-                    if (callbackUrl.equals(webhook.path("requestUrl").asText())) {
-                        return webhook.get("id").asText();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Failed to check for existing webhooks: {}", e.getMessage());
-        }
-        return null;
-    }
 
     /**
      * Builds the connector data map from the Apify event.

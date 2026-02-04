@@ -404,14 +404,16 @@ class ApifyInboundExecutableTest {
         }
 
         @Nested
-        @DisplayName("Existing Webhook Reuse")
-        class ExistingWebhookReuse {
+        @DisplayName("Idempotency Key Behavior")
+        class IdempotencyKeyBehavior {
 
             @Test
-            void shouldReuseExistingWebhookIfFound() throws Exception {
+            void shouldReuseExistingWebhookViaIdempotencyKey() throws Exception {
                 InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
                         "test-context-123");
 
+                // When Apify receives a webhook creation request with an idempotencyKey that already exists,
+                // it returns the existing webhook instead of creating a new one
                 try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
                         existingActorWebhookMock("existing-webhook-456",
                                 "http://example.com/inbound/test-context-123"))) {
@@ -419,8 +421,8 @@ class ApifyInboundExecutableTest {
                     executable.activate(context);
 
                     ApifyClient constructedClient = mockedClient.constructed().get(0);
-                    verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
-                    verify(constructedClient, never()).createWebhook(anyString(), anyString());
+                    // Should call createWebhook (which returns existing webhook due to idempotencyKey)
+                    verify(constructedClient).createWebhook(eq("test-token"), anyString());
 
                     ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
                     verify(context).reportHealth(healthCaptor.capture());
@@ -429,7 +431,7 @@ class ApifyInboundExecutableTest {
             }
 
             @Test
-            void shouldProceedWithCreationIfListWebhooksFails() throws Exception {
+            void shouldCreateWebhookWithIdempotencyKey() throws Exception {
                 InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
                         "test-context-123");
 
@@ -439,8 +441,13 @@ class ApifyInboundExecutableTest {
                     executable.activate(context);
 
                     ApifyClient constructedClient = mockedClient.constructed().get(0);
-                    verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
-                    verify(constructedClient).createWebhook(eq("test-token"), anyString());
+                    ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+                    verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+
+                    // Verify idempotencyKey is included in the payload
+                    String payload = payloadCaptor.getValue();
+                    assertThat(payload).contains("\"idempotencyKey\"");
+                    assertThat(payload).contains("http://example.com/inbound/test-context-123");
 
                     ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
                     verify(context).reportHealth(healthCaptor.capture());
@@ -449,28 +456,22 @@ class ApifyInboundExecutableTest {
             }
 
             @Test
-            void shouldCreateNewWebhookIfExistingWebhookHasDifferentCallbackUrl() throws Exception {
+            void shouldUseCallbackUrlAsIdempotencyKey() throws Exception {
                 InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
                         "test-context-123");
 
                 try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                        (mock, ctx) -> {
-                            ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                            when(listResult.getResponseBody()).thenReturn(
-                                    webhookListResponse("different-webhook-999",
-                                            "http://different-url.com/inbound/other-context"));
-                            when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-
-                            ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-                            when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                            when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
-                        })) {
+                        defaultActorClientMock())) {
 
                     executable.activate(context);
 
                     ApifyClient constructedClient = mockedClient.constructed().get(0);
-                    verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
-                    verify(constructedClient).createWebhook(eq("test-token"), anyString());
+                    ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+                    verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+
+                    // Verify the idempotencyKey matches the callback URL
+                    String payload = payloadCaptor.getValue();
+                    assertThat(payload).contains("\"idempotencyKey\":\"http://example.com/inbound/test-context-123\"");
                 }
             }
         }
@@ -575,6 +576,8 @@ class ApifyInboundExecutableTest {
                 assertThat(payload).contains("http://example.com/inbound/test-context-123");
                 assertThat(payload).contains("\"payloadTemplate\"");
                 assertThat(payload).contains("\"shouldInterpolateStrings\":true");
+                assertThat(payload).contains("\"idempotencyKey\"");
+                assertThat(payload).contains("http://example.com/inbound/test-context-123");
             }
         }
 
