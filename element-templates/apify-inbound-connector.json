@@ -63,7 +63,7 @@
     },
     {
       "id": "resourceType",
-      "label": "Resource type",
+      "label": "Resource Type",
       "description": "The Apify resource type to monitor (Actor or task).",
       "type": "Dropdown",
       "group": "trigger",
@@ -88,8 +88,8 @@
     },
     {
       "id": "resourceId",
-      "label": "Resource identifier",
-      "description": "The Actor or task identifier to monitor (e.g., 'E2jjCZBezvAZnX8Rb' or 'apify/hello-world').",
+      "label": "Resource Identifier",
+      "description": "The Actor or task identifier to monitor (e.g., 'apify/hello-world' or 'E2jjCZBezvAZnX8Rb').",
       "type": "String",
       "feel": "optional",
       "group": "trigger",
@@ -121,8 +121,8 @@
     },
     {
       "id": "activationCondition",
-      "label": "Activation condition",
-      "description": "A FEEL expression to filter events (e.g., '=request.connectorData.status = \"SUCCEEDED\"'). Use this to only start processes for successful Actor runs, ignore failures, etc. Leave empty to process all events.",
+      "label": "Activation Condition",
+      "description": "A FEEL expression to filter events (e.g., '=request.connectorData.status = \"SUCCEEDED\"'). Use this to only start processes for successful Actor runs, ignore failures, etc. Default: empty (process all events).",
       "type": "Text",
       "feel": "required",
       "group": "activation",
@@ -135,8 +135,8 @@
     },
     {
       "id": "resultVariable",
-      "label": "Result variable",
-      "description": "The name of the variable to store the webhook event data. The event includes: eventType, runId, status, actorId, taskId, defaultDatasetId, and more. See the documentation for the full list.",
+      "label": "Result Variable",
+      "description": "Variable name to store the webhook event data (includes eventType, runId, status, actorId, taskId, defaultDatasetId, and more).",
       "type": "String",
       "group": "output",
       "optional": true,
@@ -148,7 +148,7 @@
     },
     {
       "id": "resultExpression",
-      "label": "Result expression",
+      "label": "Result Expression",
       "description": "A FEEL expression to transform the webhook data before storing.",
       "type": "Text",
       "feel": "required",
@@ -158,7 +158,7 @@
         "type": "zeebe:property",
         "name": "resultExpression"
       },
-      "placeholder": "={ result: response }"
+      "placeholder": "={ result: connectorData }"
     },
     {
       "value": "io.camunda:apify-inbound:1",
