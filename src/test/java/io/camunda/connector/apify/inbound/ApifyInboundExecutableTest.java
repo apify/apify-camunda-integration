@@ -27,6 +27,7 @@ import io.camunda.connector.api.inbound.InboundConnectorContext;
 import io.camunda.connector.api.inbound.webhook.WebhookProcessingPayload;
 import io.camunda.connector.api.inbound.webhook.WebhookResult;
 import io.camunda.connector.apify.common.ApifyClient;
+import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.inbound.dto.ResourceType;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
@@ -65,11 +66,11 @@ class ApifyInboundExecutableTest {
         @Test
         void shouldCreatePropertiesWithAllFields() {
             ApifyInboundProperties properties = new ApifyInboundProperties(
-                    "test-token",
+                    new Authentication("test-token"),
                     ACTOR,
                     "my-actor-id");
 
-            assertThat(properties.token()).isEqualTo("test-token");
+            assertThat(properties.authentication().token()).isEqualTo("test-token");
             assertThat(properties.resourceType()).isEqualTo(ACTOR);
             assertThat(properties.resourceId()).isEqualTo("my-actor-id");
         }
@@ -81,7 +82,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldNormalizeResourceIdWithSlash() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "apify/google-search-scraper");
 
@@ -93,7 +94,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldNotChangeResourceIdWithoutSlash() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "my-actor-id-123");
 
@@ -105,7 +106,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldHandleMultipleSlashesInResourceId() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "username/category/actor-name");
 
@@ -131,7 +132,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectEmptyToken() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "",
+                        new Authentication(""),
                         ACTOR,
                         "my-actor-id");
 
@@ -140,11 +141,26 @@ class ApifyInboundExecutableTest {
                 assertThat(violations).isNotEmpty();
                 assertThat(violations)
                         .extracting(v -> v.getPropertyPath().toString())
-                        .contains("token");
+                        .contains("authentication.token");
             }
 
             @Test
             void shouldRejectNullToken() {
+                ApifyInboundProperties properties = new ApifyInboundProperties(
+                        new Authentication(null),
+                        ACTOR,
+                        "my-actor-id");
+
+                Set<ConstraintViolation<ApifyInboundProperties>> violations = validator.validate(properties);
+
+                assertThat(violations).isNotEmpty();
+                assertThat(violations)
+                        .extracting(v -> v.getPropertyPath().toString())
+                        .contains("authentication.token");
+            }
+
+            @Test
+            void shouldRejectNullAuthentication() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
                         null,
                         ACTOR,
@@ -155,13 +171,13 @@ class ApifyInboundExecutableTest {
                 assertThat(violations).isNotEmpty();
                 assertThat(violations)
                         .extracting(v -> v.getPropertyPath().toString())
-                        .contains("token");
+                        .contains("authentication");
             }
 
             @Test
             void shouldRejectNullResourceType() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         null,
                         "my-actor-id");
 
@@ -176,7 +192,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectEmptyResourceId() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "");
 
@@ -191,7 +207,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectNullResourceId() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         null);
 
@@ -206,7 +222,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldAcceptValidProperties() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "my-actor-id");
 
@@ -587,7 +603,8 @@ class ApifyInboundExecutableTest {
         @Test
         void shouldThrowWhenInboundContextIsMissing() {
             InboundConnectorContext context = mock(InboundConnectorContext.class);
-            ApifyInboundProperties properties = new ApifyInboundProperties("test-token", ACTOR, "my-actor-id");
+            ApifyInboundProperties properties = new ApifyInboundProperties(
+                    new Authentication("test-token"), ACTOR, "my-actor-id");
             when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
             when(context.getProperties()).thenReturn(Map.of()); // No "inbound" key
 
@@ -599,7 +616,8 @@ class ApifyInboundExecutableTest {
         @Test
         void shouldThrowWhenContextPathIsMissing() {
             InboundConnectorContext context = mock(InboundConnectorContext.class);
-            ApifyInboundProperties properties = new ApifyInboundProperties("test-token", ACTOR, "my-actor-id");
+            ApifyInboundProperties properties = new ApifyInboundProperties(
+                    new Authentication("test-token"), ACTOR, "my-actor-id");
             when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
             when(context.getProperties()).thenReturn(Map.of("inbound", Map.of())); // Empty inbound, no "context" key
 
@@ -611,7 +629,8 @@ class ApifyInboundExecutableTest {
         @Test
         void shouldHandleContextWithLeadingSlash() throws Exception {
             InboundConnectorContext context = mock(InboundConnectorContext.class);
-            ApifyInboundProperties properties = new ApifyInboundProperties("test-token", ACTOR, "my-actor-id");
+            ApifyInboundProperties properties = new ApifyInboundProperties(
+                    new Authentication("test-token"), ACTOR, "my-actor-id");
             when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
             when(context.getProperties()).thenReturn(Map.of("inbound", Map.of("context", "/leading-slash-context")));
 

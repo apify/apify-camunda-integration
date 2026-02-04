@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.api.annotation.OutboundConnector;
 import io.camunda.connector.apify.common.ApifyClient;
 import io.camunda.connector.apify.common.RunOptions;
-import io.camunda.connector.apify.outbound.dto.Authentication;
+import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
 import io.camunda.connector.apify.outbound.dto.GetDatasetItemsInput;
 import io.camunda.connector.apify.outbound.dto.GetDatasetItemsResponse;

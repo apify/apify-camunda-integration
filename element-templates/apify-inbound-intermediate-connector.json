@@ -53,7 +53,7 @@
   ],
   "properties": [
     {
-      "id": "token",
+      "id": "authentication.token",
       "label": "Apify API token",
       "description": "Your Apify API token for authentication.",
       "type": "String",
@@ -61,7 +61,7 @@
       "group": "authentication",
       "binding": {
         "type": "zeebe:property",
-        "name": "token"
+        "name": "authentication.token"
       },
       "constraints": {
         "notEmpty": true

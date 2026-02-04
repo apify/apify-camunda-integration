@@ -1,6 +1,6 @@
 package io.camunda.connector.apify.outbound;
 
-import io.camunda.connector.apify.outbound.dto.Authentication;
+import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
 import jakarta.validation.Valid;

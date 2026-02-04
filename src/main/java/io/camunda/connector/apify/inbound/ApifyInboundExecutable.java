@@ -112,7 +112,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
         if (webhookId != null && apifyClient != null && properties != null) {
             try {
-                apifyClient.deleteWebhook(properties.token(), webhookId);
+                apifyClient.deleteWebhook(properties.authentication().token(), webhookId);
                 LOGGER.info("Webhook {} deleted successfully", webhookId);
             } catch (IOException e) {
                 LOGGER.error("Failed to delete webhook {}: {}", webhookId, e.getMessage(), e);
@@ -253,7 +253,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         String webhookJson = buildWebhookPayload();
 
         // Create the webhook
-        ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.token(), webhookJson);
+        ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.authentication().token(), webhookJson);
         String responseBody = result.getResponseBody();
         JsonNode responseNode = OBJECT_MAPPER.readTree(responseBody);
         JsonNode dataNode = responseNode.path("data");
@@ -313,9 +313,9 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         try {
             ApifyClient.ResponseResult listResult;
             if (ResourceType.ACTOR.equals(properties.resourceType())) {
-                listResult = apifyClient.listWebhooksByActor(properties.token(), properties.getNormalizedResourceId());
+                listResult = apifyClient.listWebhooksByActor(properties.authentication().token(), properties.getNormalizedResourceId());
             } else {
-                listResult = apifyClient.listWebhooksByActorTask(properties.token(),
+                listResult = apifyClient.listWebhooksByActorTask(properties.authentication().token(),
                         properties.getNormalizedResourceId());
             }
 
