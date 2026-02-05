@@ -33,38 +33,9 @@ public final class InboundTestFixtures {
             """;
 
     /**
-     * Empty webhooks list response from Apify API.
-     */
-    public static final String EMPTY_WEBHOOKS_LIST = """
-            {"data":{"items":[]}}
-            """;
-
-    /**
      * Private constructor to prevent instantiation.
      */
     private InboundTestFixtures() {
-    }
-
-    /**
-     * Creates a webhook list response JSON with a single webhook.
-     *
-     * @param webhookId  The webhook ID.
-     * @param requestUrl The webhook callback URL.
-     * @return The JSON response string.
-     */
-    public static String webhookListResponse(String webhookId, String requestUrl) {
-        return """
-                {
-                    "data": {
-                        "items": [
-                            {
-                                "id": "%s",
-                                "requestUrl": "%s"
-                            }
-                        ]
-                    }
-                }
-                """.formatted(webhookId, requestUrl);
     }
 
     /**
@@ -118,9 +89,7 @@ public final class InboundTestFixtures {
     }
 
     /**
-     * Default mock initializer for ApifyClient that sets up successful webhook
-     * operations.
-     * Configures createWebhook to succeed (no longer needs listWebhooksByActor since we use idempotencyKey).
+     * Default mock initializer for ApifyClient that sets up successful webhook operations.
      *
      * @return A MockInitializer for ApifyClient.
      */
@@ -133,9 +102,7 @@ public final class InboundTestFixtures {
     }
 
     /**
-     * Default mock initializer for ApifyClient that sets up successful webhook
-     * operations for tasks.
-     * Configures createWebhook to succeed (no longer needs listWebhooksByActorTask since we use idempotencyKey).
+     * Default mock initializer for ApifyClient that sets up successful webhook operations for tasks.
      *
      * @return A MockInitializer for ApifyClient.
      */
@@ -148,18 +115,13 @@ public final class InboundTestFixtures {
     }
 
     /**
-     * Mock initializer for ApifyClient that simulates returning an existing webhook via idempotencyKey.
-     * When Apify receives a webhook creation request with an idempotencyKey that already exists,
-     * it returns the existing webhook instead of creating a new one.
+     * Mock initializer for ApifyClient that returns an existing webhook.
      *
-     * @param webhookId  The existing webhook ID.
-     * @param requestUrl The webhook callback URL (not used anymore, kept for backwards compatibility).
+     * @param webhookId The existing webhook ID.
      * @return A MockInitializer for ApifyClient.
      */
-    public static MockedConstruction.MockInitializer<ApifyClient> existingActorWebhookMock(
-            String webhookId, String requestUrl) {
+    public static MockedConstruction.MockInitializer<ApifyClient> existingActorWebhookMock(String webhookId) {
         return (mock, ctx) -> {
-            // Simulate Apify returning existing webhook when idempotencyKey matches
             ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
             when(createResult.getResponseBody()).thenReturn(
                     String.format("{\"data\":{\"id\":\"%s\"}}", webhookId));
@@ -168,18 +130,13 @@ public final class InboundTestFixtures {
     }
 
     /**
-     * Mock initializer for ApifyClient that simulates returning an existing webhook via idempotencyKey.
-     * When Apify receives a webhook creation request with an idempotencyKey that already exists,
-     * it returns the existing webhook instead of creating a new one.
+     * Mock initializer for ApifyClient that returns an existing webhook for tasks.
      *
-     * @param webhookId  The existing webhook ID.
-     * @param requestUrl The webhook callback URL (not used anymore, kept for backwards compatibility).
+     * @param webhookId The existing webhook ID.
      * @return A MockInitializer for ApifyClient.
      */
-    public static MockedConstruction.MockInitializer<ApifyClient> existingTaskWebhookMock(
-            String webhookId, String requestUrl) {
+    public static MockedConstruction.MockInitializer<ApifyClient> existingTaskWebhookMock(String webhookId) {
         return (mock, ctx) -> {
-            // Simulate Apify returning existing webhook when idempotencyKey matches
             ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
             when(createResult.getResponseBody()).thenReturn(
                     String.format("{\"data\":{\"id\":\"%s\"}}", webhookId));
@@ -189,12 +146,10 @@ public final class InboundTestFixtures {
 
     /**
      * Mock initializer for ApifyClient that succeeds at webhook creation.
-     * This mock is now equivalent to defaultActorClientMock since we no longer list webhooks.
-     * Kept for backwards compatibility with existing tests.
      *
      * @return A MockInitializer for ApifyClient.
      */
-    public static MockedConstruction.MockInitializer<ApifyClient> listFailsButCreateSucceedsMock() {
+    public static MockedConstruction.MockInitializer<ApifyClient> createWebhookSucceedsMock() {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
             when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);

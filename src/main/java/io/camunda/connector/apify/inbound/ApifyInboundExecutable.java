@@ -236,18 +236,13 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
     /**
      * Creates a webhook subscription in Apify for the configured resource.
-     * Uses idempotencyKey to ensure the same webhook is not created multiple times.
-     * If a webhook with the same idempotencyKey already exists, Apify returns the existing webhook.
      * 
      * @throws IOException If the webhook creation fails.
      */
     private void createApifyWebhook() throws IOException {
         LOGGER.debug("Creating Apify webhook with callback URL: {}.", callbackUrl);
 
-        // Build the webhook payload with idempotencyKey
         String webhookJson = buildWebhookPayload();
-
-        // Create the webhook (or get existing one if idempotencyKey matches)
         ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.token(), webhookJson);
         String responseBody = result.getResponseBody();
         JsonNode responseNode = OBJECT_MAPPER.readTree(responseBody);
@@ -269,7 +264,6 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
     /**
      * Builds the JSON payload for creating an Apify webhook.
-     * Includes an idempotencyKey based on the callback URL to prevent duplicate webhooks.
      * 
      * @return The JSON payload for creating an Apify webhook.
      * @throws JsonProcessingException If the JSON payload cannot be created.
@@ -291,11 +285,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         webhookNode.put("requestUrl", callbackUrl);
         webhookNode.put("payloadTemplate", PAYLOAD_TEMPLATE);
         webhookNode.put("shouldInterpolateStrings", true);
-        webhookNode.put("idempotencyKey", callbackUrl);
+        webhookNode.put("idempotencyKey", callbackUrl + ":" + properties.getNormalizedResourceId());
 
         return OBJECT_MAPPER.writeValueAsString(webhookNode);
     }
-
 
     /**
      * Builds the connector data map from the Apify event.
