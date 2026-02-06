@@ -7,9 +7,8 @@ import static io.camunda.connector.apify.inbound.InboundTestFixtures.createMockP
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.createWebhookFailsMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.defaultActorClientMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.deleteWebhookFailsMock;
-import static io.camunda.connector.apify.inbound.InboundTestFixtures.existingActorWebhookMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.webhookCreationMockWithId;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.fullLifecycleActorMock;
-import static io.camunda.connector.apify.inbound.InboundTestFixtures.createWebhookSucceedsMock;
 import static io.camunda.connector.apify.inbound.dto.ResourceType.ACTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -412,7 +411,7 @@ class ApifyInboundExecutableTest {
                         "test-context-123");
 
                 try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                        existingActorWebhookMock("existing-webhook-456"))) {
+                        webhookCreationMockWithId("existing-webhook-456"))) {
 
                     executable.activate(context);
 
@@ -431,7 +430,7 @@ class ApifyInboundExecutableTest {
                         "test-context-123");
 
                 try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                        createWebhookSucceedsMock())) {
+                        defaultActorClientMock())) {
 
                     executable.activate(context);
 
@@ -451,7 +450,7 @@ class ApifyInboundExecutableTest {
             }
 
             @Test
-            void shouldUseCallbackUrlAsIdempotencyKey() throws Exception {
+            void shouldIncludeHashedIdempotencyKeyInWebhookPayload() throws Exception {
                 InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
                         "test-context-123");
 
@@ -464,10 +463,32 @@ class ApifyInboundExecutableTest {
                     ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
                     verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
 
-                    // Verify the idempotencyKey matches the callback URL
+                    // Pre-computed SHA-256 of "http://example.com/inbound/test-context-123:my-actor-id"
                     String payload = payloadCaptor.getValue();
-                    assertThat(payload).contains("\"idempotencyKey\":\"http://example.com/inbound/test-context-123:my-actor-id\"");
+                    assertThat(payload).contains("\"idempotencyKey\":\"df03eda4ff44752c70dc627cd34800a7f7293785b5d61604bd14f6b788ba7cb2\"");
                 }
+            }
+
+            @Test
+            void shouldGenerateDeterministicIdempotencyKey() {
+                // Pre-computed SHA-256 of "http://example.com/callback:actor-123"
+                String key = ApifyInboundExecutable.generateIdempotencyKey(
+                        "http://example.com/callback", "actor-123");
+
+                assertThat(key)
+                        .as("Idempotency key should be a deterministic SHA-256 hex string")
+                        .hasSize(64)
+                        .matches("[0-9a-f]{64}");
+
+                // Same inputs must always produce the same key
+                String key2 = ApifyInboundExecutable.generateIdempotencyKey(
+                        "http://example.com/callback", "actor-123");
+                assertThat(key).isEqualTo(key2);
+
+                // Different inputs must produce different keys
+                String differentKey = ApifyInboundExecutable.generateIdempotencyKey(
+                        "http://example.com/callback", "actor-456");
+                assertThat(key).isNotEqualTo(differentKey);
             }
         }
     }
@@ -571,8 +592,8 @@ class ApifyInboundExecutableTest {
                 assertThat(payload).contains("http://example.com/inbound/test-context-123");
                 assertThat(payload).contains("\"payloadTemplate\"");
                 assertThat(payload).contains("\"shouldInterpolateStrings\":true");
-                assertThat(payload).contains("\"idempotencyKey\"");
-                assertThat(payload).contains("http://example.com/inbound/test-context-123:apify~google-search");
+                // Pre-computed SHA-256 of "http://example.com/inbound/test-context-123:apify~google-search"
+                assertThat(payload).contains("\"idempotencyKey\":\"cca6a64107e0e5688e4d049dc98691dcd0d6f71ed06744e5e22104a840dd18a1\"");
             }
         }
 

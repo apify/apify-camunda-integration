@@ -26,7 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -76,7 +78,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
             // Create webhook in Apify
             createApifyWebhook();
-            LOGGER.info("Apify webhook created successfully. Webhook ID: {}", webhookId);
+            LOGGER.info("Apify webhook ready. Webhook ID: {}", webhookId);
             context.reportHealth(Health.up());
         } catch (Exception e) {
             LOGGER.error("Error activating Apify inbound connector: {}", e.getMessage(), e);
@@ -285,9 +287,27 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         webhookNode.put("requestUrl", callbackUrl);
         webhookNode.put("payloadTemplate", PAYLOAD_TEMPLATE);
         webhookNode.put("shouldInterpolateStrings", true);
-        webhookNode.put("idempotencyKey", callbackUrl + ":" + properties.getNormalizedResourceId());
+        webhookNode.put("idempotencyKey", generateIdempotencyKey(callbackUrl, properties.getNormalizedResourceId()));
 
         return OBJECT_MAPPER.writeValueAsString(webhookNode);
+    }
+
+    /**
+     * Generates a SHA-256 hash to use as the idempotency key for webhook creation.
+     *
+     * @param callbackUrl The webhook callback URL.
+     * @param resourceId  The normalized resource ID.
+     * @return A hex-encoded SHA-256 hash string.
+     */
+    static String generateIdempotencyKey(String callbackUrl, String resourceId) {
+        try {
+            final var digest = MessageDigest.getInstance("SHA-256");
+            final var input = (callbackUrl + ":" + resourceId).getBytes(StandardCharsets.UTF_8);
+            final var hash = digest.digest(input);
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm not available", e);
+        }
     }
 
     /**
