@@ -113,7 +113,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         if (webhookId != null && apifyClient != null && properties != null) {
             LOGGER.info("Deactivating Apify webhook with webhook ID: {}.", webhookId);
             try {
-                apifyClient.deleteWebhook(properties.token(), webhookId);
+                apifyClient.deleteWebhook(properties.authentication().token(), webhookId);
                 LOGGER.info("Successfully deleted Apify webhook with webhook ID: {}.", webhookId);
             } catch (IOException e) {
                 LOGGER.error("Failed to delete Apify webhook with webhook ID: {}: {}.", webhookId, e.getMessage(), e);
@@ -244,7 +244,9 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         LOGGER.debug("Creating Apify webhook with callback URL: {}.", callbackUrl);
 
         String webhookJson = buildWebhookPayload();
-        ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.token(), webhookJson);
+
+        // Create the webhook
+        ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.authentication().token(), webhookJson);
         String responseBody = result.getResponseBody();
         JsonNode responseNode = OBJECT_MAPPER.readTree(responseBody);
         JsonNode dataNode = responseNode.path("data");

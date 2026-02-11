@@ -1,9 +1,9 @@
 {
   "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
-  "name": "Apify Connector",
+  "name": "Apify Message Intermediate Catch Event Connector",
   "id": "io.camunda.connector.inbound.Apify.v1:IntermediateCatchEvent",
   "version": 1,
-  "description": "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.",
+  "description": "Receives webhook events from Apify for completed Actor or task runs.",
   "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/README.md#2-inbound-connector-start-event",
   "metadata": {
     "keywords": [
@@ -30,11 +30,11 @@
   "groups": [
     {
       "id": "authentication",
-      "label": "Authentication details"
+      "label": "Authentication"
     },
     {
       "id": "trigger",
-      "label": "Trigger details",
+      "label": "Trigger configuration",
       "tooltip": "Learn more about trigger in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
     },
     {
@@ -43,7 +43,7 @@
     },
     {
       "id": "correlation",
-      "label": "Correlation details",
+      "label": "Correlation configuration",
       "tooltip": "Learn more about message correlation in the <a href=\"https://docs.camunda.io/docs/components/concepts/messages/#message-correlation-overview\">documentation</a>."
     },
     {
@@ -53,55 +53,25 @@
   ],
   "properties": [
     {
-      "id": "method",
-      "label": "Authentication method",
-      "description": "Method to authenticate with the Apify API",
-      "optional": false,
-      "value": "token",
-      "constraints": {
-        "notEmpty": true
-      },
-      "group": "authentication",
-      "binding": {
-        "name": "method",
-        "type": "zeebe:property"
-      },
-      "type": "Dropdown",
-      "choices": [
-        {
-          "name": "Apify API token",
-          "value": "token"
-        },
-        {
-          "name": "Sign in with Apify",
-          "value": "oauth"
-        }
-      ]
-    },
-    {
-      "id": "token",
+      "id": "authentication.token",
       "label": "Apify API token",
-      "description": "The Apify API token for authentication",
+      "description": "Your Apify API token for authentication.",
       "type": "String",
       "feel": "optional",
       "group": "authentication",
       "binding": {
         "type": "zeebe:property",
-        "name": "token"
-      },
-      "condition": {
-        "property": "method",
-        "equals": "token",
-        "type": "simple"
+        "name": "authentication.token"
       },
       "constraints": {
         "notEmpty": true
-      }
+      },
+      "placeholder": "apify_api_..."
     },
     {
       "id": "resourceType",
-      "label": "Actor/Task selection method",
-      "description": "The type of Apify resource to listen for events from",
+      "label": "Resource Type",
+      "description": "The Apify resource type to monitor (Actor or task).",
       "type": "Dropdown",
       "group": "trigger",
       "value": "actor",
@@ -125,8 +95,8 @@
     },
     {
       "id": "resourceId",
-      "label": "Actor/Task ID",
-      "description": "Actor ID or Task ID (e.g., 'E2jjCZBezvAZnX8Rb' or 'apify/hello-world').",
+      "label": "Resource Identifier",
+      "description": "The Actor or task identifier to monitor (e.g., 'apify/hello-world' or 'E2jjCZBezvAZnX8Rb').",
       "type": "String",
       "feel": "optional",
       "group": "trigger",
@@ -136,12 +106,13 @@
       },
       "constraints": {
         "notEmpty": true
-      }
+      },
+      "placeholder": "author/actor-name"
     },
     {
       "id": "context",
       "label": "Webhook ID",
-      "description": "Unique identifier for this webhook endpoint (auto-generated)",
+      "description": "The unique identifier for this webhook endpoint (auto-generated).",
       "type": "String",
       "group": "activation",
       "binding": {
@@ -157,8 +128,8 @@
     },
     {
       "id": "activationCondition",
-      "label": "Activation condition",
-      "description": "Optional FEEL expression to filter events (e.g., '=status = \"SUCCEEDED\"'). Use this to only start processes for successful Actor runs, ignore failures, etc. Leave empty to process all events.",
+      "label": "Activation Condition",
+      "description": "A FEEL expression to filter events (e.g., '=connectorData.status = \"SUCCEEDED\"'). Use this to only start processes for successful Actor runs, ignore failures, etc. Default: empty (process all events).",
       "type": "Text",
       "feel": "required",
       "group": "activation",
@@ -166,12 +137,13 @@
       "binding": {
         "type": "zeebe:property",
         "name": "activationCondition"
-      }
+      },
+      "placeholder": "=connectorData.status = \"SUCCEEDED\""
     },
     {
       "id": "correlationKeyProcess",
-      "label": "Correlation key (process)",
-      "description": "Sets up the correlation key from process variables",
+      "label": "Correlation Key (Process)",
+      "description": "The correlation key from process variables.",
       "constraints": {
         "notEmpty": true
       },
@@ -181,12 +153,14 @@
         "name": "correlationKey",
         "type": "bpmn:Message#zeebe:subscription#property"
       },
+      "placeholder": "=previousEventResponse.runId",
       "type": "String"
     },
     {
       "id": "correlationKeyPayload",
-      "label": "Correlation key (payload)",
-      "description": "Extracts the correlation key from the incoming message payload",
+      "label": "Correlation Key (Payload)",
+      "description": "A FEEL expression to extract the correlation key from the incoming message payload.",
+      "placeholder": "=connectorData.runId",
       "constraints": {
         "notEmpty": true
       },
@@ -200,8 +174,8 @@
     },
     {
       "id": "messageIdExpression",
-      "label": "Message ID expression",
-      "description": "Expression to extract unique identifier of a message",
+      "label": "Message ID Expression",
+      "description": "A FEEL expression to extract the unique identifier of a message.",
       "optional": true,
       "feel": "required",
       "group": "correlation",
@@ -209,12 +183,13 @@
         "name": "messageIdExpression",
         "type": "zeebe:property"
       },
+      "placeholder": "=connectorData.runId",
       "type": "String"
     },
     {
       "id": "messageTtl",
       "label": "Message TTL",
-      "description": "Time-to-live for the message in the broker (ISO-8601 duration)",
+      "description": "The time-to-live for the message in the broker (ISO-8601 duration).",
       "optional": true,
       "constraints": {
         "notEmpty": false,
@@ -229,6 +204,7 @@
         "name": "messageTtl",
         "type": "zeebe:property"
       },
+      "placeholder": "PT1H",
       "type": "String"
     },
     {
@@ -245,20 +221,21 @@
     },
     {
       "id": "resultVariable",
-      "label": "Result variable",
-      "description": "Name of the variable to store the webhook event data. The event includes: eventType, runId, status, actorId, taskId, defaultDatasetId, and more. See documentation for full list.",
+      "label": "Result Variable",
+      "description": "Variable name to store the webhook event data (includes eventType, runId, status, actorId, taskId, defaultDatasetId, and more).",
       "type": "String",
       "group": "output",
       "optional": true,
       "binding": {
         "type": "zeebe:property",
         "name": "resultVariable"
-      }
+      },
+      "placeholder": "webhookResponse"
     },
     {
       "id": "resultExpression",
-      "label": "Result expression",
-      "description": "Optional FEEL expression to transform the webhook data before storing. Example: '={runId: runId, status: status, datasetId: defaultDatasetId}'",
+      "label": "Result Expression",
+      "description": "A FEEL expression to transform the webhook data before storing.",
       "type": "Text",
       "feel": "required",
       "group": "output",
@@ -266,7 +243,8 @@
       "binding": {
         "type": "zeebe:property",
         "name": "resultExpression"
-      }
+      },
+      "placeholder": "={ result: connectorData }"
     },
     {
       "value": "io.camunda:apify-inbound:1",

@@ -1,4 +1,4 @@
-package io.camunda.connector.apify.outbound.dto;
+package io.camunda.connector.apify.common.dto;
 
 import io.camunda.connector.generator.java.annotation.TemplateProperty;
 import jakarta.validation.constraints.NotEmpty;

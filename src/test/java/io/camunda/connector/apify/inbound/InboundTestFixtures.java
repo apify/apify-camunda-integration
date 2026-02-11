@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.camunda.connector.api.inbound.InboundConnectorContext;
 import io.camunda.connector.api.inbound.webhook.WebhookProcessingPayload;
 import io.camunda.connector.apify.common.ApifyClient;
+import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.inbound.dto.ResourceType;
 import org.mockito.MockedConstruction;
 
@@ -50,7 +51,8 @@ public final class InboundTestFixtures {
     public static InboundConnectorContext createMockContext(
             String token, ResourceType resourceType, String resourceId, String inboundContext) {
         InboundConnectorContext context = mock(InboundConnectorContext.class);
-        ApifyInboundProperties properties = new ApifyInboundProperties(token, resourceType, resourceId);
+        ApifyInboundProperties properties = new ApifyInboundProperties(
+                new Authentication(token), resourceType, resourceId);
         when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
         when(context.getProperties()).thenReturn(Map.of(
                 "inbound", Map.of("context", inboundContext)));
