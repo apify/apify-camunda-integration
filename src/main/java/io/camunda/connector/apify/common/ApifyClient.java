@@ -535,29 +535,6 @@ public class ApifyClient implements AutoCloseable {
         return executeRequest(Method.GET, "/v2/webhooks", authToken, null);
     }
 
-    /**
-     * List all webhooks of a specific actor.
-     * 
-     * @param authToken The Apify API authentication token
-     * @param actorId   The ID of the actor
-     * @return ResponseResult containing the webhook list as JSON
-     * @throws IOException if the HTTP request fails
-     */
-    public ResponseResult listWebhooksByActor(String authToken, String actorId) throws IOException {
-        return executeRequest(Method.GET, "/v2/acts/" + actorId + "/webhooks", authToken, null);
-    }
-
-    /**
-     * List all webhooks of a specific actor task.
-     * 
-     * @param authToken   The Apify API authentication token
-     * @param actorTaskId The ID of the actor task
-     * @return ResponseResult containing the webhook list as JSON
-     * @throws IOException if the HTTP request fails
-     */
-    public ResponseResult listWebhooksByActorTask(String authToken, String actorTaskId) throws IOException {
-        return executeRequest(Method.GET, "/v2/actor-tasks/" + actorTaskId + "/webhooks", authToken, null);
-    }
 
     /**
      * Closes the HTTP client and releases resources.
