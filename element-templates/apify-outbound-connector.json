@@ -81,8 +81,8 @@
     },
     {
       "id": "apifyRequestInput.runActorInput.actorId",
-      "label": "Actor ID",
-      "description": "Actor ID or a tilde-separated owner's username and Actor name",
+      "label": "Actor",
+      "description": "Actor identifier to run. Supply the Actor ID or the Actor's name (e.g., 'apify/website-content-crawler').",
       "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
@@ -100,9 +100,10 @@
     },
     {
       "id": "apifyRequestInput.runActorInput.inputJson",
-      "label": "Input JSON",
-      "description": "JSON string with actor input (optional)",
-      "optional": true,
+      "label": "Input body",
+      "description": "Input the Actor's input as a JSON string.",
+      "optional": false,
+      "constraints": { "notEmpty": true },
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
@@ -199,8 +200,8 @@
     },
     {
       "id": "apifyRequestInput.runTaskInput.taskId",
-      "label": "Task ID",
-      "description": "Task ID or a tilde-separated owner's username and task's name.",
+      "label": "Task",
+      "description": "Task identifier to run. Supply the Task ID or the Task's name (e.g., 'apify/my-task').",
       "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
@@ -218,8 +219,9 @@
     },
     {
       "id": "apifyRequestInput.runTaskInput.inputJson",
-      "label": "Input JSON",
+      "label": "Override input",
       "optional": true,
+      "description": "Optional: JSON object to override the task's pre-configured input.",
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
