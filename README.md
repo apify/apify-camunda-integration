@@ -2,6 +2,8 @@
 
 Integrate [Apify](https://apify.com/) web scraping and automation capabilities into your **Camunda 8** workflows. This connector enables you to run Actors, execute tasks, and retrieve data from Apify directly within your BPMN processes.
 
+> **Compatibility:** Requires Camunda 8.3 or later.
+
 ## Features
 
 **Outbound Connector** (call Apify from your process):
@@ -48,16 +50,18 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 All Apify Connector operations require an **Apify API Token**.
 
 1. Log in to [Apify Console](https://console.apify.com/).
-2. Navigate to **Settings → Integrations**.
+2. Navigate to [**Settings → Integrations**](https://console.apify.com/settings/integrations).
 3. Copy your **API Token**.
 
-> **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use **Camunda Secrets** (e.g., `secrets.APIFY_TOKEN`) to store your API token securely.
+> **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`secrets.APIFY_TOKEN`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
 
 ---
 
 ## Outbound Connector
 
 The **Apify Outbound Connector** allows your BPMN process to call out to Apify to invoke operations.
+
+**Output Mapping:** Each outbound operation returns a JSON response. Use the **Result Variable** field (e.g., `runResult`) to store the full response, or use a **Result Expression** (FEEL) to extract specific fields into process variables (e.g., `={ runId: response.id, datasetId: response.defaultDatasetId }`).
 
 ### Run Actor
 
@@ -68,7 +72,7 @@ Start a new execution of an Actor.
 | Setting | Description |
 |---------|-------------|
 | **Operation** | Select `Run Actor` |
-| **Actor** | The Actor ID (e.g., `apify/hello-world` or `E2jjCZBezvAZnX8Rb`) |
+| **Actor** | The Actor name or ID (e.g., `apify/hello-world` or `E2jjCZBezvAZnX8Rb`) |
 | **Input Body** | The input configuration for the run (e.g., `= { "message": "Hello from Camunda!" }`) |
 | **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
 | **Timeout (seconds)** | Maximum duration for the run (optional) |
@@ -88,11 +92,12 @@ Execute a saved Actor task.
 | Setting | Description |
 |---------|-------------|
 | **Operation** | Select `Run task` |
-| **Task** | The task ID (e.g., `author/task-name`) |
+| **Task** | The task name or ID (e.g., `author/task-name` or `E2jjCZBezvAZnX8Rb`) |
 | **Input Override** | (Optional) JSON to override the task's saved input |
 | **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
 | **Timeout (seconds)** | Maximum duration (optional) |
 | **Memory (MB)** | Memory allocation (optional) |
+| **Build** | Build tag to use (optional, defaults to `latest`) |
 
 ### Scrape Single URL
 
@@ -147,9 +152,10 @@ Use the **Apify Message Catch Event Connector** to begin a *new* process instanc
 
 | Setting | Description |
 |---------|-------------|
+| **Apify API Token** | Your Apify API token (see [Authentication](#authentication)) |
 | **Resource Type** | `Actor` or `Task` |
-| **Resource Identifier** | The ID or name to watch (e.g., `apify/web-scraper`) |
-| **Activation Condition** | FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`) |
+| **Resource Identifier** | The ID to watch (e.g., `abcdefg1234`) |
+| **Activation Condition** | FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). The leading `=` denotes a FEEL expression; the second `=` is the equality operator. |
 | **Result Variable** | Name of the variable to store the webhook payload |
 | **Result Expression** | FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
 
@@ -288,6 +294,8 @@ When an Apify inbound connector is triggered, it receives a payload with event a
 - `FAILED`
 - `ABORTED`
 - `TIMED-OUT`
+
+> **Note:** The event type uses an underscore (`TIMED_OUT`) while the run status uses a hyphen (`TIMED-OUT`). This is how the Apify API returns these values.
 
 ---
 

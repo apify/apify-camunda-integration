@@ -50,6 +50,8 @@ mvn clean package
 
 ### 3. Run the Connector
 
+> **Note:** If you plan to use **inbound connectors** (webhooks), set `CONNECTOR_BASE_URL` first. See [Environment Variables](#environment-variables) for details.
+
 ```bash
 mvn test-compile exec:java \
   -Dexec.mainClass="io.camunda.connector.apify.LocalConnectorRuntime" \
@@ -114,14 +116,18 @@ Keep this terminal running while working with Camunda Modeler.
 ├── src/
 │   ├── main/java/io/camunda/connector/apify/
 │   │   ├── common/           # Shared utilities (ApifyClient, etc.)
+│   │   │   └── dto/          # Common DTOs (Authentication, etc.)
 │   │   ├── inbound/          # Inbound connector implementation
+│   │   │   └── dto/          # Inbound DTOs (webhook payload, etc.)
 │   │   └── outbound/         # Outbound connector implementation
-│   │       └── dto/          # Data transfer objects
+│   │       └── dto/          # Outbound DTOs (request/response objects)
 │   └── test/
 │       ├── java/             # Unit and integration tests
 │       └── resources/        # Test configuration
 ├── element-templates/        # Camunda element templates (JSON)
-├── docs/                     # Documentation images
+├── docs/
+│   ├── modeler/              # Web Modeler screenshots
+│   └── operate/              # Camunda Operate screenshots
 └── pom.xml                   # Maven configuration
 ```
 
@@ -135,7 +141,7 @@ If you want to regenerate the original (base) templates, use the command below:
 
 ```bash
 # Use only if necessary
-mvn clean package -Dgenerate.templates=true -X
+mvn clean package -Dgenerate.templates=true
 ```
 
 ### Running Tests
@@ -232,7 +238,9 @@ The Camunda platform consists of several services:
 
 ### Cleaning Up Stale Webhooks
 
-During testing, you may accumulate webhooks. To start fresh, reset your Camunda Docker Compose stack:
+During testing, you may accumulate webhooks. To start fresh, reset your Camunda Docker Compose stack.
+
+Navigate to the directory where you extracted the [Camunda Docker Compose distribution](https://github.com/camunda/camunda-distributions/releases/tag/docker-compose-8.8) and run:
 
 ```bash
 cd docker-compose-8.8
@@ -330,11 +338,10 @@ docker compose -f docker-compose-full.yaml up -d
 
 ## Code Style
 
-Please follow the coding conventions defined in `.cursor/rules/camunda-rules.mdc`:
-
 - Use **Java 21** features (records, pattern matching, etc.)
-- Follow **Java naming conventions**
+- Follow **Java naming conventions** (PascalCase for classes, camelCase for methods/variables)
 - Use **records** for immutable DTOs
+- Use **SLF4J** for logging (never `System.out.println`)
 - Write tests using **JUnit 5**, **Mockito**, and **AssertJ**
 - Follow **Given-When-Then** structure in tests
 - Never log sensitive information (tokens, passwords)
