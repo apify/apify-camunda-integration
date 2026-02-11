@@ -326,7 +326,7 @@ class ApifyInboundExecutableTest {
 
             assertThat(result).isNotNull();
             assertThat(result.connectorData()).containsKey("error");
-            assertThat(result.connectorData().get("error").toString()).contains("Failed to parse webhook body");
+            assertThat(result.connectorData().get("error").toString()).contains("Failed to parse Apify webhook body");
         }
 
         @Test
