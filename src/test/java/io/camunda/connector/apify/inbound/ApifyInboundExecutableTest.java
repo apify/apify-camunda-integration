@@ -7,10 +7,8 @@ import static io.camunda.connector.apify.inbound.InboundTestFixtures.createMockP
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.createWebhookFailsMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.defaultActorClientMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.deleteWebhookFailsMock;
-import static io.camunda.connector.apify.inbound.InboundTestFixtures.existingActorWebhookMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.webhookCreationMockWithId;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.fullLifecycleActorMock;
-import static io.camunda.connector.apify.inbound.InboundTestFixtures.listFailsButCreateSucceedsMock;
-import static io.camunda.connector.apify.inbound.InboundTestFixtures.webhookListResponse;
 import static io.camunda.connector.apify.inbound.dto.ResourceType.ACTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -27,6 +25,7 @@ import io.camunda.connector.api.inbound.InboundConnectorContext;
 import io.camunda.connector.api.inbound.webhook.WebhookProcessingPayload;
 import io.camunda.connector.api.inbound.webhook.WebhookResult;
 import io.camunda.connector.apify.common.ApifyClient;
+import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.inbound.dto.ResourceType;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
@@ -65,11 +64,11 @@ class ApifyInboundExecutableTest {
         @Test
         void shouldCreatePropertiesWithAllFields() {
             ApifyInboundProperties properties = new ApifyInboundProperties(
-                    "test-token",
+                    new Authentication("test-token"),
                     ACTOR,
                     "my-actor-id");
 
-            assertThat(properties.token()).isEqualTo("test-token");
+            assertThat(properties.authentication().token()).isEqualTo("test-token");
             assertThat(properties.resourceType()).isEqualTo(ACTOR);
             assertThat(properties.resourceId()).isEqualTo("my-actor-id");
         }
@@ -81,7 +80,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldNormalizeResourceIdWithSlash() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "apify/google-search-scraper");
 
@@ -93,7 +92,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldNotChangeResourceIdWithoutSlash() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "my-actor-id-123");
 
@@ -105,7 +104,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldHandleMultipleSlashesInResourceId() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "username/category/actor-name");
 
@@ -131,7 +130,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectEmptyToken() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "",
+                        new Authentication(""),
                         ACTOR,
                         "my-actor-id");
 
@@ -140,11 +139,26 @@ class ApifyInboundExecutableTest {
                 assertThat(violations).isNotEmpty();
                 assertThat(violations)
                         .extracting(v -> v.getPropertyPath().toString())
-                        .contains("token");
+                        .contains("authentication.token");
             }
 
             @Test
             void shouldRejectNullToken() {
+                ApifyInboundProperties properties = new ApifyInboundProperties(
+                        new Authentication(null),
+                        ACTOR,
+                        "my-actor-id");
+
+                Set<ConstraintViolation<ApifyInboundProperties>> violations = validator.validate(properties);
+
+                assertThat(violations).isNotEmpty();
+                assertThat(violations)
+                        .extracting(v -> v.getPropertyPath().toString())
+                        .contains("authentication.token");
+            }
+
+            @Test
+            void shouldRejectNullAuthentication() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
                         null,
                         ACTOR,
@@ -155,13 +169,13 @@ class ApifyInboundExecutableTest {
                 assertThat(violations).isNotEmpty();
                 assertThat(violations)
                         .extracting(v -> v.getPropertyPath().toString())
-                        .contains("token");
+                        .contains("authentication");
             }
 
             @Test
             void shouldRejectNullResourceType() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         null,
                         "my-actor-id");
 
@@ -176,7 +190,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectEmptyResourceId() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "");
 
@@ -191,7 +205,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectNullResourceId() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         null);
 
@@ -206,7 +220,7 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldAcceptValidProperties() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        "test-token",
+                        new Authentication("test-token"),
                         ACTOR,
                         "my-actor-id");
 
@@ -328,7 +342,7 @@ class ApifyInboundExecutableTest {
 
             assertThat(result).isNotNull();
             assertThat(result.connectorData()).containsKey("error");
-            assertThat(result.connectorData().get("error").toString()).contains("Failed to parse webhook body");
+            assertThat(result.connectorData().get("error").toString()).contains("Failed to parse Apify webhook body");
         }
 
         @Test
@@ -404,42 +418,20 @@ class ApifyInboundExecutableTest {
         }
 
         @Nested
-        @DisplayName("Existing Webhook Reuse")
-        class ExistingWebhookReuse {
+        @DisplayName("Idempotency Key Behavior")
+        class IdempotencyKeyBehavior {
 
             @Test
-            void shouldReuseExistingWebhookIfFound() throws Exception {
+            void shouldReuseExistingWebhookViaIdempotencyKey() throws Exception {
                 InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
                         "test-context-123");
 
                 try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                        existingActorWebhookMock("existing-webhook-456",
-                                "http://example.com/inbound/test-context-123"))) {
+                        webhookCreationMockWithId("existing-webhook-456"))) {
 
                     executable.activate(context);
 
                     ApifyClient constructedClient = mockedClient.constructed().get(0);
-                    verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
-                    verify(constructedClient, never()).createWebhook(anyString(), anyString());
-
-                    ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
-                    verify(context).reportHealth(healthCaptor.capture());
-                    assertThat(healthCaptor.getValue().getStatus()).isEqualTo(Health.Status.UP);
-                }
-            }
-
-            @Test
-            void shouldProceedWithCreationIfListWebhooksFails() throws Exception {
-                InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
-                        "test-context-123");
-
-                try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                        listFailsButCreateSucceedsMock())) {
-
-                    executable.activate(context);
-
-                    ApifyClient constructedClient = mockedClient.constructed().get(0);
-                    verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
                     verify(constructedClient).createWebhook(eq("test-token"), anyString());
 
                     ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
@@ -449,29 +441,70 @@ class ApifyInboundExecutableTest {
             }
 
             @Test
-            void shouldCreateNewWebhookIfExistingWebhookHasDifferentCallbackUrl() throws Exception {
+            void shouldCreateWebhookWithIdempotencyKey() throws Exception {
                 InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
                         "test-context-123");
 
                 try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                        (mock, ctx) -> {
-                            ApifyClient.ResponseResult listResult = mock(ApifyClient.ResponseResult.class);
-                            when(listResult.getResponseBody()).thenReturn(
-                                    webhookListResponse("different-webhook-999",
-                                            "http://different-url.com/inbound/other-context"));
-                            when(mock.listWebhooksByActor(anyString(), anyString())).thenReturn(listResult);
-
-                            ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-                            when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-                            when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
-                        })) {
+                        defaultActorClientMock())) {
 
                     executable.activate(context);
 
                     ApifyClient constructedClient = mockedClient.constructed().get(0);
-                    verify(constructedClient).listWebhooksByActor(eq("test-token"), eq("my-actor-id"));
-                    verify(constructedClient).createWebhook(eq("test-token"), anyString());
+                    ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+                    verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+
+                    // Verify idempotencyKey is included in the payload
+                    String payload = payloadCaptor.getValue();
+                    assertThat(payload).contains("\"idempotencyKey\"");
+                    assertThat(payload).contains("http://example.com/inbound/test-context-123");
+
+                    ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
+                    verify(context).reportHealth(healthCaptor.capture());
+                    assertThat(healthCaptor.getValue().getStatus()).isEqualTo(Health.Status.UP);
                 }
+            }
+
+            @Test
+            void shouldIncludeHashedIdempotencyKeyInWebhookPayload() throws Exception {
+                InboundConnectorContext context = createMockContext("test-token", ACTOR, "my-actor-id",
+                        "test-context-123");
+
+                try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
+                        defaultActorClientMock())) {
+
+                    executable.activate(context);
+
+                    ApifyClient constructedClient = mockedClient.constructed().get(0);
+                    ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+                    verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+
+                    // Pre-computed SHA-256 of "http://example.com/inbound/test-context-123:my-actor-id"
+                    String payload = payloadCaptor.getValue();
+                    assertThat(payload).contains("\"idempotencyKey\":\"df03eda4ff44752c70dc627cd34800a7f7293785b5d61604bd14f6b788ba7cb2\"");
+                }
+            }
+
+            @Test
+            void shouldGenerateDeterministicIdempotencyKey() {
+                // Pre-computed SHA-256 of "http://example.com/callback:actor-123"
+                String key = ApifyInboundExecutable.generateIdempotencyKey(
+                        "http://example.com/callback", "actor-123");
+
+                assertThat(key)
+                        .as("Idempotency key should be a deterministic SHA-256 hex string")
+                        .hasSize(64)
+                        .matches("[0-9a-f]{64}");
+
+                // Same inputs must always produce the same key
+                String key2 = ApifyInboundExecutable.generateIdempotencyKey(
+                        "http://example.com/callback", "actor-123");
+                assertThat(key).isEqualTo(key2);
+
+                // Different inputs must produce different keys
+                String differentKey = ApifyInboundExecutable.generateIdempotencyKey(
+                        "http://example.com/callback", "actor-456");
+                assertThat(key).isNotEqualTo(differentKey);
             }
         }
     }
@@ -575,6 +608,8 @@ class ApifyInboundExecutableTest {
                 assertThat(payload).contains("http://example.com/inbound/test-context-123");
                 assertThat(payload).contains("\"payloadTemplate\"");
                 assertThat(payload).contains("\"shouldInterpolateStrings\":true");
+                // Pre-computed SHA-256 of "http://example.com/inbound/test-context-123:apify~google-search"
+                assertThat(payload).contains("\"idempotencyKey\":\"cca6a64107e0e5688e4d049dc98691dcd0d6f71ed06744e5e22104a840dd18a1\"");
             }
         }
 
@@ -587,7 +622,8 @@ class ApifyInboundExecutableTest {
         @Test
         void shouldThrowWhenInboundContextIsMissing() {
             InboundConnectorContext context = mock(InboundConnectorContext.class);
-            ApifyInboundProperties properties = new ApifyInboundProperties("test-token", ACTOR, "my-actor-id");
+            ApifyInboundProperties properties = new ApifyInboundProperties(
+                    new Authentication("test-token"), ACTOR, "my-actor-id");
             when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
             when(context.getProperties()).thenReturn(Map.of()); // No "inbound" key
 
@@ -599,7 +635,8 @@ class ApifyInboundExecutableTest {
         @Test
         void shouldThrowWhenContextPathIsMissing() {
             InboundConnectorContext context = mock(InboundConnectorContext.class);
-            ApifyInboundProperties properties = new ApifyInboundProperties("test-token", ACTOR, "my-actor-id");
+            ApifyInboundProperties properties = new ApifyInboundProperties(
+                    new Authentication("test-token"), ACTOR, "my-actor-id");
             when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
             when(context.getProperties()).thenReturn(Map.of("inbound", Map.of())); // Empty inbound, no "context" key
 
@@ -611,7 +648,8 @@ class ApifyInboundExecutableTest {
         @Test
         void shouldHandleContextWithLeadingSlash() throws Exception {
             InboundConnectorContext context = mock(InboundConnectorContext.class);
-            ApifyInboundProperties properties = new ApifyInboundProperties("test-token", ACTOR, "my-actor-id");
+            ApifyInboundProperties properties = new ApifyInboundProperties(
+                    new Authentication("test-token"), ACTOR, "my-actor-id");
             when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
             when(context.getProperties()).thenReturn(Map.of("inbound", Map.of("context", "/leading-slash-context")));
 

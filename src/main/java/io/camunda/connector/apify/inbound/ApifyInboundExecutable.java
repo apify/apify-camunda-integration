@@ -26,7 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -62,7 +64,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      */
     @Override
     public void activate(InboundConnectorContext context) throws Exception {
-        LOGGER.debug("Activating Apify inbound connector");
+        LOGGER.debug("Activating Apify inbound connector.");
         this.context = context;
 
         try {
@@ -76,10 +78,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
             // Create webhook in Apify
             createApifyWebhook();
-            LOGGER.info("Apify webhook created successfully. Webhook ID: {}", webhookId);
+            LOGGER.info("Successfully created Apify webhook with webhook ID: {}.", webhookId);
             context.reportHealth(Health.up());
         } catch (Exception e) {
-            LOGGER.error("Error activating Apify inbound connector: {}", e.getMessage(), e);
+            LOGGER.error("Failed to activate Apify inbound connector: {}.", e.getMessage(), e);
             context.reportHealth(Health.down(e));
             closeApifyClient();
             throw e;
@@ -94,7 +96,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             try {
                 apifyClient.close();
             } catch (IOException e) {
-                LOGGER.warn("Error closing ApifyClient during cleanup: {}", e.getMessage());
+                LOGGER.warn("Failed to close ApifyClient during cleanup: {}.", e.getMessage());
             } finally {
                 apifyClient = null;
             }
@@ -108,14 +110,13 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      */
     @Override
     public void deactivate() throws Exception {
-        LOGGER.info("Removing Apify webhook. Webhook ID: {}", webhookId);
-
         if (webhookId != null && apifyClient != null && properties != null) {
+            LOGGER.info("Deactivating Apify webhook with webhook ID: {}.", webhookId);
             try {
-                apifyClient.deleteWebhook(properties.token(), webhookId);
-                LOGGER.info("Webhook {} deleted successfully", webhookId);
+                apifyClient.deleteWebhook(properties.authentication().token(), webhookId);
+                LOGGER.info("Successfully deleted Apify webhook with webhook ID: {}.", webhookId);
             } catch (IOException e) {
-                LOGGER.error("Failed to delete webhook {}: {}", webhookId, e.getMessage(), e);
+                LOGGER.error("Failed to delete Apify webhook with webhook ID: {}: {}.", webhookId, e.getMessage(), e);
                 // report the failed cleanup
                 if (context != null) {
                     context.reportHealth(Health.down(e));
@@ -137,13 +138,13 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      */
     @Override
     public WebhookResult triggerWebhook(WebhookProcessingPayload payload) throws Exception {
-        LOGGER.debug("Received webhook payload");
+        LOGGER.debug("Received Apify webhook payload.");
 
         byte[] rawBody = payload.rawBody();
 
         if (rawBody == null || rawBody.length == 0) {
-            LOGGER.warn("Received webhook with empty body.");
-            return createErrorResult(payload, "Empty request body", 400);
+            LOGGER.warn("Received Apify webhook with empty body.");
+            return createErrorResult(payload, "Received Apify webhook with empty body.", 400);
         }
 
         try {
@@ -153,8 +154,8 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             ApifyInboundEvent event = OBJECT_MAPPER.treeToValue(jsonNode, ApifyInboundEvent.class);
 
             if (event == null) {
-                LOGGER.warn("Failed to parse webhook body");
-                return createErrorResult(payload, "Failed to parse webhook body", 400);
+                LOGGER.warn("Failed to parse Apify webhook body as ApifyInboundEvent.");
+                return createErrorResult(payload, "Failed to parse Apify webhook body as ApifyInboundEvent.", 400);
             }
 
             // Build the result map to pass to the process
@@ -171,11 +172,11 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             return createSuccessResult(mappedRequest, connectorData);
 
         } catch (JsonProcessingException e) {
-            LOGGER.warn("Failed to parse webhook body", e);
-            return createErrorResult(payload, "Failed to parse webhook body", 400);
+            LOGGER.warn("Failed to parse Apify webhook body as ApifyInboundEvent.", e);
+            return createErrorResult(payload, "Failed to parse Apify webhook body as ApifyInboundEvent.", 400);
         } catch (Exception e) {
-            LOGGER.error("Error processing webhook: {}", e.getMessage(), e);
-            return createErrorResult(payload, "Error processing webhook: " + e.getMessage(), 500);
+            LOGGER.error("Failed to process Apify webhook as ApifyInboundEvent: {}.", e.getMessage(), e);
+            return createErrorResult(payload, "Failed to process Apify webhook as ApifyInboundEvent: " + e.getMessage() + ".", 500);
         }
     }
 
@@ -205,7 +206,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      * @throws IllegalArgumentException if the callback URL is not available
      */
     private String getCallbackUrl() {
-        LOGGER.debug("Getting callback URL from Camunda runtime context");
+        LOGGER.debug("Getting Apify webhook callback URL from Camunda runtime context.");
 
         // Get the inbound context from properties
         Object inboundObj = context.getProperties().get("inbound");
@@ -242,18 +243,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private void createApifyWebhook() throws IOException {
         LOGGER.debug("Creating Apify webhook with callback URL: {}.", callbackUrl);
 
-        String existingWebhookId = findExistingWebhook();
-        if (existingWebhookId != null) {
-            this.webhookId = existingWebhookId;
-            LOGGER.info("Found existing Apify webhook with ID: {}", webhookId);
-            return;
-        }
-
-        // Build the webhook payload
         String webhookJson = buildWebhookPayload();
 
         // Create the webhook
-        ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.token(), webhookJson);
+        ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.authentication().token(), webhookJson);
         String responseBody = result.getResponseBody();
         JsonNode responseNode = OBJECT_MAPPER.readTree(responseBody);
         JsonNode dataNode = responseNode.path("data");
@@ -266,7 +259,6 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         // Extract webhook ID from response
         if (dataNode.has("id")) {
             webhookId = dataNode.get("id").asText();
-            LOGGER.info("Created Apify webhook with ID: {}", webhookId);
         } else {
             throw new IOException("Failed to extract webhook ID from response: " + responseBody);
         }
@@ -279,7 +271,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      * @throws JsonProcessingException If the JSON payload cannot be created.
      */
     private String buildWebhookPayload() throws JsonProcessingException {
-        LOGGER.debug("Building Apify webhook payload with callback URL: {}", callbackUrl);
+        LOGGER.debug("Building Apify webhook payload with callback URL: {}.", callbackUrl);
         ObjectNode webhookNode = OBJECT_MAPPER.createObjectNode();
 
         // Add all event types to the webhook
@@ -295,49 +287,27 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         webhookNode.put("requestUrl", callbackUrl);
         webhookNode.put("payloadTemplate", PAYLOAD_TEMPLATE);
         webhookNode.put("shouldInterpolateStrings", true);
+        webhookNode.put("idempotencyKey", generateIdempotencyKey(callbackUrl, properties.getNormalizedResourceId()));
 
         return OBJECT_MAPPER.writeValueAsString(webhookNode);
     }
 
     /**
-     * Checks if a webhook with the same callback URL already exists on Apify.
-     * Note: If the user will be able to define what events to listen to, this
-     * method will need to be updated to check for existing webhooks with the same
-     * callback URL and event types.
-     * Note: Maybe instead of checking for perfect match, we should check for
-     * existing webhooks with the same contextValue (Camunda webhook ID).
-     * 
-     * @return The ID of the existing webhook, or null if not found.
+     * Generates a SHA-256 hash to use as the idempotency key for webhook creation.
+     *
+     * @param callbackUrl The webhook callback URL.
+     * @param resourceId  The normalized resource ID.
+     * @return A hex-encoded SHA-256 hash string.
      */
-    private String findExistingWebhook() {
+    static String generateIdempotencyKey(String callbackUrl, String resourceId) {
         try {
-            ApifyClient.ResponseResult listResult;
-            if (ResourceType.ACTOR.equals(properties.resourceType())) {
-                listResult = apifyClient.listWebhooksByActor(properties.token(), properties.getNormalizedResourceId());
-            } else {
-                listResult = apifyClient.listWebhooksByActorTask(properties.token(),
-                        properties.getNormalizedResourceId());
-            }
-
-            JsonNode listNode = OBJECT_MAPPER.readTree(listResult.getResponseBody());
-            JsonNode itemsNode = listNode.path("data").path("items");
-
-            // Fallback for different response structures
-            if (itemsNode.isMissingNode()) {
-                itemsNode = listNode.path("data");
-            }
-
-            if (itemsNode.isArray()) {
-                for (JsonNode webhook : itemsNode) {
-                    if (callbackUrl.equals(webhook.path("requestUrl").asText())) {
-                        return webhook.get("id").asText();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Failed to check for existing webhooks: {}", e.getMessage());
+            final var digest = MessageDigest.getInstance("SHA-256");
+            final var input = (callbackUrl + ":" + resourceId).getBytes(StandardCharsets.UTF_8);
+            final var hash = digest.digest(input);
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm not available", e);
         }
-        return null;
     }
 
     /**
@@ -347,7 +317,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      * @return The connector data map.
      */
     private ApifyWebhookResponse buildConnectorData(ApifyInboundEvent event) {
-        LOGGER.debug("Building connector data map from Apify event");
+        LOGGER.debug("Building connector data map from Apify event.");
         return ApifyWebhookResponse.fromEvent(event);
     }
 
@@ -359,7 +329,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      * @return The WebhookResult object.
      */
     private WebhookResult createSuccessResult(MappedHttpRequest request, ApifyWebhookResponse connectorData) {
-        LOGGER.debug("Creating successful WebhookResult");
+        LOGGER.debug("Creating successful WebhookResult.");
         return new SuccessWebhookResult(request,
                 OBJECT_MAPPER.convertValue(connectorData, new TypeReference<Map<String, Object>>() {
                 }));
@@ -373,7 +343,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      * @return The WebhookResult object.
      */
     private WebhookResult createErrorResult(WebhookProcessingPayload payload, String errorMessage, int statusCode) {
-        LOGGER.debug("Creating error WebhookResult with error message: {}", errorMessage);
+        LOGGER.debug("Creating error WebhookResult with error message: {}.", errorMessage);
         MappedHttpRequest request = new MappedHttpRequest(
                 null,
                 payload.headers(),
