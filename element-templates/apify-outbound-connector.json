@@ -199,8 +199,8 @@
     },
     {
       "id": "apifyRequestInput.runTaskInput.taskId",
-      "label": "Task ID",
-      "description": "Task ID or a tilde-separated owner's username and task's name.",
+      "label": "Task",
+      "description": "Task identifier to run. Supply the Task ID or the Task's name (e.g., 'apify/my-task').",
       "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
@@ -218,8 +218,9 @@
     },
     {
       "id": "apifyRequestInput.runTaskInput.inputJson",
-      "label": "Input JSON",
+      "label": "Override input",
       "optional": true,
+      "description": "Optional: JSON object to override the task's pre-configured input.",
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
