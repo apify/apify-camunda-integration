@@ -101,7 +101,7 @@
     {
       "id": "apifyRequestInput.runActorInput.inputJson",
       "label": "Input body",
-      "description": "Input the actor's input as a JSON string.",
+      "description": "Input the Actor's input as a JSON string.",
       "optional": false,
       "constraints": { "notEmpty": true },
       "feel": "required",
