@@ -188,11 +188,14 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
     var input = apifyRequestInput.runTaskInput();
 
+    // Transform taskId to the format "username~task-name" if it is not already in that format
+    final String taskId = input.taskId().replace("/", "~");
+
     try (ApifyClient apifyClient = new ApifyClient()) {
       // Check if task exists
-      String taskResponse = apifyClient.getTask(input.taskId(), authentication.token()).getResponseBody();
+      String taskResponse = apifyClient.getTask(taskId, authentication.token()).getResponseBody();
       if (taskResponse == null || taskResponse.trim().isEmpty()) {
-        throw new RuntimeException("Error: Task not found - " + input.taskId());
+        throw new RuntimeException("Error: Task not found - " + taskId);
       }
 
       // Use input JSON if provided, otherwise use task's default input
@@ -216,7 +219,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       );
       ApifyClient.ResponseResult runResponseResult = apifyClient.runTask(
         authentication.token(),
-        input.taskId(),
+        taskId,
         inputJson,
         runOptions
       );
