@@ -54,6 +54,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private ApifyInboundProperties properties;
     private String callbackUrl;
     private String webhookId;
+    private String resourceId;
     private ApifyClient apifyClient;
 
     /**
@@ -75,6 +76,9 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             URLValidator.validateUrl(callbackUrl);
 
             this.apifyClient = new ApifyClient();
+
+            // Resolve slug-based resource IDs (e.g., "username~actor-name") to actual IDs
+            this.resourceId = resolveResourceId(properties.getNormalizedResourceId());
 
             // Create webhook in Apify
             createApifyWebhook();
@@ -265,6 +269,40 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     }
 
     /**
+     * Resolves a resource identifier to its actual Apify resource ID.
+     * If the identifier contains a tilde (~), it is a slug (e.g., "username~actor-name")
+     * and needs to be resolved via the Apify API. Otherwise, it is already an ID.
+     *
+     * @param normalizedResourceId The normalized resource ID (with ~ instead of /)
+     * @return The actual Apify resource ID
+     * @throws IOException if the API call fails or the response cannot be parsed
+     */
+    private String resolveResourceId(String normalizedResourceId) throws IOException {
+        if (!normalizedResourceId.contains("~")) {
+            LOGGER.debug("Resource ID '{}' does not contain '~', using as-is.", normalizedResourceId);
+            return normalizedResourceId;
+        }
+
+        LOGGER.debug("Resource ID '{}' contains '~', resolving via Apify API.", normalizedResourceId);
+        final var authToken = properties.authentication().token();
+        final var result = switch (properties.resourceType()) {
+            case ACTOR -> apifyClient.getActor(normalizedResourceId, authToken);
+            case TASK -> apifyClient.getTask(normalizedResourceId, authToken);
+        };
+
+        final var responseNode = OBJECT_MAPPER.readTree(result.getResponseBody());
+        final var idNode = responseNode.path("data").path("id");
+
+        if (idNode.isMissingNode() || idNode.isNull()) {
+            throw new IOException("Failed to resolve resource ID from API response: " + result.getResponseBody());
+        }
+
+        final var resolvedId = idNode.asText();
+        LOGGER.info("Resolved resource '{}' to ID '{}'.", normalizedResourceId, resolvedId);
+        return resolvedId;
+    }
+
+    /**
      * Builds the JSON payload for creating an Apify webhook.
      * 
      * @return The JSON payload for creating an Apify webhook.
@@ -282,12 +320,12 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
         // Set the condition based on resource type
         ObjectNode conditionNode = OBJECT_MAPPER.createObjectNode();
-        conditionNode.put(properties.resourceType().getConditionKey(), properties.getNormalizedResourceId());
+        conditionNode.put(properties.resourceType().getConditionKey(), this.resourceId);
         webhookNode.set("condition", conditionNode);
         webhookNode.put("requestUrl", callbackUrl);
         webhookNode.put("payloadTemplate", PAYLOAD_TEMPLATE);
         webhookNode.put("shouldInterpolateStrings", true);
-        webhookNode.put("idempotencyKey", generateIdempotencyKey(callbackUrl, properties.getNormalizedResourceId()));
+        webhookNode.put("idempotencyKey", generateIdempotencyKey(callbackUrl, this.resourceId));
 
         return OBJECT_MAPPER.writeValueAsString(webhookNode);
     }

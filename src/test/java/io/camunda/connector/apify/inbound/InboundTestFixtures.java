@@ -161,4 +161,61 @@ public final class InboundTestFixtures {
                     .thenThrow(new IOException(errorMessage));
         };
     }
+
+    /**
+     * Mock initializer for ApifyClient that resolves an Actor slug to a real ID
+     * and sets up successful webhook creation.
+     *
+     * @param resolvedActorId The resolved Actor ID to return from getActor.
+     * @return A MockInitializer for ApifyClient.
+     */
+    public static MockedConstruction.MockInitializer<ApifyClient> actorSlugResolutionMock(String resolvedActorId) {
+        return (mock, ctx) -> {
+            // Mock getActor to return the resolved ID
+            ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
+            when(actorResult.getResponseBody()).thenReturn(
+                    String.format("{\"data\":{\"id\":\"%s\"}}", resolvedActorId));
+            when(mock.getActor(anyString(), anyString())).thenReturn(actorResult);
+
+            // Mock webhook creation
+            ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
+            when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
+            when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
+        };
+    }
+
+    /**
+     * Mock initializer for ApifyClient that resolves a Task slug to a real ID
+     * and sets up successful webhook creation.
+     *
+     * @param resolvedTaskId The resolved Task ID to return from getTask.
+     * @return A MockInitializer for ApifyClient.
+     */
+    public static MockedConstruction.MockInitializer<ApifyClient> taskSlugResolutionMock(String resolvedTaskId) {
+        return (mock, ctx) -> {
+            // Mock getTask to return the resolved ID
+            ApifyClient.ResponseResult taskResult = mock(ApifyClient.ResponseResult.class);
+            when(taskResult.getResponseBody()).thenReturn(
+                    String.format("{\"data\":{\"id\":\"%s\"}}", resolvedTaskId));
+            when(mock.getTask(anyString(), anyString())).thenReturn(taskResult);
+
+            // Mock webhook creation
+            ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
+            when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
+            when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
+        };
+    }
+
+    /**
+     * Mock initializer for ApifyClient where Actor resolution fails.
+     *
+     * @param errorMessage The error message to throw.
+     * @return A MockInitializer for ApifyClient.
+     */
+    public static MockedConstruction.MockInitializer<ApifyClient> actorResolutionFailsMock(String errorMessage) {
+        return (mock, ctx) -> {
+            when(mock.getActor(anyString(), anyString()))
+                    .thenThrow(new IOException(errorMessage));
+        };
+    }
 }
