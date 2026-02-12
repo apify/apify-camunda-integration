@@ -54,7 +54,6 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private ApifyInboundProperties properties;
     private String callbackUrl;
     private String webhookId;
-    private String resourceId;
     private ApifyClient apifyClient;
 
     /**
@@ -78,10 +77,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             this.apifyClient = new ApifyClient();
 
             // Resolve slug-based resource IDs (e.g., "username~actor-name") to actual IDs
-            this.resourceId = resolveResourceId(properties.getNormalizedResourceId());
+            final var resolvedResourceId = resolveResourceId(properties.getNormalizedResourceId());
 
             // Create webhook in Apify
-            createApifyWebhook();
+            createApifyWebhook(resolvedResourceId);
             LOGGER.info("Successfully created Apify webhook with webhook ID: {}.", webhookId);
             context.reportHealth(Health.up());
         } catch (Exception e) {
@@ -242,12 +241,13 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     /**
      * Creates a webhook subscription in Apify for the configured resource.
      * 
+     * @param resolvedResourceId The resolved Apify resource ID.
      * @throws IOException If the webhook creation fails.
      */
-    private void createApifyWebhook() throws IOException {
+    private void createApifyWebhook(String resolvedResourceId) throws IOException {
         LOGGER.debug("Creating Apify webhook with callback URL: {}.", callbackUrl);
 
-        String webhookJson = buildWebhookPayload();
+        String webhookJson = buildWebhookPayload(resolvedResourceId);
 
         // Create the webhook
         ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.authentication().token(), webhookJson);
@@ -294,7 +294,9 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         final var idNode = responseNode.path("data").path("id");
 
         if (idNode.isMissingNode() || idNode.isNull()) {
-            throw new IOException("Failed to resolve resource ID from API response: " + result.getResponseBody());
+            final var body = result.getResponseBody();
+            final var truncatedBody = body.length() > 500 ? body.substring(0, 500) + "..." : body;
+            throw new IOException("Failed to resolve resource ID from API response: " + truncatedBody);
         }
 
         final var resolvedId = idNode.asText();
@@ -305,10 +307,11 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     /**
      * Builds the JSON payload for creating an Apify webhook.
      * 
+     * @param resolvedResourceId The resolved Apify resource ID.
      * @return The JSON payload for creating an Apify webhook.
      * @throws JsonProcessingException If the JSON payload cannot be created.
      */
-    private String buildWebhookPayload() throws JsonProcessingException {
+    private String buildWebhookPayload(String resolvedResourceId) throws JsonProcessingException {
         LOGGER.debug("Building Apify webhook payload with callback URL: {}.", callbackUrl);
         ObjectNode webhookNode = OBJECT_MAPPER.createObjectNode();
 
@@ -320,21 +323,23 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
         // Set the condition based on resource type
         ObjectNode conditionNode = OBJECT_MAPPER.createObjectNode();
-        conditionNode.put(properties.resourceType().getConditionKey(), this.resourceId);
+        conditionNode.put(properties.resourceType().getConditionKey(), resolvedResourceId);
         webhookNode.set("condition", conditionNode);
         webhookNode.put("requestUrl", callbackUrl);
         webhookNode.put("payloadTemplate", PAYLOAD_TEMPLATE);
         webhookNode.put("shouldInterpolateStrings", true);
-        webhookNode.put("idempotencyKey", generateIdempotencyKey(callbackUrl, this.resourceId));
+        webhookNode.put("idempotencyKey", generateIdempotencyKey(callbackUrl, resolvedResourceId));
 
         return OBJECT_MAPPER.writeValueAsString(webhookNode);
     }
 
     /**
      * Generates a SHA-256 hash to use as the idempotency key for webhook creation.
+     * <p>
+     * Package-private for unit testing.
      *
      * @param callbackUrl The webhook callback URL.
-     * @param resourceId  The normalized resource ID.
+     * @param resourceId  The resolved Apify resource ID.
      * @return A hex-encoded SHA-256 hash string.
      */
     static String generateIdempotencyKey(String callbackUrl, String resourceId) {

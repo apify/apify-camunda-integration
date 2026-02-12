@@ -89,7 +89,7 @@
     {
       "id": "resourceId",
       "label": "Resource Identifier",
-      "description": "The Actor or task identifier to monitor (e.g., 'apify/hello-world' or 'E2jjCZBezvAZnX8Rb').",
+      "description": "Actor/Task ID or a full Actor/Task name.",
       "type": "String",
       "feel": "optional",
       "group": "trigger",
@@ -131,7 +131,7 @@
         "type": "zeebe:property",
         "name": "activationCondition"
       },
-      "placeholder": "=connectorData.status = \"SUCCEEDED\""
+      "placeholder": "connectorData.status = \"SUCCEEDED\""
     },
     {
       "id": "resultVariable",
@@ -158,7 +158,7 @@
         "type": "zeebe:property",
         "name": "resultExpression"
       },
-      "placeholder": "={ result: connectorData }"
+      "placeholder": "{ result: connectorData }"
     },
     {
       "value": "io.camunda:apify-inbound:1",

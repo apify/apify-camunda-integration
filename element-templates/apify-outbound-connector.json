@@ -100,7 +100,7 @@
         "equals": "runActor",
         "type": "simple"
       },
-      "placeholder": "={\"example\": \"value\"}",
+      "placeholder": "{\"example\": \"value\"}",
       "type": "Text"
     },
     {
@@ -222,7 +222,7 @@
         "equals": "runTask",
         "type": "simple"
       },
-      "placeholder": "={\"example\": \"value\"}",
+      "placeholder": "{\"example\": \"value\"}",
       "type": "Text"
     },
     {
@@ -471,7 +471,7 @@
         "key": "resultExpression",
         "type": "zeebe:taskHeader"
       },
-      "placeholder": "={ result: data }",
+      "placeholder": "{ result: data }",
       "type": "Text"
     },
     {
@@ -484,7 +484,7 @@
         "key": "errorExpression",
         "type": "zeebe:taskHeader"
       },
-      "placeholder": "=if error.code = \"ACTOR_NOT_FOUND\" then null else error",
+      "placeholder": "if error.code = \"ACTOR_NOT_FOUND\" then null else error",
       "type": "Text"
     },
     {
