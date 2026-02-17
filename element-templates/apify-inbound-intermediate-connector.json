@@ -96,7 +96,7 @@
     {
       "id": "resourceId",
       "label": "Resource Identifier",
-      "description": "Actor/Task ID or a full Actor/Task name.",
+      "description": "Actor/task ID or a full Actor/task name.",
       "type": "String",
       "feel": "optional",
       "group": "trigger",
