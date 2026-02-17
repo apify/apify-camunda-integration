@@ -275,9 +275,14 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
      *
      * @param normalizedResourceId The normalized resource ID (with ~ instead of /)
      * @return The actual Apify resource ID
-     * @throws IOException if the API call fails or the response cannot be parsed
+     * @throws IOException              if the API call fails or the response cannot be parsed
+     * @throws IllegalArgumentException if the resource ID is null or empty
      */
     private String resolveResourceId(String normalizedResourceId) throws IOException {
+        if (normalizedResourceId == null || normalizedResourceId.isBlank()) {
+            throw new IllegalArgumentException("Resource ID must not be null or empty.");
+        }
+
         if (!normalizedResourceId.contains("~")) {
             LOGGER.debug("Resource ID '{}' does not contain '~', using as-is.", normalizedResourceId);
             return normalizedResourceId;
@@ -290,12 +295,21 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             case TASK -> apifyClient.getTask(normalizedResourceId, authToken);
         };
 
-        final var responseNode = OBJECT_MAPPER.readTree(result.getResponseBody());
+        // Check the status code of the API response
+        final int statusCode = result.getStatusCode();
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IOException(String.format(
+                    "Failed to resolve resource ID '%s': Apify API returned HTTP %d.",
+                    normalizedResourceId, statusCode));
+        }
+
+        final var responseBody = result.getResponseBody();
+        final var responseNode = OBJECT_MAPPER.readTree(responseBody);
         final var idNode = responseNode.path("data").path("id");
 
         if (idNode.isMissingNode() || idNode.isNull()) {
-            final var body = result.getResponseBody();
-            final var truncatedBody = body.length() > 500 ? body.substring(0, 500) + "..." : body;
+            final var truncatedBody = responseBody.length() > 500
+                    ? responseBody.substring(0, 500) + "..." : responseBody;
             throw new IOException("Failed to resolve resource ID from API response: " + truncatedBody);
         }
 

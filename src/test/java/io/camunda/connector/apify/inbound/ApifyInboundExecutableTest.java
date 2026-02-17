@@ -3,12 +3,14 @@ package io.camunda.connector.apify.inbound;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.OBJECT_MAPPER;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.VALID_WEBHOOK_RESPONSE;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.actorResolutionFailsMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.actorResolutionMissingIdMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.actorSlugResolutionMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.createMockContext;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.createMockPayload;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.createWebhookFailsMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.defaultActorClientMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.deleteWebhookFailsMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.taskResolutionFailsMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.taskSlugResolutionMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.webhookCreationMockWithId;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.fullLifecycleActorMock;
@@ -719,17 +721,29 @@ class ApifyInboundExecutableTest {
         }
 
         @Test
+        void shouldThrowWhenTaskResolutionApiCallFails() {
+            // given - slug task resource ID but API call will fail
+            InboundConnectorContext context = createMockContext("test-token", TASK, "username/nonexistent-task",
+                    "test-context-123");
+
+            try (MockedConstruction<ApifyClient> ignored = mockConstruction(ApifyClient.class,
+                    taskResolutionFailsMock("Task not found"))) {
+
+                // when/then
+                assertThatThrownBy(() -> executable.activate(context))
+                        .isInstanceOf(IOException.class)
+                        .hasMessageContaining("Task not found");
+            }
+        }
+
+        @Test
         void shouldThrowWhenApiResponseMissingDataId() throws Exception {
             // given - API returns response without data.id field
             InboundConnectorContext context = createMockContext("test-token", ACTOR, "apify/broken-actor",
                     "test-context-123");
 
             try (MockedConstruction<ApifyClient> ignored = mockConstruction(ApifyClient.class,
-                    (mock, ctx) -> {
-                        ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
-                        when(actorResult.getResponseBody()).thenReturn("{\"data\":{}}");
-                        when(mock.getActor(anyString(), anyString())).thenReturn(actorResult);
-                    })) {
+                    actorResolutionMissingIdMock("{\"data\":{}}"))) {
 
                 // when/then
                 assertThatThrownBy(() -> executable.activate(context))

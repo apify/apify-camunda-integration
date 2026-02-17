@@ -35,7 +35,7 @@
     {
       "id": "resourceType",
       "label": "Resource type",
-      "tooltip": "Learn more about trigger in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
+      "tooltip": "Learn more about Actors and webhooks in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
     },
     {
       "id": "resourceConfig",

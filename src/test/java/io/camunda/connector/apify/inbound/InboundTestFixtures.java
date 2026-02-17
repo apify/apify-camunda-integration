@@ -173,6 +173,7 @@ public final class InboundTestFixtures {
         return (mock, ctx) -> {
             // Mock getActor to return the resolved ID
             ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
+            when(actorResult.getStatusCode()).thenReturn(200);
             when(actorResult.getResponseBody()).thenReturn(
                     String.format("{\"data\":{\"id\":\"%s\"}}", resolvedActorId));
             when(mock.getActor(anyString(), anyString())).thenReturn(actorResult);
@@ -195,6 +196,7 @@ public final class InboundTestFixtures {
         return (mock, ctx) -> {
             // Mock getTask to return the resolved ID
             ApifyClient.ResponseResult taskResult = mock(ApifyClient.ResponseResult.class);
+            when(taskResult.getStatusCode()).thenReturn(200);
             when(taskResult.getResponseBody()).thenReturn(
                     String.format("{\"data\":{\"id\":\"%s\"}}", resolvedTaskId));
             when(mock.getTask(anyString(), anyString())).thenReturn(taskResult);
@@ -216,6 +218,34 @@ public final class InboundTestFixtures {
         return (mock, ctx) -> {
             when(mock.getActor(anyString(), anyString()))
                     .thenThrow(new IOException(errorMessage));
+        };
+    }
+
+    /**
+     * Mock initializer for ApifyClient where Task resolution fails.
+     *
+     * @param errorMessage The error message to throw.
+     * @return A MockInitializer for ApifyClient.
+     */
+    public static MockedConstruction.MockInitializer<ApifyClient> taskResolutionFailsMock(String errorMessage) {
+        return (mock, ctx) -> {
+            when(mock.getTask(anyString(), anyString()))
+                    .thenThrow(new IOException(errorMessage));
+        };
+    }
+
+    /**
+     * Mock initializer for ApifyClient where the API response is missing the data.id field.
+     *
+     * @param responseBody The JSON response body to return (missing data.id).
+     * @return A MockInitializer for ApifyClient.
+     */
+    public static MockedConstruction.MockInitializer<ApifyClient> actorResolutionMissingIdMock(String responseBody) {
+        return (mock, ctx) -> {
+            ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
+            when(actorResult.getStatusCode()).thenReturn(200);
+            when(actorResult.getResponseBody()).thenReturn(responseBody);
+            when(mock.getActor(anyString(), anyString())).thenReturn(actorResult);
         };
     }
 }
