@@ -317,7 +317,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       String datasetItemsJson = apifyClient.getDatasetItems(datasetId, authentication.token(), 0, 1).getResponseBody();
       JsonNode itemsNode = objectMapper.readTree(datasetItemsJson);
       if (!itemsNode.isArray() || itemsNode.isEmpty()) {
-        throw new RuntimeException("No items found in dataset for URL: " + input.url());
+        throw new RuntimeException("Error: No items found in dataset for URL: " + input.url());
       }
       
       // Remove text field to reduce usage of tokens if AI Agent is used in the process
