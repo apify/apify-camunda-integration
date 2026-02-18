@@ -303,16 +303,6 @@ public class ApifyFunction implements OutboundConnectorFunction {
         runOptions
       ).getResponseBody();
 
-      JsonNode startNode = objectMapper.readTree(runStartResponse);
-      JsonNode startData = startNode.path("data");
-      String startStatus = startData.path("status").asText("");
-      if (TERMINAL_STATUSES.contains(startStatus) && !"SUCCEEDED".equals(startStatus)) {
-        String statusMessage = startData.path("statusMessage").asText("No details available");
-        throw new RuntimeException(
-          "Actor run failed immediately (status: " + startStatus + "): " + statusMessage
-            + ". URL: " + input.url());
-      }
-
       // Poll for finished status
       String finalRunResponse = pollRunStatus(apifyClient, runStartResponse, authentication.token());
       JsonNode runNode = objectMapper.readTree(finalRunResponse);
