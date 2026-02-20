@@ -39,6 +39,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
   - [Boundary Event](#boundary-event)
 - [Usage Patterns](#usage-patterns)
   - [Async Execution with Parallel Gateway](#async-execution-with-parallel-gateway)
+  - [Boundary Event for Runtime Reactions](#boundary-event-for-runtime-reactions)
 - [Reference](#reference)
   - [Finding Resource IDs](#finding-resource-ids)
   - [Common FEEL Expressions](#common-feel-expressions)
@@ -66,6 +67,8 @@ All Apify Connector operations require an **Apify API Token**.
 The **Apify Outbound Connector** allows your BPMN process to call out to Apify to invoke operations.
 
 **Output Mapping:** Each outbound operation returns a JSON response. Use the **Result Variable** field (e.g., `runResult`) to store the full response, or use a **Result Expression** (FEEL) to extract specific fields into process variables (e.g., `={ runId: response.id, datasetId: response.defaultDatasetId }`).
+
+> **Note:** Throughout this document, a leading `=` in a value denotes a FEEL expression. For example, `=runResult.id` means "evaluate the FEEL expression `runResult.id`".
 
 ### Run Actor
 
@@ -159,7 +162,7 @@ Use the **Apify Start Event Connector** to begin a *new* process instance when a
 | **Apify API Token** | Your Apify API token (see [Authentication](#authentication)) |
 | **Resource Type** | `Actor` or `Task` |
 | **Resource Identifier** | The ID to watch (e.g., `abcdefg1234`) |
-| **Activation Condition** | FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). The leading `=` denotes a FEEL expression; the second `=` is the equality operator. |
+| **Activation Condition** | FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). |
 | **Result Variable** | Name of the variable to store the webhook payload |
 | **Result Expression** | FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
 
@@ -242,6 +245,27 @@ This is the recommended pattern for handling long-running scrapes reliably. It p
 5. **Get Dataset Items**:
    - Set **Dataset** to `=runResult.defaultDatasetId`
 
+### Boundary Event for Runtime Reactions
+
+A [Boundary Event](https://docs.camunda.io/docs/components/modeler/bpmn/events/) attaches directly to an activity (task or subprocess) and fires when an Apify webhook arrives **while that activity is still running**. Unlike the Async Execution pattern above, the boundary event does **not** wait for the attached activity to finish — it interrupts or runs alongside it. This means any variables that the attached activity would have produced are **not available** after the boundary event fires.
+
+This makes it suited for a different use case than async execution:
+
+- **Interrupting boundary event** — cancel a running activity when an external signal arrives (e.g., abort a manual review task when the Apify scrape fails or times out).
+- **Non-interrupting boundary event** — spawn a parallel path without stopping the activity (e.g., send a progress notification while a long-running task continues).
+
+**Example flow (interrupting):**
+
+```
+                                ┌──(Apify Boundary Event)──→ [Handle Failure] → [End]
+[Start] → [Run Actor Async] → [User Review Task]
+                                └──(normal completion)─────→ [Process Results] → [End]
+```
+
+If the Apify run fails while the user review is still in progress, the boundary event interrupts the review task and redirects the flow to a failure-handling path.
+
+> **Tip:** If you need the run results (dataset, key-value store) after the Apify event, use the [Async Execution with Parallel Gateway](#async-execution-with-parallel-gateway) pattern instead. The boundary event pattern is best when you want to **react** to an event (failure, timeout, status change) rather than **collect** its output.
+
 ---
 
 ## Reference
@@ -256,7 +280,7 @@ You can find IDs in the [Apify Console](https://console.apify.com/):
 
 ### Common FEEL Expressions
 
-Camunda uses FEEL (Friendly Enough Expression Language) for dynamic values.
+Camunda uses FEEL (Friendly Enough Expression Language) for dynamic values. The leading `=` in each expression tells Camunda to evaluate what follows as a FEEL expression rather than a literal string.
 
 | Expression | Use Case |
 |------------|----------|
