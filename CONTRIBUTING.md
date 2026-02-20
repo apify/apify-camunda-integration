@@ -133,7 +133,7 @@ Keep this terminal running while working with Camunda Modeler.
 
 ### Regenerating Element Templates
 
-The templates in `element-templates/` were generated and then customized for Apify. We use two inbound and one outbound template.
+The templates in `element-templates/` were generated and then customized for Apify. We use four inbound and one outbound template.
 
 If you want to regenerate the original (base) templates, use the command below:
 
@@ -288,14 +288,16 @@ docker compose -f docker-compose-full.yaml up -d
 ### Inbound Connectors
 
 1. Upload the inbound connector templates:
-   - **Start Event**: `element-templates/apify-inbound-connector.json`
-   - **Intermediate Event**: `element-templates/apify-inbound-intermediate-connector.json`
+   - **Start Event**: `element-templates/apify-connector-start-event.json`
+   - **Message Start Event**: `element-templates/apify-connector-message-start-event.json`
+   - **Intermediate Catch Event**: `element-templates/apify-connector-intermediate-catch-event.json`
+   - **Boundary Event**: `element-templates/apify-connector-boundary-event.json`
 
-2. **Publish** both templates to the project.
+2. **Publish** all templates to the project.
 
 ![Publishing the connector template](docs/modeler/publish-inbound-template.png)
 
-3. Create a new **BPMN diagram** and design a process with an **Apify Inbound Connector** as the start event.
+3. Create a new **BPMN diagram** and design a process with an **Apify Connector** as the start event (or attach as intermediate/boundary event).
 
 ![Selecting the inbound connector](docs/modeler/select-inbound.png)
 

@@ -14,8 +14,10 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 - **Scrape single URL** - Quick web scraping for a single page
 
 **Inbound Connectors** (trigger processes from Apify):
-- **Start Event (Message Catch Event)** - Start a new process when an Apify event occurs
+- **Start Event** - Start a new process when an Apify event occurs
+- **Message Start Event** - Start a new process via message correlation (supports subprocesses)
 - **Intermediate Catch Event** - Pause and wait for an Apify event before continuing
+- **Boundary Event** - React to Apify events while an activity is running
 
 > **Documentation:** For in-depth tutorials and detailed documentation, visit the [Apify Camunda Integration Guide](https://docs.apify.com/platform/integrations/camunda).
 
@@ -31,8 +33,10 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
   - [Get Dataset Items](#get-dataset-items)
   - [Get Key-Value Store Record](#get-key-value-store-record)
 - [Inbound Connectors](#inbound-connectors)
-  - [Start Event (Message Catch Event)](#start-event-message-catch-event)
+  - [Start Event](#start-event)
+  - [Message Start Event](#message-start-event)
   - [Intermediate Catch Event](#intermediate-catch-event)
+  - [Boundary Event](#boundary-event)
 - [Usage Patterns](#usage-patterns)
   - [Async Execution with Parallel Gateway](#async-execution-with-parallel-gateway)
 - [Reference](#reference)
@@ -141,9 +145,9 @@ Fetch a specific record from a key-value store.
 
 Inbound connectors allow Apify to start or resume your Camunda processes via webhooks.
 
-### Start Event (Message Catch Event)
+### Start Event
 
-Use the **Apify Message Catch Event Connector** to begin a *new* process instance when a specific event occurs in Apify (e.g., "Run Succeeded").
+Use the **Apify Start Event Connector** to begin a *new* process instance when a specific event occurs in Apify (e.g., "Run Succeeded"). This is the simplest inbound connector — each incoming webhook event creates a new top-level process instance.
 
 **When to use:**
 - Trigger a workflow based on an external event (e.g., "Every time this daily scrape finishes, start a review process")
@@ -159,9 +163,26 @@ Use the **Apify Message Catch Event Connector** to begin a *new* process instanc
 | **Result Variable** | Name of the variable to store the webhook payload |
 | **Result Expression** | FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
 
+### Message Start Event
+
+Use the **Apify Message Start Event Connector** to start a process instance through message correlation. Unlike the plain Start Event, this variant uses Camunda's message correlation mechanism, which prevents duplicate instances for the same correlation key and supports starting embedded subprocesses.
+
+**When to use:**
+- You need to prevent duplicate process instances for the same run (using correlation keys)
+- You want to start an embedded subprocess from an Apify event
+
+**Configuration:**
+
+Same base configuration as the [Start Event](#start-event), plus:
+
+| Setting | Value Expression (FEEL) | Description |
+|---------|-------------------------|-------------|
+| **Correlation Key (Payload)** | `=connectorData.runId` | Extract the correlation key from the incoming webhook |
+| **Message ID Expression** | (Optional) | Expression to extract a unique message ID for deduplication |
+
 ### Intermediate Catch Event
 
-Use the **Apify Message Intermediate Catch Event Connector** to pause a running process and wait for a callback from Apify.
+Use the **Apify Intermediate Catch Event Connector** to pause a running process and wait for a callback from Apify.
 
 **When to use:**
 - Long-running Actor (async execution) where you want to wait without blocking process engine resources
@@ -174,6 +195,18 @@ To ensure the webhook resumes the *correct* process instance, configure **Correl
 |---------|-------------------------|-------------|
 | **Correlation Key (Process)** | `=runResult.id` | The correlation key from process variables |
 | **Correlation Key (Payload)** | `=connectorData.runId` | Extract the correlation key from the incoming webhook |
+
+### Boundary Event
+
+Use the **Apify Boundary Event Connector** to react to an Apify event while an activity is still running. A boundary event is attached to an activity (e.g., a user task or subprocess) and triggers when the specified webhook event arrives.
+
+**When to use:**
+- Cancel or redirect a running activity when an Apify run completes, fails, or times out
+- Implement timeout/fallback logic — e.g., if a scrape fails, take an alternative path
+
+**Configuration:**
+
+Same base configuration as the [Intermediate Catch Event](#intermediate-catch-event) (including Correlation Keys). The boundary event can be **interrupting** (terminates the activity) or **non-interrupting** (allows the activity to continue).
 
 ---
 
