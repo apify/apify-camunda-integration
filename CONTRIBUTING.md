@@ -151,7 +151,7 @@ mvn clean package -Dgenerate.templates=true
 mvn clean verify
 
 # Run specific test class
-mvn test -Dtest=ApifyFunctionTest
+mvn test -Dtest=MyFunctionTest
 
 # Run with coverage
 mvn clean verify jacoco:report

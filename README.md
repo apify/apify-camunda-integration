@@ -2,7 +2,7 @@
 
 Integrate [Apify](https://apify.com/) web scraping and automation capabilities into your **Camunda 8** workflows. This connector enables you to run Actors, execute tasks, and retrieve data from Apify directly within your BPMN processes.
 
-> **Compatibility:** Requires Camunda 8.3 or later.
+> **Compatibility:** Requires Camunda 8.8 or later.
 
 ## Features
 
@@ -32,6 +32,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
   - [Scrape Single URL](#scrape-single-url)
   - [Get Dataset Items](#get-dataset-items)
   - [Get Key-Value Store Record](#get-key-value-store-record)
+  - [Error Handling and Retries](#error-handling-and-retries)
 - [Inbound Connectors](#inbound-connectors)
   - [Start Event](#start-event)
   - [Message Start Event](#message-start-event)
@@ -79,11 +80,11 @@ Start a new execution of an Actor.
 | Setting | Description |
 |---------|-------------|
 | **Operation** | Select `Run Actor` |
-| **Actor** | The Actor name or ID (e.g., `apify/hello-world` or `E2jjCZBezvAZnX8Rb`) |
-| **Input Body** | The input configuration for the run (e.g., `= { "message": "Hello from Camunda!" }`) |
+| **Actor** | The Actor name or ID (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`) |
+| **Input Body** | *(Required)* JSON input configuration for the run (e.g., `= { "message": "Hello from Camunda!" }`) |
 | **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
 | **Timeout (seconds)** | Maximum duration for the run (optional) |
-| **Memory (MB)** | Memory allocation (optional) |
+| **Memory (MB)** | Memory allocation (optional). Dropdown: 128, 256, 512, 1024, 2048, 4096, 8192, 16384, or 32768 MB |
 | **Build** | Build tag to use (optional, defaults to `latest`) |
 
 **Wait for Finish options:**
@@ -99,11 +100,11 @@ Execute a saved Actor task.
 | Setting | Description |
 |---------|-------------|
 | **Operation** | Select `Run task` |
-| **Task** | The task name or ID (e.g., `author/task-name` or `E2jjCZBezvAZnX8Rb`) |
-| **Input Override** | (Optional) JSON to override the task's saved input |
+| **Task** | The task name or ID (e.g., `username/my-task` or `abc123DEF456`) |
+| **Input Override** | *(Optional)* JSON to override the task's saved input |
 | **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
 | **Timeout (seconds)** | Maximum duration (optional) |
-| **Memory (MB)** | Memory allocation (optional) |
+| **Memory (MB)** | Memory allocation (optional). Dropdown: 128, 256, 512, 1024, 2048, 4096, 8192, 16384, or 32768 MB |
 | **Build** | Build tag to use (optional, defaults to `latest`) |
 
 ### Scrape Single URL
@@ -128,7 +129,8 @@ Retrieve the results of an Actor run. Typically used after a `Run Actor` task ha
 |---------|-------------|
 | **Operation** | Select `Get dataset items` |
 | **Dataset** | The dataset ID. Use a variable from a previous run: `=runResult.defaultDatasetId` |
-| **Limit / Offset** | (Optional) Control pagination |
+| **Offset** | *(Optional)* Number of items to skip from the beginning. Default: `0` |
+| **Limit** | *(Optional)* Maximum number of items to return. Default: no limit |
 
 ### Get Key-Value Store Record
 
@@ -142,11 +144,33 @@ Fetch a specific record from a key-value store.
 | **Key-Value Store** | The store ID (e.g., `=runResult.defaultKeyValueStoreId`) |
 | **Key** | The record key to retrieve (e.g., `OUTPUT`) |
 
+### Error Handling and Retries
+
+All outbound operations support error handling and automatic retries. These fields appear in the Modeler under the **Error handling** and **Retries** groups.
+
+| Setting | Description |
+|---------|-------------|
+| **Error Expression** | *(Optional)* A FEEL expression to handle errors (e.g., `if error.code = "ACTOR_NOT_FOUND" then null else error`) |
+| **Retries** | Number of retry attempts. Default: `3` |
+| **Retry Backoff** | ISO-8601 duration to wait between retries. Default: `PT0S` (no delay). Example: `PT5S` for 5 seconds |
+
 ---
 
 ## Inbound Connectors
 
 Inbound connectors allow Apify to start or resume your Camunda processes via webhooks.
+
+All inbound connectors share these common fields:
+
+| Setting | Description |
+|---------|-------------|
+| **Apify API Token** | Your Apify API token (see [Authentication](#authentication)) |
+| **Resource Type** | `Actor` or `Task` |
+| **Actor** / **Task** | The Actor or task name or ID to monitor (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`). The field label changes based on the selected Resource Type. |
+| **Webhook ID** | Auto-generated unique identifier for the webhook endpoint. You do not need to set this. |
+| **Activation Condition** | *(Optional)* FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). Leave empty to process all events. |
+| **Result Variable** | *(Optional)* Variable name to store the webhook payload |
+| **Result Expression** | *(Optional)* FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
 
 ### Start Event
 
@@ -157,14 +181,7 @@ Use the **Apify Start Event Connector** to begin a *new* process instance when a
 
 **Configuration:**
 
-| Setting | Description |
-|---------|-------------|
-| **Apify API Token** | Your Apify API token (see [Authentication](#authentication)) |
-| **Resource Type** | `Actor` or `Task` |
-| **Resource Identifier** | The ID to watch (e.g., `abcdefg1234`) |
-| **Activation Condition** | FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). |
-| **Result Variable** | Name of the variable to store the webhook payload |
-| **Result Expression** | FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
+Uses the [common inbound fields](#inbound-connectors) listed above. No additional fields are required.
 
 ### Message Start Event
 
@@ -176,12 +193,15 @@ Use the **Apify Message Start Event Connector** to start a process instance thro
 
 **Configuration:**
 
-Same base configuration as the [Start Event](#start-event), plus:
+Uses the [common inbound fields](#inbound-connectors), plus:
 
-| Setting | Value Expression (FEEL) | Description |
-|---------|-------------------------|-------------|
-| **Correlation Key (Payload)** | `=connectorData.runId` | Extract the correlation key from the incoming webhook |
-| **Message ID Expression** | (Optional) | Expression to extract a unique message ID for deduplication |
+| Setting | Description |
+|---------|-------------|
+| **Subprocess Correlation Required** | Select `Correlation not required` (default) or `Correlation required`. When set to required, the Correlation Key fields below become visible. This is needed for event-based subprocess message start events. |
+| **Correlation Key (Process)** | *(Shown when correlation is required)* FEEL expression for the correlation key from process variables (e.g., `=previousEventResponse.runId`) |
+| **Correlation Key (Payload)** | *(Shown when correlation is required)* FEEL expression to extract the correlation key from the incoming webhook (e.g., `=connectorData.runId`) |
+| **Message ID Expression** | *(Optional)* Expression to extract a unique ID from the webhook payload for deduplication (e.g., `=eventData.actorRunId`) |
+| **Message TTL** | *(Optional)* Time-to-live for the message in the broker as an ISO-8601 duration (e.g., `PT1H` for 1 hour) |
 
 ### Intermediate Catch Event
 
@@ -191,13 +211,18 @@ Use the **Apify Intermediate Catch Event Connector** to pause a running process 
 - Long-running Actor (async execution) where you want to wait without blocking process engine resources
 - Running tasks in parallel while waiting for a scrape to complete
 
-**Correlation:**
-To ensure the webhook resumes the *correct* process instance, configure **Correlation Keys**:
+**Configuration:**
 
-| Setting | Value Expression (FEEL) | Description |
-|---------|-------------------------|-------------|
-| **Correlation Key (Process)** | `=runResult.id` | The correlation key from process variables |
-| **Correlation Key (Payload)** | `=connectorData.runId` | Extract the correlation key from the incoming webhook |
+Uses the [common inbound fields](#inbound-connectors), plus:
+
+| Setting | Description |
+|---------|-------------|
+| **Correlation Key (Process)** | FEEL expression for the correlation key from process variables (e.g., `=runResult.id`) |
+| **Correlation Key (Payload)** | FEEL expression to extract the correlation key from the incoming webhook (e.g., `=connectorData.runId`) |
+| **Message ID Expression** | *(Optional)* Expression to extract a unique ID from the webhook payload for deduplication |
+| **Message TTL** | *(Optional)* Time-to-live for the message in the broker as an ISO-8601 duration (e.g., `PT1H`) |
+
+To ensure the webhook resumes the *correct* process instance, the **Correlation Key (Process)** value must exactly match the **Correlation Key (Payload)** value extracted from the incoming webhook.
 
 ### Boundary Event
 
@@ -209,7 +234,7 @@ Use the **Apify Boundary Event Connector** to react to an Apify event while an a
 
 **Configuration:**
 
-Same base configuration as the [Intermediate Catch Event](#intermediate-catch-event) (including Correlation Keys). The boundary event can be **interrupting** (terminates the activity) or **non-interrupting** (allows the activity to continue).
+Same configuration as the [Intermediate Catch Event](#intermediate-catch-event) (common inbound fields plus Correlation Keys, Message ID Expression, and Message TTL). The boundary event can be **interrupting** (terminates the activity) or **non-interrupting** (allows the activity to continue).
 
 ---
 
