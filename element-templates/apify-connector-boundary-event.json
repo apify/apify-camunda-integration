@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
-  "name": "Apify Message Intermediate Catch Event Connector",
-  "id": "io.camunda.connector.inbound.Apify.v1:IntermediateCatchEvent",
+  "name": "Apify Boundary Event Connector",
+  "id": "io.camunda.connector.inbound.Apify.v1:BoundaryEvent",
   "version": 1,
   "description": "Receives webhook events from Apify for completed Actor or task runs.",
   "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/README.md#2-inbound-connector-start-event",
@@ -20,11 +20,10 @@
     "name": "Connectors"
   },
   "appliesTo": [
-    "bpmn:IntermediateCatchEvent",
-    "bpmn:IntermediateThrowEvent"
+    "bpmn:BoundaryEvent"
   ],
   "elementType": {
-    "value": "bpmn:IntermediateCatchEvent",
+    "value": "bpmn:BoundaryEvent",
     "eventDefinition": "bpmn:MessageEventDefinition"
   },
   "groups": [
@@ -33,9 +32,13 @@
       "label": "Authentication"
     },
     {
-      "id": "trigger",
-      "label": "Trigger configuration",
-      "tooltip": "Learn more about trigger in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
+      "id": "resourceType",
+      "label": "Resource type",
+      "tooltip": "Learn more about Actors and webhooks in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
+    },
+    {
+      "id": "resourceConfig",
+      "label": "Resource configuration"
     },
     {
       "id": "activation",
@@ -73,7 +76,7 @@
       "label": "Resource Type",
       "description": "The Apify resource type to monitor (Actor or task).",
       "type": "Dropdown",
-      "group": "trigger",
+      "group": "resourceType",
       "value": "actor",
       "choices": [
         {
@@ -94,20 +97,46 @@
       }
     },
     {
-      "id": "resourceId",
-      "label": "Resource Identifier",
-      "description": "The Actor or task identifier to monitor (e.g., 'apify/hello-world' or 'E2jjCZBezvAZnX8Rb').",
+      "id": "resourceId.actor",
+      "label": "Actor",
+      "description": "Actor name or ID (e.g., 'apify/web-scraper' or 'E2jjCZBezvAZnX8Rb').",
       "type": "String",
       "feel": "optional",
-      "group": "trigger",
+      "group": "resourceConfig",
       "binding": {
         "type": "zeebe:property",
         "name": "resourceId"
+      },
+      "condition": {
+        "property": "resourceType",
+        "equals": "actor",
+        "type": "simple"
       },
       "constraints": {
         "notEmpty": true
       },
       "placeholder": "author/actor-name"
+    },
+    {
+      "id": "resourceId.task",
+      "label": "Task",
+      "description": "Task name or ID (e.g., 'username/my-task' or 'abc123DEF456').",
+      "type": "String",
+      "feel": "optional",
+      "group": "resourceConfig",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resourceId"
+      },
+      "condition": {
+        "property": "resourceType",
+        "equals": "task",
+        "type": "simple"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "placeholder": "author/task-name"
     },
     {
       "id": "context",
@@ -138,7 +167,7 @@
         "type": "zeebe:property",
         "name": "activationCondition"
       },
-      "placeholder": "=connectorData.status = \"SUCCEEDED\""
+      "placeholder": "connectorData.status = \"SUCCEEDED\""
     },
     {
       "id": "correlationKeyProcess",
@@ -153,14 +182,14 @@
         "name": "correlationKey",
         "type": "bpmn:Message#zeebe:subscription#property"
       },
-      "placeholder": "=previousEventResponse.runId",
+      "placeholder": "previousEventResponse.runId",
       "type": "String"
     },
     {
       "id": "correlationKeyPayload",
       "label": "Correlation Key (Payload)",
       "description": "A FEEL expression to extract the correlation key from the incoming message payload.",
-      "placeholder": "=connectorData.runId",
+      "placeholder": "connectorData.runId",
       "constraints": {
         "notEmpty": true
       },
@@ -175,7 +204,7 @@
     {
       "id": "messageIdExpression",
       "label": "Message ID Expression",
-      "description": "A FEEL expression to extract the unique identifier of a message.",
+      "description": "Expression to extract a unique ID from the webhook payload, used to prevent duplicate processing.",
       "optional": true,
       "feel": "required",
       "group": "correlation",
@@ -183,7 +212,7 @@
         "name": "messageIdExpression",
         "type": "zeebe:property"
       },
-      "placeholder": "=connectorData.runId",
+      "placeholder": "eventData.actorRunId",
       "type": "String"
     },
     {
@@ -244,7 +273,7 @@
         "type": "zeebe:property",
         "name": "resultExpression"
       },
-      "placeholder": "={ result: connectorData }"
+      "placeholder": "{ result: connectorData }"
     },
     {
       "value": "io.camunda:apify-inbound:1",

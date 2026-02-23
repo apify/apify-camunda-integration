@@ -76,8 +76,11 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
             this.apifyClient = new ApifyClient();
 
+            // Resolve slug-based resource IDs (e.g., "username~actor-name") to actual IDs
+            final var resolvedResourceId = resolveResourceId(properties.getNormalizedResourceId());
+
             // Create webhook in Apify
-            createApifyWebhook();
+            createApifyWebhook(resolvedResourceId);
             LOGGER.info("Successfully created Apify webhook with webhook ID: {}.", webhookId);
             context.reportHealth(Health.up());
         } catch (Exception e) {
@@ -238,12 +241,13 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     /**
      * Creates a webhook subscription in Apify for the configured resource.
      * 
+     * @param resolvedResourceId The resolved Apify resource ID.
      * @throws IOException If the webhook creation fails.
      */
-    private void createApifyWebhook() throws IOException {
+    private void createApifyWebhook(String resolvedResourceId) throws IOException {
         LOGGER.debug("Creating Apify webhook with callback URL: {}.", callbackUrl);
 
-        String webhookJson = buildWebhookPayload();
+        String webhookJson = buildWebhookPayload(resolvedResourceId);
 
         // Create the webhook
         ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.authentication().token(), webhookJson);
@@ -265,12 +269,63 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     }
 
     /**
+     * Resolves a resource identifier to its actual Apify resource ID.
+     * If the identifier contains a tilde (~), it is a slug (e.g., "username~actor-name")
+     * and needs to be resolved via the Apify API. Otherwise, it is already an ID.
+     *
+     * @param normalizedResourceId The normalized resource ID (with ~ instead of /)
+     * @return The actual Apify resource ID
+     * @throws IOException              if the API call fails or the response cannot be parsed
+     * @throws IllegalArgumentException if the resource ID is null or empty
+     */
+    private String resolveResourceId(String normalizedResourceId) throws IOException {
+        if (normalizedResourceId == null || normalizedResourceId.isBlank()) {
+            throw new IllegalArgumentException("Resource ID must not be null or empty.");
+        }
+
+        if (!normalizedResourceId.contains("~")) {
+            LOGGER.debug("Resource ID '{}' does not contain '~', using as-is.", normalizedResourceId);
+            return normalizedResourceId;
+        }
+
+        LOGGER.debug("Resource ID '{}' contains '~', resolving via Apify API.", normalizedResourceId);
+        final var authToken = properties.authentication().token();
+        final var result = switch (properties.resourceType()) {
+            case ACTOR -> apifyClient.getActor(normalizedResourceId, authToken);
+            case TASK -> apifyClient.getTask(normalizedResourceId, authToken);
+        };
+
+        // Check the status code of the API response
+        final int statusCode = result.getStatusCode();
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IOException(String.format(
+                    "Failed to resolve resource ID '%s': Apify API returned HTTP %d.",
+                    normalizedResourceId, statusCode));
+        }
+
+        final var responseBody = result.getResponseBody();
+        final var responseNode = OBJECT_MAPPER.readTree(responseBody);
+        final var idNode = responseNode.path("data").path("id");
+
+        if (idNode.isMissingNode() || idNode.isNull()) {
+            final var truncatedBody = responseBody.length() > 500
+                    ? responseBody.substring(0, 500) + "..." : responseBody;
+            throw new IOException("Failed to resolve resource ID from API response: " + truncatedBody);
+        }
+
+        final var resolvedId = idNode.asText();
+        LOGGER.info("Resolved resource '{}' to ID '{}'.", normalizedResourceId, resolvedId);
+        return resolvedId;
+    }
+
+    /**
      * Builds the JSON payload for creating an Apify webhook.
      * 
+     * @param resolvedResourceId The resolved Apify resource ID.
      * @return The JSON payload for creating an Apify webhook.
      * @throws JsonProcessingException If the JSON payload cannot be created.
      */
-    private String buildWebhookPayload() throws JsonProcessingException {
+    private String buildWebhookPayload(String resolvedResourceId) throws JsonProcessingException {
         LOGGER.debug("Building Apify webhook payload with callback URL: {}.", callbackUrl);
         ObjectNode webhookNode = OBJECT_MAPPER.createObjectNode();
 
@@ -282,21 +337,23 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
         // Set the condition based on resource type
         ObjectNode conditionNode = OBJECT_MAPPER.createObjectNode();
-        conditionNode.put(properties.resourceType().getConditionKey(), properties.getNormalizedResourceId());
+        conditionNode.put(properties.resourceType().getConditionKey(), resolvedResourceId);
         webhookNode.set("condition", conditionNode);
         webhookNode.put("requestUrl", callbackUrl);
         webhookNode.put("payloadTemplate", PAYLOAD_TEMPLATE);
         webhookNode.put("shouldInterpolateStrings", true);
-        webhookNode.put("idempotencyKey", generateIdempotencyKey(callbackUrl, properties.getNormalizedResourceId()));
+        webhookNode.put("idempotencyKey", generateIdempotencyKey(callbackUrl, resolvedResourceId));
 
         return OBJECT_MAPPER.writeValueAsString(webhookNode);
     }
 
     /**
      * Generates a SHA-256 hash to use as the idempotency key for webhook creation.
+     * <p>
+     * Package-private for unit testing.
      *
      * @param callbackUrl The webhook callback URL.
-     * @param resourceId  The normalized resource ID.
+     * @param resourceId  The resolved Apify resource ID.
      * @return A hex-encoded SHA-256 hash string.
      */
     static String generateIdempotencyKey(String callbackUrl, String resourceId) {

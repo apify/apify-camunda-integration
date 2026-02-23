@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.api.annotation.OutboundConnector;
 import io.camunda.connector.apify.common.ApifyClient;
 import io.camunda.connector.apify.common.RunOptions;
+import io.camunda.connector.apify.common.URLValidator;
 import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
 import io.camunda.connector.apify.outbound.dto.GetDatasetItemsInput;
@@ -270,6 +271,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
     validateAuthentication(authentication);
 
     var input = apifyRequestInput.scrapeSingleUrlInput();
+    URLValidator.validateUrl(input.url());
 
     try (ApifyClient apifyClient = new ApifyClient()) {
       // Build input for web content scraper actor
@@ -314,8 +316,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
       // Fetch first item from dataset
       String datasetItemsJson = apifyClient.getDatasetItems(datasetId, authentication.token(), 0, 1).getResponseBody();
       JsonNode itemsNode = objectMapper.readTree(datasetItemsJson);
-      if (!itemsNode.isArray() || itemsNode.size() == 0) {
-        throw new RuntimeException("Error: No items found in dataset");
+      if (!itemsNode.isArray() || itemsNode.isEmpty()) {
+        throw new RuntimeException("Error: No items found in dataset for URL: " + input.url());
       }
       
       // Remove text field to reduce usage of tokens if AI Agent is used in the process
