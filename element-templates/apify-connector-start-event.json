@@ -31,9 +31,13 @@
       "label": "Authentication"
     },
     {
-      "id": "trigger",
-      "label": "Trigger configuration",
-      "tooltip": "Learn more about trigger in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
+      "id": "resourceType",
+      "label": "Resource type",
+      "tooltip": "Learn more about Actors and webhooks in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
+    },
+    {
+      "id": "resourceConfig",
+      "label": "Resource configuration"
     },
     {
       "id": "activation",
@@ -66,7 +70,7 @@
       "label": "Resource Type",
       "description": "The Apify resource type to monitor (Actor or task).",
       "type": "Dropdown",
-      "group": "trigger",
+      "group": "resourceType",
       "value": "actor",
       "choices": [
         {
@@ -87,20 +91,46 @@
       }
     },
     {
-      "id": "resourceId",
-      "label": "Resource Identifier",
-      "description": "The Actor or task identifier to monitor (e.g., 'apify/hello-world' or 'E2jjCZBezvAZnX8Rb').",
+      "id": "resourceId.actor",
+      "label": "Actor",
+      "description": "Actor name or ID (e.g., 'apify/web-scraper' or 'E2jjCZBezvAZnX8Rb').",
       "type": "String",
       "feel": "optional",
-      "group": "trigger",
+      "group": "resourceConfig",
       "binding": {
         "type": "zeebe:property",
         "name": "resourceId"
+      },
+      "condition": {
+        "property": "resourceType",
+        "equals": "actor",
+        "type": "simple"
       },
       "constraints": {
         "notEmpty": true
       },
       "placeholder": "author/actor-name"
+    },
+    {
+      "id": "resourceId.task",
+      "label": "Task",
+      "description": "Task name or ID (e.g., 'username/my-task' or 'abc123DEF456').",
+      "type": "String",
+      "feel": "optional",
+      "group": "resourceConfig",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resourceId"
+      },
+      "condition": {
+        "property": "resourceType",
+        "equals": "task",
+        "type": "simple"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "placeholder": "author/task-name"
     },
     {
       "id": "context",

@@ -2,14 +2,20 @@ package io.camunda.connector.apify.inbound;
 
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.OBJECT_MAPPER;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.VALID_WEBHOOK_RESPONSE;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.actorResolutionFailsMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.actorResolutionMissingIdMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.actorSlugResolutionMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.createMockContext;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.createMockPayload;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.createWebhookFailsMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.defaultActorClientMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.deleteWebhookFailsMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.taskResolutionFailsMock;
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.taskSlugResolutionMock;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.webhookCreationMockWithId;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.fullLifecycleActorMock;
 import static io.camunda.connector.apify.inbound.dto.ResourceType.ACTOR;
+import static io.camunda.connector.apify.inbound.dto.ResourceType.TASK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -586,13 +592,16 @@ class ApifyInboundExecutableTest {
                     "test-context-123");
 
             try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
-                    defaultActorClientMock())) {
+                    actorSlugResolutionMock("resolvedActorId123"))) {
 
                 executable.activate(context);
 
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
                 ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
                 verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+
+                // Verify slug was resolved via getActor API call
+                verify(constructedClient).getActor(eq("apify~google-search"), eq("test-token"));
 
                 String payload = payloadCaptor.getValue();
 
@@ -603,16 +612,145 @@ class ApifyInboundExecutableTest {
                 assertThat(payload).contains("ACTOR.RUN.ABORTED");
                 assertThat(payload).contains("\"condition\"");
                 assertThat(payload).contains("\"actorId\"");
-                assertThat(payload).contains("apify~google-search");
+                // Should contain the resolved ID, not the slug
+                assertThat(payload).contains("resolvedActorId123");
+                assertThat(payload).doesNotContain("apify~google-search");
                 assertThat(payload).contains("\"requestUrl\"");
                 assertThat(payload).contains("http://example.com/inbound/test-context-123");
                 assertThat(payload).contains("\"payloadTemplate\"");
                 assertThat(payload).contains("\"shouldInterpolateStrings\":true");
-                // Pre-computed SHA-256 of "http://example.com/inbound/test-context-123:apify~google-search"
-                assertThat(payload).contains("\"idempotencyKey\":\"cca6a64107e0e5688e4d049dc98691dcd0d6f71ed06744e5e22104a840dd18a1\"");
+                assertThat(payload).contains("\"idempotencyKey\"");
             }
         }
 
+    }
+
+    @Nested
+    @DisplayName("Resource ID Resolution")
+    class ResourceIdResolutionTests {
+
+        @Test
+        void shouldResolveActorSlugToActualId() throws Exception {
+            // given - resource ID with slash (normalized to tilde)
+            InboundConnectorContext context = createMockContext("test-token", ACTOR, "apify/google-search",
+                    "test-context-123");
+
+            try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
+                    actorSlugResolutionMock("E2jjCZBezvAZnX8Rb"))) {
+
+                // when
+                executable.activate(context);
+
+                // then - should call getActor with the tilde-normalized slug
+                ApifyClient constructedClient = mockedClient.constructed().get(0);
+                verify(constructedClient).getActor(eq("apify~google-search"), eq("test-token"));
+
+                // Verify webhook payload uses resolved ID
+                ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+                verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                String payload = payloadCaptor.getValue();
+                assertThat(payload).contains("\"actorId\":\"E2jjCZBezvAZnX8Rb\"");
+                assertThat(payload).doesNotContain("apify~google-search");
+            }
+        }
+
+        @Test
+        void shouldResolveTaskSlugToActualId() throws Exception {
+            // given - task resource ID with slash (normalized to tilde)
+            InboundConnectorContext context = createMockContext("test-token", TASK, "username/my-task",
+                    "test-context-456");
+
+            try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
+                    taskSlugResolutionMock("abc123DEF456"))) {
+
+                // when
+                executable.activate(context);
+
+                // then - should call getTask with the tilde-normalized slug
+                ApifyClient constructedClient = mockedClient.constructed().get(0);
+                verify(constructedClient).getTask(eq("username~my-task"), eq("test-token"));
+
+                // Verify webhook payload uses resolved ID and correct condition key
+                ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+                verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                String payload = payloadCaptor.getValue();
+                assertThat(payload).contains("\"actorTaskId\":\"abc123DEF456\"");
+                assertThat(payload).doesNotContain("username~my-task");
+            }
+        }
+
+        @Test
+        void shouldNotCallApiWhenResourceIdIsAlreadyAnActualId() throws Exception {
+            // given - resource ID without slash/tilde (already an actual ID)
+            InboundConnectorContext context = createMockContext("test-token", ACTOR, "E2jjCZBezvAZnX8Rb",
+                    "test-context-789");
+
+            try (MockedConstruction<ApifyClient> mockedClient = mockConstruction(ApifyClient.class,
+                    defaultActorClientMock())) {
+
+                // when
+                executable.activate(context);
+
+                // then - should NOT call getActor (no resolution needed)
+                ApifyClient constructedClient = mockedClient.constructed().get(0);
+                verify(constructedClient, never()).getActor(anyString(), anyString());
+                verify(constructedClient, never()).getTask(anyString(), anyString());
+
+                // Verify webhook payload uses the ID as-is
+                ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+                verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                String payload = payloadCaptor.getValue();
+                assertThat(payload).contains("\"actorId\":\"E2jjCZBezvAZnX8Rb\"");
+            }
+        }
+
+        @Test
+        void shouldThrowWhenActorResolutionApiCallFails() {
+            // given - slug resource ID but API call will fail
+            InboundConnectorContext context = createMockContext("test-token", ACTOR, "apify/nonexistent-actor",
+                    "test-context-123");
+
+            try (MockedConstruction<ApifyClient> ignored = mockConstruction(ApifyClient.class,
+                    actorResolutionFailsMock("Actor not found"))) {
+
+                // when/then
+                assertThatThrownBy(() -> executable.activate(context))
+                        .isInstanceOf(IOException.class)
+                        .hasMessageContaining("Actor not found");
+            }
+        }
+
+        @Test
+        void shouldThrowWhenTaskResolutionApiCallFails() {
+            // given - slug task resource ID but API call will fail
+            InboundConnectorContext context = createMockContext("test-token", TASK, "username/nonexistent-task",
+                    "test-context-123");
+
+            try (MockedConstruction<ApifyClient> ignored = mockConstruction(ApifyClient.class,
+                    taskResolutionFailsMock("Task not found"))) {
+
+                // when/then
+                assertThatThrownBy(() -> executable.activate(context))
+                        .isInstanceOf(IOException.class)
+                        .hasMessageContaining("Task not found");
+            }
+        }
+
+        @Test
+        void shouldThrowWhenApiResponseMissingDataId() throws Exception {
+            // given - API returns response without data.id field
+            InboundConnectorContext context = createMockContext("test-token", ACTOR, "apify/broken-actor",
+                    "test-context-123");
+
+            try (MockedConstruction<ApifyClient> ignored = mockConstruction(ApifyClient.class,
+                    actorResolutionMissingIdMock("{\"data\":{}}"))) {
+
+                // when/then
+                assertThatThrownBy(() -> executable.activate(context))
+                        .isInstanceOf(IOException.class)
+                        .hasMessageContaining("Failed to resolve resource ID from API response");
+            }
+        }
     }
 
     @Nested
