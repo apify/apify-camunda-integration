@@ -206,7 +206,7 @@
     {
       "id": "messageIdExpression",
       "label": "Message ID Expression",
-      "description": "A FEEL expression to extract the unique identifier of a message.",
+      "description": "Expression to extract a unique ID from the webhook payload, used to prevent duplicate processing.",
       "optional": true,
       "feel": "required",
       "group": "correlation",
@@ -214,7 +214,7 @@
         "name": "messageIdExpression",
         "type": "zeebe:property"
       },
-      "placeholder": "connectorData.runId",
+      "placeholder": "eventData.actorRunId",
       "type": "String"
     },
     {
