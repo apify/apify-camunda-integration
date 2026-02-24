@@ -283,6 +283,8 @@ docker compose -f docker-compose-full.yaml up -d
 
 7. Verify the run status and result in **Camunda Operate** (http://localhost:8088/).
 
+![Process in Operate](docs/operate/select.png)
+
 ![Verifying the result in Camunda Operate](docs/operate/check-run-result.png)
 
 ### Inbound Connectors
@@ -319,22 +321,15 @@ docker compose -f docker-compose-full.yaml up -d
 | **Deploy & run** | Persistent (keep listening) | Production workflows |
 
 **How to use Play mode:**
-1. Click the **Play** button (next to the Implement tab) in Web Modeler
-2. Configure any required input variables
-3. Start the process
-4. Trigger the Apify event (e.g., run the Actor)
-5. View results in Camunda Operate
+1. Click the **Play** tab (next to Design and Implement) in Web Modeler.
+2. Click **Start instance with cached data** to run immediately, or open the menu to edit variables before starting.
 
-![Using Play mode with intermediate flow](docs/modeler/intermediate-flow-play.png)
+![Play mode — process definition view before running](docs/modeler/intermediate-flow-play.png)
 
-6. Verify the webhook was created in Apify (Actor page → **Integrations** tab).
+3. View the results directly in the Modeler — the **Instance History** panel shows the path taken, and the **Variables** panel shows all process data.
+4. Optionally click **Save scenario** to store this run. You can rerun saved scenarios later and update them as the process evolves. The coverage indicator shows what percentage of your process flow nodes are covered by saved scenarios (see [Scenario coverage](https://docs.camunda.io/docs/components/modeler/web-modeler/play-your-process/#scenario-coverage)).
 
-7. Verify the process in **Camunda Operate**:
-   - Select the **Finished** filter to see completed processes
-
-![Process in Operate](docs/operate/select.png)
-
-![Finished process](docs/operate/select-finished.png)
+![Play mode — completed instance with variables](docs/operate/select-finished.png)
 
 ---
 
