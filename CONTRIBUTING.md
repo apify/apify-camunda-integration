@@ -287,7 +287,26 @@ docker compose -f docker-compose-full.yaml up -d
 
 ![Verifying the result in Camunda Operate](docs/operate/check-run-result.png)
 
+**Understanding the outbound response data:**
+
+The **Run Actor** and **Run Task** operations return the full Actor run object as the result variable. This object contains fields like `id`, `status`, `defaultDatasetId`, `defaultKeyValueStoreId`, and more. Knowing this structure is important because subsequent steps (e.g., Get Dataset Items) and inbound correlation keys reference these fields.
+
+For the full response schema, see:
+- [Run Actor API](https://docs.apify.com/api/v2/act-runs-post): response for `Run Actor`
+- [Run Task API](https://docs.apify.com/api/v2/actor-task-runs-post): response for `Run Task`
+
+Key fields you'll use in testing:
+
+| Field | Example FEEL expression | What it contains |
+|-------|------------------------|-----------------|
+| `id` | `=runResult.id` | The run ID (used for correlation) |
+| `status` | `=runResult.status` | Run status (`RUNNING`, `SUCCEEDED`, `FAILED`, etc.) |
+| `defaultDatasetId` | `=runResult.defaultDatasetId` | Dataset ID (pass to Get Dataset Items) |
+| `defaultKeyValueStoreId` | `=runResult.defaultKeyValueStoreId` | Key-value store ID (pass to Get Key-Value Store Record) |
+
 ### Inbound Connectors
+
+#### Setup (shared across all inbound types)
 
 1. Upload the inbound connector templates:
    - **Start Event**: `element-templates/apify-connector-start-event.json`
@@ -299,26 +318,108 @@ docker compose -f docker-compose-full.yaml up -d
 
 ![Publishing the connector template](docs/modeler/publish-inbound-template.png)
 
-3. Create a new **BPMN diagram** and design a process with an **Apify Connector** as the start event (or attach as intermediate/boundary event).
+#### Start Event
+
+The simplest inbound connector, each incoming webhook creates a new process instance. No correlation needed.
+
+1. Create a new **BPMN diagram** and add an **Apify Connector** as the start event.
 
 ![Selecting the inbound connector](docs/modeler/select-inbound.png)
 
-4. Configure the connector with your Apify API token and resource details.
+2. Configure the connector with your Apify API token, resource type (Actor or Task), and the Actor/Task ID.
+3. Optionally set a **Result Variable** (e.g., `webhookData`) to store the webhook payload, or a **Result Expression** to extract specific fields.
+4. **Deploy** the process (do not use Play mode, see [Deploy vs Play Mode](#deploy-vs-play-mode) below).
+5. Trigger the event from Apify (e.g., run the Actor). The webhook creates a new process instance automatically.
 
-5. **Deploy** or **Play** the process:
-   - **Deploy**: Creates a persistent webhook in Apify
-   - **Play**: Runs the process once without creating persistent webhooks (recommended for testing)
+For full configuration details, see [Start Event](README.md#start-event) in the README.
+
+#### Message Start Event
+
+Like Start Event, but uses Camunda's message correlation to prevent duplicate instances and supports starting subprocesses. Configuration is the same as Start Event, plus optional correlation key fields.
+
+For full configuration details, see [Message Start Event](README.md#message-start-event) in the README.
+
+#### Intermediate Catch Event & Boundary Event
+
+These connectors pause or react to a webhook within a **running** process. They require **correlation keys** to match the incoming webhook to the correct process instance.
+
+**Understanding the webhook payload:**
+
+When Apify sends a webhook, the connector receives this payload structure:
+
+```json
+{
+  "connectorData": {
+    "eventType": "ACTOR.RUN.SUCCEEDED",
+    "userId": "user1234",
+    "createdAt": "2026-01-03T12:00:00.000Z",
+    "runId": "efgh5678",
+    "status": "SUCCEEDED",
+    "actorId": "abcd1234",
+    "defaultDatasetId": "d9E0f1G2h3I4j5K6",
+    "eventData": {
+      "actorId": "abcd1234",
+      "actorRunId": "efgh5678"
+    },
+    "resource": {
+      "id": "efgh5678",
+      "status": "SUCCEEDED",
+      "stats": { "..." },
+      "options": { "..." },
+      "usage": { "..." }
+    }
+  },
+  "request": {
+    "body": {
+      "eventType": "ACTOR.RUN.SUCCEEDED",
+      "resource": { "..." }
+    },
+    "headers": { "..." }
+  }
+}
+```
+
+For more info on the raw Apify webhook payload and available variables, see the [Default payload example](https://docs.apify.com/platform/integrations/webhooks/actions#default-payload-example) in the Apify docs.
+
+**How correlation works:**
+
+Correlation keys tell Camunda which waiting process instance should receive the webhook. You set two values that must match:
+
+- **Correlation Key (Process)**: a FEEL expression that reads from a process variable, e.g., `=runResult.id` (the Actor run ID saved by a previous outbound step)
+- **Correlation Key (Payload)**: a FEEL expression that reads from the incoming webhook, e.g., `=connectorData.runId`
+
+When the webhook arrives, Camunda compares these two values. If they match, the correct process instance resumes. If they don't match exactly, the process stays stuck waiting.
+
+**Typical flow:**
+
+```mermaid
+graph LR
+    A([Start]) --> B[Run Actor async]
+    B --> C[Intermediate Catch Event]
+    C --> D[Get Dataset Items]
+    D --> E([End])
+```
+
+1. The outbound step runs an Actor with **Wait for Finish** = `false` and stores the Actor run response in `runResult`.
+2. The Intermediate Catch Event waits for a webhook where `connectorData.runId` matches `runResult.id`.
+3. Once the Actor finishes and the webhook arrives, the process continues.
+
+For full configuration details, see [Intermediate Catch Event](README.md#intermediate-catch-event) and [Boundary Event](README.md#boundary-event) in the README. For the full webhook payload reference, see [Webhook Payload Structure](README.md#webhook-payload-structure).
+
+#### Deploy vs Play Mode
+
+Once your process is configured, you need to deploy or play it:
+
+- **Deploy**: Creates a persistent webhook in Apify. Use this for processes with inbound start events (Start Event, Message Start Event), deploy without running, then trigger from Apify.
+- **Play**: Runs the process immediately in a sandbox with temporary webhooks. Use this for outbound flows or flows with intermediate/boundary inbound events (not inbound start events, Play skips them and webhook variables won't be set).
 
 ![Deploying the process](docs/modeler/set-inputs-and-deploy.png)
 
-> **Tip:** For testing, prefer using **Play mode** to avoid accumulating webhook listeners.
-
-**Play Mode vs Deploy:**
-
 | Mode | Webhooks | Best For |
 |------|----------|----------|
-| **Play mode** | Temporary (deleted after run) | Development and testing |
-| **Deploy & run** | Persistent (keep listening) | Production workflows |
+| **Play mode** | Temporary (deleted after run) | Outbound flows, intermediate/boundary inbound events |
+| **Deploy** (without Run) | Persistent (keep listening) | Inbound start events |
+| **Deploy & Run** | Persistent | Flows starting with outbound steps (first instance runs immediately) |
 
 **How to use Play mode:**
 1. Click the **Play** tab (next to Design and Implement) in Web Modeler.
