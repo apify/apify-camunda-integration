@@ -174,7 +174,7 @@ All inbound connectors share these common fields:
 
 ### Start Event
 
-Use the **Apify Start Event Connector** to begin a *new* process instance when a specific event occurs in Apify (e.g., "Run Succeeded"). This is the simplest inbound connector — each incoming webhook event creates a new top-level process instance.
+Use the **Apify Start Event Connector** to begin a *new* process instance when a specific event occurs in Apify (e.g., "Run Succeeded"). This is the simplest inbound connector, each incoming webhook event creates a new top-level process instance.
 
 **When to use:**
 - Trigger a workflow based on an external event (e.g., "Every time this daily scrape finishes, start a review process")
@@ -230,7 +230,7 @@ Use the **Apify Boundary Event Connector** to react to an Apify event while an a
 
 **When to use:**
 - Cancel or redirect a running activity when an Apify run completes, fails, or times out
-- Implement timeout/fallback logic — e.g., if a scrape fails, take an alternative path
+- Implement timeout/fallback logic, e.g., if a scrape fails, take an alternative path
 
 **Configuration:**
 
@@ -272,12 +272,12 @@ This is the recommended pattern for handling long-running scrapes reliably. It p
 
 ### Boundary Event for Runtime Reactions
 
-A [Boundary Event](https://docs.camunda.io/docs/components/modeler/bpmn/events/) attaches directly to an activity (task or subprocess) and fires when an Apify webhook arrives **while that activity is still running**. Unlike the Async Execution pattern above, the boundary event does **not** wait for the attached activity to finish — it interrupts or runs alongside it. This means any variables that the attached activity would have produced are **not available** after the boundary event fires.
+A [Boundary Event](https://docs.camunda.io/docs/components/modeler/bpmn/events/) attaches directly to an activity (task or subprocess) and fires when an Apify webhook arrives **while that activity is still running**. Unlike the Async Execution pattern above, the boundary event does **not** wait for the attached activity to finish, it interrupts or runs alongside it. This means any variables that the attached activity would have produced are **not available** after the boundary event fires.
 
 This makes it suited for a different use case than async execution:
 
-- **Interrupting boundary event** — cancel a running activity when an external signal arrives (e.g., abort a manual review task when the Apify scrape fails or times out).
-- **Non-interrupting boundary event** — spawn a parallel path without stopping the activity (e.g., send a progress notification while a long-running task continues).
+- **Interrupting boundary event**: cancel a running activity when an external signal arrives (e.g., abort a manual review task when the Apify scrape fails or times out).
+- **Non-interrupting boundary event**: spawn a parallel path without stopping the activity (e.g., send a progress notification while a long-running task continues).
 
 **Example flow (interrupting):**
 
