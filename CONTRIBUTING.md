@@ -342,7 +342,13 @@ graph LR
 ```
 
 1. The outbound step runs an Actor with **Wait for Finish** = `false` and stores the Actor run response in `previousActorRunResult`.
+
+<p align="center"><img src="docs/modeler/intermediate-select.png" alt="Selecting the Intermediate Catch Event connector" width="75%"></p>
+
 2. The Intermediate Catch Event waits for a webhook where `connectorData.runId` matches `previousActorRunResult.data.id`.
+
+<p align="center"><img src="docs/modeler/intermediate-setup.png" alt="Configuring the Intermediate Catch Event connector" width="75%"></p>
+
 3. Once the Actor finishes and the webhook arrives, the process continues.
 
 For full configuration details, see [Intermediate Catch Event](README.md#intermediate-catch-event) in the README. For the full webhook payload reference, see [Webhook Payload Structure](README.md#webhook-payload-structure).
