@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
-  "name": "Apify Message Catch Event Connector",
+  "name": "Apify Start Event Connector",
   "id": "io.camunda.connector.inbound.Apify.v1:StartEvent",
   "version": 1,
   "description": "Creates an Apify webhook for completed Actor or task runs, receives event updates, and deletes the webhook on deactivation.",

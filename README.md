@@ -34,6 +34,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
   - [Get Key-Value Store Record](#get-key-value-store-record)
   - [Error Handling and Retries](#error-handling-and-retries)
 - [Inbound Connectors](#inbound-connectors)
+  - [Activation Condition](#activation-condition)
   - [Start Event](#start-event)
   - [Message Start Event](#message-start-event)
   - [Intermediate Catch Event](#intermediate-catch-event)
@@ -172,6 +173,23 @@ All inbound connectors share these common fields:
 | **Result Variable** | *(Optional)* Variable name to store the webhook payload |
 | **Result Expression** | *(Optional)* FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
 
+#### Activation Condition
+
+The **Activation Condition** is an optional FEEL expression that acts as a gate for incoming webhook events. When set, the connector evaluates the expression against each incoming event and only triggers the process if the expression evaluates to `true`. Events that do not match are silently ignored — no process instance is created and no correlation occurs.
+
+This is useful when you subscribe to all event types from an Actor or Task but only want to react to specific outcomes. For example, you might want to start a process only when a run succeeds and ignore failures, timeouts, and aborts.
+
+**Examples:**
+
+| Expression | Effect |
+|------------|--------|
+| *(empty)* | All events trigger the connector (default) |
+| `=connectorData.status = "SUCCEEDED"` | Only successful runs trigger the connector |
+| `=connectorData.status != "ABORTED"` | All events except aborted runs trigger the connector |
+| `=connectorData.eventType = "ACTOR.RUN.FAILED" or connectorData.eventType = "ACTOR.RUN.TIMED_OUT"` | Only failures and timeouts trigger the connector |
+
+> **Tip:** The expression has access to the full `connectorData` object described in the [Webhook Payload Structure](#webhook-payload-structure) section. You can filter on any field, including `status`, `eventType`, `actorId`, or `runId`. For more details on webhook dispatch events and available fields, see the Apify client docs: [JavaScript](https://docs.apify.com/api/client/js/reference/interface/WebhookDispatch) | [Python](https://docs.apify.com/api/client/python/reference/class/WebhookDispatch).
+
 ### Start Event
 
 Use the **Apify Start Event Connector** to begin a *new* process instance when a specific event occurs in Apify (e.g., "Run Succeeded"). This is the simplest inbound connector, each incoming webhook event creates a new top-level process instance.
@@ -200,7 +218,7 @@ Uses the [common inbound fields](#inbound-connectors), plus:
 | **Subprocess Correlation Required** | Select `Correlation not required` (default) or `Correlation required`. When set to required, the Correlation Key fields below become visible. This is needed for event-based subprocess message start events. |
 | **Correlation Key (Process)** | *(Shown when correlation is required)* FEEL expression for the correlation key from process variables (e.g., `=previousEventResponse.runId`) |
 | **Correlation Key (Payload)** | *(Shown when correlation is required)* FEEL expression to extract the correlation key from the incoming webhook (e.g., `=connectorData.runId`) |
-| **Message ID Expression** | *(Optional)* Expression to extract a unique ID from the webhook payload for deduplication (e.g., `=eventData.actorRunId`) |
+| **Message ID Expression** | *(Optional)* Expression to extract a unique ID from the webhook payload for deduplication (e.g., `=connectorData.eventData.actorRunId`) |
 | **Message TTL** | *(Optional)* Time-to-live for the message in the broker as an ISO-8601 duration (e.g., `PT1H` for 1 hour) |
 
 ### Intermediate Catch Event

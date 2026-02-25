@@ -179,7 +179,7 @@
         "equals": "required",
         "type": "simple"
       },
-      "placeholder": "previousEventResponse.runId",
+      "placeholder": "previousEventResponse.data.id",
       "type": "String"
     },
     {
@@ -214,7 +214,7 @@
         "name": "messageIdExpression",
         "type": "zeebe:property"
       },
-      "placeholder": "eventData.actorRunId",
+      "placeholder": "connectorData.eventData.actorRunId",
       "type": "String"
     },
     {
