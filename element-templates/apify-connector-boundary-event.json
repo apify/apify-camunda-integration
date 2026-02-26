@@ -4,7 +4,7 @@
   "id": "io.camunda.connector.inbound.Apify.v1:BoundaryEvent",
   "version": 1,
   "description": "Receives webhook events from Apify for completed Actor or task runs.",
-  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/README.md#2-inbound-connector-start-event",
+  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/README.md#boundary-event",
   "metadata": {
     "keywords": [
       "apify",
@@ -182,7 +182,7 @@
         "name": "correlationKey",
         "type": "bpmn:Message#zeebe:subscription#property"
       },
-      "placeholder": "previousEventResponse.runId",
+      "placeholder": "previousEventResponse.data.id",
       "type": "String"
     },
     {
@@ -212,7 +212,7 @@
         "name": "messageIdExpression",
         "type": "zeebe:property"
       },
-      "placeholder": "eventData.actorRunId",
+      "placeholder": "connectorData.eventData.actorRunId",
       "type": "String"
     },
     {
