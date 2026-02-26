@@ -22,6 +22,7 @@ This guide walks you through setting up the development environment, running and
     - [Boundary Event](#boundary-event)
     - [Webhook Payload and Correlation](#webhook-payload-and-correlation)
     - [Deploy vs Play Mode](#deploy-vs-play-mode)
+- [Contributing Workflow](#contributing-workflow)
 - [Reference](#reference)
   - [Project Structure](#project-structure)
   - [Regenerating Element Templates](#regenerating-element-templates)
@@ -37,6 +38,10 @@ This guide walks you through setting up the development environment, running and
 - **Java 21** or later
 - **Maven 3.8+**
 - **Docker** and **Docker Compose**
+- **Apify account** (free tier) - [sign up here](https://console.apify.com/sign-up)
+- **Apify API token** - find it at [Settings → Integrations](https://console.apify.com/settings/integrations) in the Apify Console
+
+> **Tip:** For testing throughout this guide, we use the public [`apify/hello-world`](https://apify.com/apify/hello-world) Actor, which completes quickly and requires no special configuration.
 
 ---
 
@@ -44,9 +49,16 @@ This guide walks you through setting up the development environment, running and
 
 ### 1. Start Camunda Stack
 
-Follow the [Camunda Docker Compose quickstart](https://docs.camunda.io/docs/self-managed/quickstart/developer-quickstart/docker-compose) to spin up the full stack locally.
+Download and start the [Camunda 8.8 Docker Compose distribution](https://github.com/camunda/camunda-distributions/releases/tag/docker-compose-8.8) (the **full** variant, which includes Web Modeler):
 
-> **Note:** Install the **fully** configured stack which includes Web Modeler. This connector was tested with [Camunda 8.8](https://github.com/camunda/camunda-distributions/releases/tag/docker-compose-8.8).
+```bash
+cd docker-compose-8.8
+docker compose -f docker-compose-full.yaml up -d
+```
+
+The stack takes **2–5 minutes** to start. Wait until http://localhost:8070/ shows the Web Modeler login page before proceeding.
+
+> **Note:** Docker Desktop needs at least **8 GB of RAM** allocated (Settings → Resources). If containers keep crashing, increase the memory limit. For a detailed walkthrough, see the [Camunda Docker Compose quickstart](https://docs.camunda.io/docs/self-managed/quickstart/developer-quickstart/docker-compose).
 
 ### 2. Clone and Build
 
@@ -58,13 +70,13 @@ mvn clean package
 
 ### 3. Run the Connector
 
-> **Note:** If you plan to use **inbound connectors** (webhooks), set `CONNECTOR_BASE_URL` first. See [Environment Variables](#environment-variables) for details.
-
 ```bash
 mvn test-compile exec:java \
   -Dexec.mainClass="io.camunda.connector.apify.LocalConnectorRuntime" \
   -Dexec.classpathScope=test
 ```
+
+> **Note:** If you only want to test the **outbound** connector, this is all you need - skip ahead to Step 4. For **inbound connectors** (webhooks), you must set `CONNECTOR_BASE_URL` first. See [Environment Variables](#environment-variables) for details.
 
 ### 4. Open Web Modeler
 
@@ -148,15 +160,25 @@ mvn clean verify jacoco:report
 
 <p align="center"><img src="docs/modeler/publish-template.png" alt="Publishing the connector template" width="75%"></p>
 
-4. Create a new **BPMN diagram**.
+4. Create a new **BPMN diagram** (Business Process Model and Notation - the visual language Camunda uses to define workflows).
 
 <p align="center"><img src="docs/modeler/create-bpmn-diagram.png" alt="Creating a new BPMN diagram" width="75%"></p>
 
-5. Design a process using the **Apify BPMN connector** as a service task.
+5. Design a process using the **Apify BPMN connector** as a service task. In Apify, an *Actor* is a serverless program (e.g., a web scraper) and a *Task* is a saved configuration of an Actor with preset inputs.
 
 <p align="center"><img src="docs/modeler/create-apify-bpmn-task.png" alt="Designing a process using the Apify BPMN connector" width="75%"></p>
 
-6. Set the connector input variables and run the process.
+6. Set the connector input variables and run the process. For a quick smoke test, use these values:
+
+   | Field | Value |
+   |-------|-------|
+   | **API Token** | *(your Apify API token from [Prerequisites](#prerequisites))* |
+   | **Operation** | `Run Actor` |
+   | **Actor** | `apify/hello-world` |
+   | **Input Body** | `={ "message": "Hello from Camunda!" }` |
+   | **Wait for Finish** | `true` |
+
+   The process should complete in ~30 seconds. For the full list of operations and settings, see [Outbound Connector](README.md#outbound-connector) in the README.
 
 <p align="center"><img src="docs/modeler/set-inputs-and-run.png" alt="Setting the connector input variables" width="75%"></p>
 
@@ -187,7 +209,7 @@ The **Run Actor** and **Run Task** API responses are wrapped in a `data` envelop
 
 <!-- TODO: Replace with the full payload example once provided -->
 
-The result variable (e.g., `previousActorRunResult`) contains the inner `data` object directly, so you access fields as `=previousActorRunResult.data.id`, `=previousActorRunResult.data.defaultDatasetId`, etc.
+The result variable (e.g., `previousActorRunResult`) contains the inner `data` object directly, so you access fields using FEEL expressions like `=previousActorRunResult.data.id`, `=previousActorRunResult.data.defaultDatasetId`, etc. FEEL (Friendly Enough Expression Language) is Camunda's expression language - the `=` prefix tells Camunda to evaluate what follows as an expression rather than a literal string. See [Common FEEL Expressions](README.md#common-feel-expressions) in the README for a quick reference.
 
 For the full response schema, see:
 - [Run Actor API](https://docs.apify.com/api/v2/act-runs-post): response for `Run Actor`
@@ -218,42 +240,19 @@ Key fields you'll use in testing:
 
 #### Activation Condition
 
-All inbound connectors include an optional **Activation Condition** field (in the "Activation details" group in the Modeler). This is a FEEL expression that filters incoming webhook events before they trigger the connector. If the expression evaluates to `true`, the event is processed normally; if it evaluates to `false`, the event is silently discarded, no process instance is created (for start events) or no correlation occurs (for intermediate/boundary events).
-
-**Why it matters:** The connector subscribes to all terminal event types at once (`SUCCEEDED`, `FAILED`, `TIMED_OUT`, `ABORTED`). Without an activation condition, *every* event creates a process instance or triggers correlation. In most workflows you only care about successful runs, so setting an activation condition avoids creating unwanted process instances for failures or timeouts.
-
-**How to configure it:**
-
-1. In the Modeler, open the **Activation details** group of any inbound connector.
-2. Enter a FEEL expression in the **Activation Condition** field. The expression has access to the `connectorData` object from the webhook payload.
-3. Leave empty to process all events (default behavior).
-
-**Common expressions:**
-
-| Expression | Behavior |
-|------------|----------|
-| *(empty)* | All events trigger the connector |
-| `=connectorData.status = "SUCCEEDED"` | Only successful runs |
-| `=connectorData.status != "ABORTED"` | Everything except aborted runs |
-| `=connectorData.eventType = "ACTOR.RUN.FAILED"` | Only failures |
+All inbound connectors include an optional **Activation Condition** - a FEEL expression that filters incoming webhook events before they trigger the connector. The connector subscribes to all terminal event types at once (`SUCCEEDED`, `FAILED`, `TIMED_OUT`, `ABORTED`), so without a condition *every* event triggers the connector. In most workflows, set `=connectorData.status = "SUCCEEDED"` to only react to successful runs. For the full list of filter expressions, see [Activation Condition](README.md#activation-condition) in the README.
 
 **Testing tips:**
 
-- To verify the activation condition is working, run an Actor that you expect to fail and confirm that no process instance is created when the condition filters for `SUCCEEDED` only.
-- Check the connector runtime logs for `Received Apify webhook payload` messages, these appear regardless of the activation condition, so you can confirm the webhook was delivered even if the condition filtered it out.
-- The condition is evaluated by the Camunda runtime *after* the connector's `triggerWebhook` method returns the `connectorData`. You do not need to implement any filtering logic in Java, Camunda handles it automatically based on the `activationCondition` BPMN property.
-
-> **Note:**  
-> - For details on the available webhook payload fields and how activation conditions work, see the [Activation Condition](README.md#activation-condition) and [Webhook Payload Structure](README.md#webhook-payload-structure) sections in the README.  
-> - For additional information about webhook dispatch events, refer to the Apify client documentation: [JavaScript](https://docs.apify.com/api/client/js/reference/interface/WebhookDispatch) | [Python](https://docs.apify.com/api/client/python/reference/class/WebhookDispatch).
+- To verify filtering, run an Actor that you expect to fail and confirm that no process instance is created when the condition filters for `SUCCEEDED` only.
+- Check the connector runtime logs for `Received Apify webhook payload` messages - these appear regardless of the activation condition, so you can confirm the webhook was delivered even if the condition filtered it out.
+- The condition is evaluated by the Camunda runtime *after* the connector's `triggerWebhook` method returns the `connectorData`. You do not need to implement any filtering logic in Java; Camunda handles it automatically based on the `activationCondition` BPMN property.
 
 ---
 
 #### Start Event
 
-The simplest inbound connector, each incoming webhook creates a new process instance. No correlation needed.
-
-**Typical flow:**
+The simplest inbound connector - each incoming webhook creates a new process instance. No correlation needed.
 
 ```mermaid
 graph LR
@@ -281,13 +280,7 @@ For full configuration details, see [Start Event](README.md#start-event) in the 
 
 #### Message Start Event
 
-The Message Start Event works similarly to the plain Start Event, each incoming webhook creates a new process instance, but it adds Camunda's **message correlation** mechanism on top. This prevents duplicate process instances for the same correlation key and allows you to start **embedded subprocesses** from an Apify event.
-
-**When to use instead of Start Event:**
-- You need deduplication: only one process instance per unique run ID
-- You want to trigger an embedded subprocess inside an already-running process
-
-**Typical flow:**
+Like the Start Event, but adds Camunda's **message correlation** mechanism to prevent duplicate process instances for the same correlation key and to support starting **embedded subprocesses**. See [Message Start Event](README.md#message-start-event) in the README for when to choose this over a plain Start Event.
 
 ```mermaid
 graph LR
@@ -310,7 +303,7 @@ graph LR
 
 2. Configure the connector with your Apify API token, resource type, and Actor/Task ID (same as Start Event).
 3. If you need subprocess correlation, set **Subprocess Correlation Required** to `Correlation required` and fill in the **Correlation Key (Process)** and **Correlation Key (Payload)** fields.
-4. Set the **Message ID Expression** to a unique value from the webhook payload (e.g., `=connectorData.eventData.actorRunId`). Camunda uses this ID to deduplicate messages — if a webhook with the same Message ID arrives twice, the second one is silently ignored. This prevents the same Actor run from creating duplicate process instances.
+4. Set the **Message ID Expression** to a unique value from the webhook payload (e.g., `=connectorData.eventData.actorRunId`). Camunda uses this ID to deduplicate messages - if a webhook with the same Message ID arrives twice, the second one is silently ignored. This prevents the same Actor run from creating duplicate process instances.
 <p align="center"><img src="docs/modeler/message-start-event-config.png" alt="Configuring the Message Start Event" width="75%"></p>
 
 5. **Deploy** the process (do not use Play mode for start events).
@@ -322,9 +315,7 @@ For full configuration details, see [Message Start Event](README.md#message-star
 
 #### Intermediate Catch Event
 
-The Intermediate Catch Event **pauses** the process flow and waits for a webhook from Apify before continuing. The process token sits at the catch event until the matching webhook arrives.
-
-**Typical flow:**
+The Intermediate Catch Event **pauses** the process and waits for a matching webhook from Apify before continuing. It uses **correlation keys** to match the webhook to the correct process instance - the key from the webhook payload must exactly match a process variable.
 
 ```mermaid
 graph LR
@@ -357,11 +348,7 @@ For full configuration details, see [Intermediate Catch Event](README.md#interme
 
 #### Boundary Event
 
-A Boundary Event is **attached to an activity** (e.g., a user task or subprocess) and fires when a matching webhook arrives **while that activity is still running**. Unlike the Intermediate Catch Event, it does not pause the flow, it reacts to an external signal alongside or instead of the activity it is attached to.
-
-**When to use:**
-- **Interrupting**: cancel a running activity when an Apify run fails, times out, or completes (e.g., abort a manual review task when the scrape finishes)
-- **Non-interrupting**: spawn a parallel path without stopping the activity (e.g., send a progress notification while a long-running task continues)
+A Boundary Event is **attached to an activity** (e.g., a user task or subprocess) and fires when a matching webhook arrives **while that activity is still running**. It can be **interrupting** (terminates the activity) or **non-interrupting** (activity continues). See [Boundary Event](README.md#boundary-event) in the README for when to use each variant.
 
 **Example flow (interrupting):**
 
@@ -386,8 +373,6 @@ graph LR
 
 If the fast Actor finishes while the slow Actor is still running, the boundary event interrupts the slow Actor and redirects the flow to a cancellation path.
 
-> **Tip:** If you need the run results (dataset, key-value store) after the Apify event, use the [Async Execution with Parallel Gateway](README.md#async-execution-with-parallel-gateway) pattern with an Intermediate Catch Event instead. The Boundary Event pattern is best when you want to **react** to an event (failure, timeout, status change) rather than **collect** its output.
-
 **Setting it up:**
 
 1. In the BPMN diagram, attach a **Boundary Event** to the target activity (e.g., a user task or service task). Then apply the **Apify Boundary Event Connector** template.
@@ -410,65 +395,19 @@ For full configuration details, see [Boundary Event](README.md#boundary-event) i
 
 #### Webhook Payload and Correlation
 
-Both the Intermediate Catch Event and Boundary Event connectors operate within a **running** process and require **correlation keys** to match an incoming webhook to the correct process instance.
+Both the Intermediate Catch Event and Boundary Event connectors require **correlation keys** to match an incoming webhook to the correct waiting process instance. The key fields you'll use for correlation are:
 
-**Understanding the webhook payload:**
+| Webhook field | Typical use |
+|---------------|-------------|
+| `connectorData.runId` | Correlation Key (Payload) - match against the run ID from a previous outbound step |
+| `connectorData.status` | Check whether the run succeeded, failed, or timed out |
+| `connectorData.defaultDatasetId` | Pass to a subsequent Get Dataset Items step |
 
-When Apify sends a webhook, the connector receives this payload structure:
+**Correlation Key (Process)** reads from a process variable (e.g., `=previousActorRunResult.data.id`), and **Correlation Key (Payload)** reads from the webhook (e.g., `=connectorData.runId`). When the webhook arrives, Camunda compares these two values - if they match, the process resumes. If they don't match exactly, the process stays stuck waiting.
 
-```json
-{
-  "connectorData": {
-    "eventType": "ACTOR.RUN.SUCCEEDED",
-    "userId": "user1234",
-    "createdAt": "2026-01-03T12:00:00.000Z",
-    "runId": "efgh5678",
-    "status": "SUCCEEDED",
-    "actorId": "abcd1234",
-    "defaultDatasetId": "d9E0f1G2h3I4j5K6",
-    "eventData": {
-      "actorId": "abcd1234",
-      "actorRunId": "efgh5678"
-    },
-    "resource": {
-      "id": "efgh5678",
-      "status": "SUCCEEDED",
-      "stats": { "..." },
-      "options": { "..." },
-      "..."
-    }
-  },
-  "request": {
-    "body": {
-      "eventType": "ACTOR.RUN.SUCCEEDED",
-      "resource": { "..." }
-    },
-    "headers": { "..." }
-  }
-}
-```
+For the full payload schema and all available fields, see [Webhook Payload Structure](README.md#webhook-payload-structure) in the README.
 
-> **Note:** The `connectorData.resource` field contains the **same Actor Run object** that the outbound Run Actor / Run Task operations return (the `data` envelope contents described [above](#outbound-connector)). This means you can access fields like `id`, `status`, `defaultDatasetId`, and `defaultKeyValueStoreId` directly from the webhook payload without making a separate API call.
-
-For more info on the raw Apify webhook payload and available variables, see the [Default payload example](https://docs.apify.com/platform/integrations/webhooks/actions#default-payload-example) in the Apify docs.
-
-**How correlation works:**
-
-Correlation keys tell Camunda which waiting process instance should receive the webhook. You set two values that must match:
-
-- **Correlation Key (Process)**: a FEEL expression that reads from a process variable, e.g., `=previousActorRunResult.data.id` (the Actor run ID saved by a previous outbound step)
-- **Correlation Key (Payload)**: a FEEL expression that reads from the incoming webhook, e.g., `=connectorData.runId`
-
-When the webhook arrives, Camunda compares these two values. If they match, the correct process instance resumes. If they don't match exactly, the process stays stuck waiting.
-
-**Result Expression (optional):**
-
-The **Result Expression** is not required. If omitted, the full webhook payload is stored as-is in the result variable. When provided, it acts as a FEEL transformation that lets you extract, rename, or restructure fields before they are stored as process variables. This is useful for keeping your process variables clean and only carrying forward the data you need.
-
-Examples:
-- `={ datasetId: connectorData.defaultDatasetId, status: connectorData.status }`: extract only specific fields into named variables
-- `={ result: connectorData }`: wrap the connector data under a single key
-- `={ runId: connectorData.runId, items: connectorData.resource }`: combine fields from different parts of the payload
+**Debugging correlation mismatches:** If your process is stuck at a catch or boundary event, open **Camunda Operate** (http://localhost:8088/), inspect the process variable value, and compare it with the `connectorData.runId` in the connector runtime logs. The most common issue is a mismatch between the variable name used in the outbound result mapping and the FEEL expression in the correlation key.
 
 ---
 
@@ -497,6 +436,18 @@ Once your process is configured, you need to deploy or play it:
 4. Optionally click **Save scenario** to store this run. You can rerun saved scenarios later and update them as the process evolves. The coverage indicator shows what percentage of your process flow nodes are covered by saved scenarios (see [Scenario coverage](https://docs.camunda.io/docs/components/modeler/web-modeler/play-your-process/#scenario-coverage)).
 
 <p align="center"><img src="docs/operate/select-finished.png" alt="Play mode: completed instance with variables" width="75%"></p>
+
+---
+
+## Contributing Workflow
+
+1. **Fork** the repository and create a feature branch from `main`.
+2. Make your changes and ensure the build passes: `mvn clean verify`.
+3. Write or update tests for any new functionality.
+4. Open a **Pull Request** against `main` with a clear description of what changed and why.
+5. A maintainer will review your PR - address any feedback and keep the branch up to date with `main`.
+
+> **Tip:** Check the [GitHub Issues](https://github.com/apify/apify-camunda-integration/issues) for open tasks. Issues labeled `good first issue` are a great starting point.
 
 ---
 
@@ -586,14 +537,24 @@ graph TD
 
 ### Troubleshooting
 
-#### Common Development Issues
+#### Environment Issues
+
+| Issue | Solution |
+|-------|----------|
+| Docker Compose fails / containers crash | Ensure Docker Desktop has at least **8 GB RAM** allocated (Settings → Resources). Run `docker compose ps` to identify failing containers. |
+| Build fails with "Unsupported class file major version 65" | Java 21 is required. Check with `java -version` and ensure `JAVA_HOME` points to a Java 21 installation. |
+| Port already in use (8070, 8088, 9200, etc.) | Stop the conflicting service, or update the port mapping in `docker-compose-full.yaml`. |
+| `mvn clean package` fails with dependency errors | Check internet connectivity. Try `mvn clean package -U` to force-update dependencies. |
+
+#### Connector Issues
 
 | Issue | Solution |
 |-------|----------|
 | Webhook not received | Ensure ngrok is running and `CONNECTOR_BASE_URL` is set to the ngrok URL |
 | Process not visible in Operate | Check the **Finished** filter - completed processes may not show in default view |
+| Process stuck at Intermediate Catch Event | Correlation keys don't match. In Operate, inspect the process variable value and compare it with `connectorData.runId` in the connector runtime logs. |
 | Connector crashes on startup | Ensure `CONNECTOR_BASE_URL` environment variable is set |
-| `ProcessDefinitionImporter` errors | Ensure `audience=orchestration-api` in config (not `zeebe-api`) |
+| `ProcessDefinitionImporter` errors | Ensure `audience=orchestration-api` in config (not `zeebe-api`). See [`application.properties`](src/test/resources/application.properties). |
 | `Failed to apply credentials` (400) | Check OAuth client credentials match Keycloak config |
 | gRPC connection failed | Ensure `grpc-address` uses `grpc://` protocol (not `http://`) |
 
