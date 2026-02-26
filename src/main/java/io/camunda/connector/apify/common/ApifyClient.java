@@ -14,6 +14,8 @@ import org.apache.hc.core5.http.Method;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.net.URIBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -26,7 +28,10 @@ import java.nio.charset.StandardCharsets;
  */
 public class ApifyClient implements AutoCloseable {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApifyClient.class);
     private static final String APIFY_API_URL = "https://api.apify.com";
+
+    private static final int HTTP_NOT_FOUND = 404;
 
     // Exponential backoff constants
     private static final double DEFAULT_EXP_BACKOFF_INTERVAL = 1.0; // seconds
@@ -514,14 +519,23 @@ public class ApifyClient implements AutoCloseable {
 
     /**
      * Deletes a webhook from Apify by its ID.
-     * 
+     * DELETE is idempotent: a 404 means the webhook is already gone, which is treated as success.
+     *
      * @param authToken The authentication token
      * @param webhookId The ID of the webhook to delete
-     * @return ResponseResult containing the deletion confirmation
-     * @throws IOException if the request fails
+     * @return ResponseResult containing the deletion confirmation, or null if the webhook was already deleted (404)
+     * @throws IOException if the request fails with a non-404 error
      */
     public ResponseResult deleteWebhook(String authToken, String webhookId) throws IOException {
-        return executeRequest(Method.DELETE, "/v2/webhooks/" + webhookId, authToken, null);
+        try {
+            return executeRequest(Method.DELETE, "/v2/webhooks/" + webhookId, authToken, null);
+        } catch (HttpRequestException e) {
+            if (e.getStatusCode() == HTTP_NOT_FOUND) {
+                LOGGER.info("Webhook {} already deleted, treating as success.", webhookId);
+                return null;
+            }
+            throw e;
+        }
     }
 
     /**
