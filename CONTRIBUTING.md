@@ -489,36 +489,68 @@ mvn clean package -Dgenerate.templates=true
 
 ### Camunda Architecture
 
-The Camunda platform consists of several services:
+The `docker-compose-full.yaml` runs the full Camunda 8.8 stack. The diagram below is complex, but it's here just to give you an overview of how everything connects internally and how your **local Connector Runtime** fits in:
 
 ```mermaid
 graph TD
-    CR["Connector Runtime<br/>(LocalConnectorRuntime)"]
-    CR --> KC
-    CR --> OS
+    subgraph docker ["Docker Compose Stack (docker-compose-full.yaml)"]
+        KC["Keycloak :18080<br/>OAuth2 / OIDC"]
+        ID["Identity :8084<br/>User and role management"]
+        OC["Orchestration Cluster<br/>(Zeebe + Operate + Tasklist)<br/>gRPC :26500 | REST :8088"]
+        ES["Elasticsearch :9200"]
+        WM["Web Modeler :8070 :8060<br/>(webapp + restapi + websockets)"]
+        DC["Connectors :8086<br/>(default bundle, replaced locally)"]
+        OP["Optimize :8083"]
+        CO["Console :8087"]
+        MP["Mailpit :8075<br/>(dev email)"]
+        PG["PostgreSQL x2<br/>(Identity/Keycloak + Web Modeler)"]
 
-    KC["<b>Keycloak</b> :18080<br/><br/>Realm: camunda-platform<br/>Admin: admin/admin<br/><br/>OAuth Clients:<br/>• connectors<br/>• orchestration<br/>• console"]
+        KC --> PG
+        ID --> KC
+        ID --> PG
+        OC --> ES
+        OC --> KC
+        OC --> ID
+        WM --> PG
+        WM --> KC
+        WM --> ID
+        WM --> MP
+        WM -->|"deploy process"| OC
+        DC --> OC
+        DC --> KC
+        OP --> ES
+        OP --> ID
+        CO --> KC
+        CO --> ID
+    end
 
-    OS["<b>Orchestration Service</b><br/>(Zeebe + Operate + Tasklist)<br/><br/>gRPC API: localhost:26500<br/>REST API: localhost:8088<br/>Audience: orchestration-api"]
-    OS --> ES
+    CR["Your Connector Runtime :9898<br/>(LocalConnectorRuntime)"]
+    CR -->|"1. OAuth token<br/>client_id=connectors"| KC
+    CR -->|"2. gRPC :26500<br/>job worker (outbound)"| OC
+    CR -->|"3. REST :8088<br/>process definitions (inbound)"| OC
+    CR -->|"4. HTTP calls to<br/>api.apify.com"| AP
 
-    ES["<b>Elasticsearch</b> :9200"]
+    AP["Apify Platform"]
+    AP -->|"5. Webhook POST<br/>to :9898 (via ngrok)"| CR
+
+    DEV["Developer"]
+    DEV -->|"design processes"| WM
+    DEV -->|"monitor instances"| OC
 ```
 
-**Components:**
+> **Note:** The Docker stack includes a default `connectors` service (:8086) with Camunda's built-in connector bundle. When developing locally, your `LocalConnectorRuntime` (:9898) runs **outside** Docker and connects to the same Orchestration Cluster directly. Both can run simultaneously without conflict since they use different ports.
 
-- **Orchestration Service**: Core workflow engine containing:
-  - **Zeebe**: Executes BPMN processes, handles job workers, manages process state
-  - **Operate**: Web UI for monitoring processes and investigating incidents
-  - **Tasklist**: Web UI for managing human tasks
+**Key connections for troubleshooting:**
 
-- **Keycloak**: Identity provider for OAuth 2.0 / OIDC authentication
+| Connection | Protocol | What it does | Related config |
+|-----------|----------|-------------|---------------|
+| Connector → Keycloak | HTTP (:18080) | Acquires OAuth token with `audience=orchestration-api` | `camunda.client.auth.*` |
+| Connector → Zeebe | gRPC (:26500) | Picks up outbound jobs, reports results | `camunda.client.grpc-address` |
+| Connector → Operate REST | HTTP (:8088) | Imports process definitions for inbound connectors | `camunda.client.rest-address` |
+| Connector → Apify | HTTPS | Outbound API calls (run Actor, get dataset, etc.) | Apify API token |
+| Apify → Connector | HTTPS → :9898 | Inbound webhook events (via ngrok in dev) | `CONNECTOR_BASE_URL` |
 
-- **Elasticsearch**: Stores process execution data for Operate and Tasklist
-
-- **Web Modeler**: Browser-based BPMN diagram editor
-
-- **Connector Runtime**: Executes connector logic (outbound API calls, inbound webhooks)
+> **Note:** For the full OAuth client table and endpoint details, see [`src/test/resources/application.properties`](src/test/resources/application.properties).
 
 ### Service URLs
 
