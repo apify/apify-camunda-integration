@@ -207,8 +207,6 @@ The **Run Actor** and **Run Task** API responses are wrapped in a `data` envelop
 }
 ```
 
-<!-- TODO: Replace with the full payload example once provided -->
-
 The result variable (e.g., `previousActorRunResult`) contains the inner `data` object directly, so you access fields using FEEL expressions like `=previousActorRunResult.data.id`, `=previousActorRunResult.data.defaultDatasetId`, etc. FEEL (Friendly Enough Expression Language) is Camunda's expression language, the `=` prefix tells Camunda to evaluate what follows as an expression rather than a literal string. See [Common FEEL Expressions](README.md#common-feel-expressions) in the README for a quick reference.
 
 For the full response schema, see:

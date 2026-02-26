@@ -82,7 +82,7 @@ Start a new execution of an Actor.
 |---------|-------------|
 | **Operation** | Select `Run Actor` |
 | **Actor** | The Actor name or ID (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`) |
-| **Input Body** | *(Optional)* JSON input configuration for the run (e.g., `= { "message": "Hello from Camunda!" }`) |
+| **Input Body** | *(Optional)* JSON input configuration for the run (e.g., `={ "message": "Hello from Camunda!" }`) |
 | **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
 | **Timeout (seconds)** | Maximum duration for the run (optional) |
 | **Memory (MB)** | Memory allocation (optional). Dropdown: 128, 256, 512, 1024, 2048, 4096, 8192, 16384, or 32768 MB |
@@ -305,7 +305,7 @@ This makes it suited for a different use case than async execution:
 ```
 
 If the async Actor run fails while the large scrape is still running, the boundary event interrupts the scrape and redirects the flow to a failure-handling path.
- 
+
 > **Tip:** If you need the run results (dataset, key-value store) after the Apify event, use the [Async Execution with Parallel Gateway](#async-execution-with-parallel-gateway) pattern instead. The boundary event pattern is best when you want to **react** to an event (failure, timeout, status change) rather than **collect** its output.
 
 ---
