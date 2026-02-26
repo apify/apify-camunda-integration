@@ -175,7 +175,7 @@ mvn clean verify jacoco:report
    | **API Token** | *(your Apify API token from [Prerequisites](#prerequisites))* |
    | **Operation** | `Run Actor` |
    | **Actor** | `apify/hello-world` |
-   | **Input Body** | `={ "message": "Hello from Camunda!" }` |
+   | **Input Body** | *(Optional)* `={ "message": "Hello from Camunda!" }` |
    | **Wait for Finish** | `true` |
 
    The process should complete in ~30 seconds. For the full list of operations and settings, see [Outbound Connector](README.md#outbound-connector) in the README.
@@ -257,7 +257,7 @@ The simplest inbound connector, each incoming webhook creates a new process inst
 ```mermaid
 graph LR
     subgraph Apify
-        A([Webhook Trigger])
+        AR[Actor Run] -->|finished| A([Webhook Trigger])
     end
     subgraph Camunda
         B([Start Event]) --> C[Process Data] --> D([End])
@@ -285,10 +285,10 @@ Like the Start Event, but adds Camunda's **message correlation** mechanism to pr
 ```mermaid
 graph LR
     subgraph Apify
-        W([Webhook Trigger])
+        AR[Actor Run] -->|finished| W([Webhook Trigger])
     end
     subgraph Camunda
-        B(["Message Start Event<br/><i>Message ID = actorRunId</i>"])
+        B(["Message Start Event<br/>Message ID = actorRunId"])
         B --> C[Process Data]
         C --> D([End])
     end
@@ -326,9 +326,9 @@ graph LR
         D --> E([End])
     end
     subgraph Apify
-        W([Webhook Trigger])
+        AR[Actor Run] -->|finished| W([Webhook Trigger])
     end
-    B -.->|starts run| W
+    B -.->|starts run| AR
     W -.->|correlates with run ID| C
 ```
 
@@ -365,9 +365,9 @@ graph LR
         BE --> D([Slow Actor<br/>Cancelled by Boundary])
     end
     subgraph Apify
-        W([Webhook Trigger:<br/>Fast Actor])
+        AR[Fast Actor Run] -->|finished| W([Webhook Trigger])
     end
-    B -.->|starts run| W
+    B -.->|starts run| AR
     W -.->|correlates with<br/>fastActorRes.data.id| BE
 ```
 

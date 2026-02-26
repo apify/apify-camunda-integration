@@ -1,6 +1,6 @@
 # Apify Camunda Connector
 
-Integrate [Apify](https://apify.com/) web scraping and automation capabilities into your **Camunda 8** workflows. This connector enables you to run Actors, execute tasks, and retrieve data from Apify directly within your BPMN processes.
+Integrate [Apify](https://apify.com/) web scraping and automation capabilities into your **Camunda 8.8** workflows. This connector enables you to run Actors, execute tasks, and retrieve data from Apify directly within your BPMN processes.
 
 > **Compatibility:** Requires Camunda 8.8 or later.
 
@@ -68,9 +68,9 @@ All Apify Connector operations require an **Apify API Token**.
 
 The **Apify Outbound Connector** allows your BPMN process to call out to Apify to invoke operations.
 
-**Output Mapping:** Each outbound operation returns a JSON response. Use the **Result Variable** field (e.g., `runResult`) to store the full response, or use a **Result Expression** (FEEL) to extract specific fields into process variables (e.g., `={ runId: response.id, datasetId: response.defaultDatasetId }`).
+**Output Mapping:** Each outbound operation returns a JSON response. Use the **Result Variable** field (e.g., `runResult`) to store the full response, or use a **Result Expression** (FEEL) to extract specific fields into process variables (e.g., `={ runId: response.data.id, datasetId: response.data.defaultDatasetId }`).
 
-> **Note:** Throughout this document, a leading `=` in a value denotes a FEEL expression. For example, `=runResult.id` means "evaluate the FEEL expression `runResult.id`".
+> **Note:** Throughout this document, a leading `=` in a value denotes a FEEL expression. For example, `=runResult.data.id` means "evaluate the FEEL expression `runResult.data.id`".
 
 ### Run Actor
 
@@ -82,7 +82,7 @@ Start a new execution of an Actor.
 |---------|-------------|
 | **Operation** | Select `Run Actor` |
 | **Actor** | The Actor name or ID (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`) |
-| **Input Body** | *(Required)* JSON input configuration for the run (e.g., `= { "message": "Hello from Camunda!" }`) |
+| **Input Body** | *(Optional)* JSON input configuration for the run (e.g., `= { "message": "Hello from Camunda!" }`) |
 | **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
 | **Timeout (seconds)** | Maximum duration for the run (optional) |
 | **Memory (MB)** | Memory allocation (optional). Dropdown: 128, 256, 512, 1024, 2048, 4096, 8192, 16384, or 32768 MB |
@@ -129,7 +129,7 @@ Retrieve the results of an Actor run. Typically used after a `Run Actor` task ha
 | Setting | Description |
 |---------|-------------|
 | **Operation** | Select `Get dataset items` |
-| **Dataset** | The dataset ID. Use a variable from a previous run: `=runResult.defaultDatasetId` |
+| **Dataset** | The dataset ID. Use a variable from a previous run: `=runResult.data.defaultDatasetId` |
 | **Offset** | *(Optional)* Number of items to skip from the beginning. Default: `0` |
 | **Limit** | *(Optional)* Maximum number of items to return. Default: no limit |
 
@@ -142,7 +142,7 @@ Fetch a specific record from a key-value store.
 | Setting | Description |
 |---------|-------------|
 | **Operation** | Select `Get key-value store record` |
-| **Key-Value Store** | The store ID (e.g., `=runResult.defaultKeyValueStoreId`) |
+| **Key-Value Store** | The store ID (e.g., `=runResult.data.defaultKeyValueStoreId`) |
 | **Key** | The record key to retrieve (e.g., `OUTPUT`) |
 
 ### Error Handling and Retries
@@ -168,7 +168,6 @@ All inbound connectors share these common fields:
 | **Apify API Token** | Your Apify API token (see [Authentication](#authentication)) |
 | **Resource Type** | `Actor` or `Task` |
 | **Actor** / **Task** | The Actor or task name or ID to monitor (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`). The field label changes based on the selected Resource Type. |
-| **Webhook ID** | Auto-generated unique identifier for the webhook endpoint. You do not need to set this. |
 | **Activation Condition** | *(Optional)* FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). Leave empty to process all events. |
 | **Result Variable** | *(Optional)* Variable name to store the webhook payload |
 | **Result Expression** | *(Optional)* FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
@@ -235,7 +234,7 @@ Uses the [common inbound fields](#inbound-connectors), plus:
 
 | Setting | Description |
 |---------|-------------|
-| **Correlation Key (Process)** | FEEL expression for the correlation key from process variables (e.g., `=runResult.id`) |
+| **Correlation Key (Process)** | FEEL expression for the correlation key from process variables (e.g., `=runResult.data.id`) |
 | **Correlation Key (Payload)** | FEEL expression to extract the correlation key from the incoming webhook (e.g., `=connectorData.runId`) |
 | **Message ID Expression** | *(Optional)* Expression to extract a unique ID from the webhook payload for deduplication |
 | **Message TTL** | *(Optional)* Time-to-live for the message in the broker as an ISO-8601 duration (e.g., `PT1H`) |
@@ -280,13 +279,13 @@ This is the recommended pattern for handling long-running scrapes reliably. It p
 2. **Parallel Gateway (Fork)**: Split the flow immediately after the run starts.
 
 3. **Apify Intermediate Catch Event**:
-   - Set **Correlation Key (Process)** to `=runResult.id`
+   - Set **Correlation Key (Process)** to `=runResult.data.id`
    - Set **Correlation Key (Payload)** to `=connectorData.runId`
 
 4. **Parallel Gateway (Join)**: Merge the branches. The process continues only when the webhook is received.
 
 5. **Get Dataset Items**:
-   - Set **Dataset** to `=runResult.defaultDatasetId`
+   - Set **Dataset** to `=runResult.data.defaultDatasetId`
 
 ### Boundary Event for Runtime Reactions
 
@@ -328,8 +327,8 @@ Camunda uses FEEL (Friendly Enough Expression Language) for dynamic values. The 
 | Expression | Use Case |
 |------------|----------|
 | `=secrets.APIFY_TOKEN` | Accessing a secure credential |
-| `=runResult.id` | Accessing the run ID from a response |
-| `=runResult.defaultDatasetId` | Accessing the default dataset ID |
+| `=runResult.data.id` | Accessing the run ID from a response |
+| `=runResult.data.defaultDatasetId` | Accessing the default dataset ID |
 | `=connectorData.status` | Reading the status from inbound webhook payload |
 | `=connectorData.runId` | Reading the Run ID from inbound webhook payload |
 
