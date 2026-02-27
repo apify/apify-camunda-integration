@@ -65,7 +65,7 @@ class ApifyInboundExecutableIntegrationTest {
         expectedCallbackUrl = buildExpectedCallbackUrl(baseUrl, TEST_INBOUND_CONTEXT);
 
         executable = new ApifyInboundExecutable();
-        apifyClient = new ApifyClient();
+        apifyClient = new ApifyClient(apifyToken);
         mockContext = createMockContext();
 
         LOGGER.info("=== Integration Test Setup ===");
@@ -78,7 +78,7 @@ class ApifyInboundExecutableIntegrationTest {
         if (createdWebhookId != null && apifyToken != null) {
             try {
                 LOGGER.info("Cleaning up webhook: {}", createdWebhookId);
-                apifyClient.deleteWebhook(apifyToken, createdWebhookId);
+                apifyClient.deleteWebhook(createdWebhookId);
                 LOGGER.info("Webhook cleaned up successfully");
             } catch (Exception e) {
                 LOGGER.error("Failed to clean up webhook: {}", e.getMessage());
@@ -99,7 +99,7 @@ class ApifyInboundExecutableIntegrationTest {
         executable.activate(mockContext);
 
         LOGGER.info("Step 2: Verifying webhook was created");
-        String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+        String webhooksJson = apifyClient.listWebhooks().getResponseBody();
         JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
 
         String webhookId = findWebhookByUrl(webhooks, expectedCallbackUrl);
@@ -113,7 +113,7 @@ class ApifyInboundExecutableIntegrationTest {
         executable.deactivate();
 
         LOGGER.info("Step 4: Verifying webhook was deleted");
-        String webhooksAfterJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+        String webhooksAfterJson = apifyClient.listWebhooks().getResponseBody();
         JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
 
         String webhookIdAfter = findWebhookByUrl(webhooksAfter, expectedCallbackUrl);

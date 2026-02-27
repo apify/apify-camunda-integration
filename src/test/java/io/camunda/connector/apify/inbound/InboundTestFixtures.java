@@ -21,21 +21,12 @@ import java.util.Map;
  */
 public final class InboundTestFixtures {
 
-    /**
-     * Shared ObjectMapper instance for all tests.
-     */
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    /**
-     * Valid webhook creation response from Apify API.
-     */
     public static final String VALID_WEBHOOK_RESPONSE = """
             {"data":{"id":"webhook-123"}}
             """;
 
-    /**
-     * Private constructor to prevent instantiation.
-     */
     private InboundTestFixtures() {
     }
 
@@ -61,9 +52,6 @@ public final class InboundTestFixtures {
 
     /**
      * Creates a mock WebhookProcessingPayload with the specified body.
-     *
-     * @param body The webhook body as a string.
-     * @return A mocked WebhookProcessingPayload.
      */
     public static WebhookProcessingPayload createMockPayload(String body) {
         WebhookProcessingPayload payload = mock(WebhookProcessingPayload.class);
@@ -75,11 +63,6 @@ public final class InboundTestFixtures {
 
     /**
      * Creates a mock WebhookProcessingPayload with custom headers and params.
-     *
-     * @param body    The webhook body as a string.
-     * @param headers The HTTP headers.
-     * @param params  The query parameters.
-     * @return A mocked WebhookProcessingPayload.
      */
     public static WebhookProcessingPayload createMockPayload(
             String body, Map<String, String> headers, Map<String, String> params) {
@@ -90,162 +73,97 @@ public final class InboundTestFixtures {
         return payload;
     }
 
-    /**
-     * Default mock initializer for ApifyClient that sets up successful webhook operations.
-     *
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> defaultActorClientMock() {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
             when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-            when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
+            when(mock.createWebhook(anyString())).thenReturn(createResult);
         };
     }
 
-    /**
-     * Mock initializer for ApifyClient that returns an existing webhook with a custom ID.
-     *
-     * @param webhookId The webhook ID to return.
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> webhookCreationMockWithId(String webhookId) {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
             when(createResult.getResponseBody()).thenReturn(
                     String.format("{\"data\":{\"id\":\"%s\"}}", webhookId));
-            when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
+            when(mock.createWebhook(anyString())).thenReturn(createResult);
         };
     }
 
-    /**
-     * Mock initializer for ApifyClient that fails webhook creation.
-     *
-     * @param errorMessage The error message to throw.
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> createWebhookFailsMock(String errorMessage) {
         return (mock, ctx) -> {
-            when(mock.createWebhook(anyString(), anyString()))
+            when(mock.createWebhook(anyString()))
                     .thenThrow(new IOException(errorMessage));
         };
     }
 
-    /**
-     * Mock initializer for ApifyClient with full lifecycle support (create and
-     * delete).
-     *
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> fullLifecycleActorMock() {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult responseResult = mock(ApifyClient.ResponseResult.class);
             when(responseResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-            when(mock.createWebhook(anyString(), anyString())).thenReturn(responseResult);
-            when(mock.deleteWebhook(anyString(), anyString())).thenReturn(responseResult);
+            when(mock.createWebhook(anyString())).thenReturn(responseResult);
+            when(mock.deleteWebhook(anyString())).thenReturn(responseResult);
         };
     }
 
-    /**
-     * Mock initializer for ApifyClient where delete fails.
-     *
-     * @param errorMessage The error message for delete failure.
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> deleteWebhookFailsMock(String errorMessage) {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult responseResult = mock(ApifyClient.ResponseResult.class);
             when(responseResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-            when(mock.createWebhook(anyString(), anyString())).thenReturn(responseResult);
-            when(mock.deleteWebhook(anyString(), anyString()))
+            when(mock.createWebhook(anyString())).thenReturn(responseResult);
+            when(mock.deleteWebhook(anyString()))
                     .thenThrow(new IOException(errorMessage));
         };
     }
 
-    /**
-     * Mock initializer for ApifyClient that resolves an Actor slug to a real ID
-     * and sets up successful webhook creation.
-     *
-     * @param resolvedActorId The resolved Actor ID to return from getActor.
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> actorSlugResolutionMock(String resolvedActorId) {
         return (mock, ctx) -> {
-            // Mock getActor to return the resolved ID
             ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
             when(actorResult.getStatusCode()).thenReturn(200);
             when(actorResult.getResponseBody()).thenReturn(
                     String.format("{\"data\":{\"id\":\"%s\"}}", resolvedActorId));
-            when(mock.getActor(anyString(), anyString())).thenReturn(actorResult);
+            when(mock.getActor(anyString())).thenReturn(actorResult);
 
-            // Mock webhook creation
             ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
             when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-            when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
+            when(mock.createWebhook(anyString())).thenReturn(createResult);
         };
     }
 
-    /**
-     * Mock initializer for ApifyClient that resolves a Task slug to a real ID
-     * and sets up successful webhook creation.
-     *
-     * @param resolvedTaskId The resolved Task ID to return from getTask.
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> taskSlugResolutionMock(String resolvedTaskId) {
         return (mock, ctx) -> {
-            // Mock getTask to return the resolved ID
             ApifyClient.ResponseResult taskResult = mock(ApifyClient.ResponseResult.class);
             when(taskResult.getStatusCode()).thenReturn(200);
             when(taskResult.getResponseBody()).thenReturn(
                     String.format("{\"data\":{\"id\":\"%s\"}}", resolvedTaskId));
-            when(mock.getTask(anyString(), anyString())).thenReturn(taskResult);
+            when(mock.getTask(anyString())).thenReturn(taskResult);
 
-            // Mock webhook creation
             ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
             when(createResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
-            when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
+            when(mock.createWebhook(anyString())).thenReturn(createResult);
         };
     }
 
-    /**
-     * Mock initializer for ApifyClient where Actor resolution fails.
-     *
-     * @param errorMessage The error message to throw.
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> actorResolutionFailsMock(String errorMessage) {
         return (mock, ctx) -> {
-            when(mock.getActor(anyString(), anyString()))
+            when(mock.getActor(anyString()))
                     .thenThrow(new IOException(errorMessage));
         };
     }
 
-    /**
-     * Mock initializer for ApifyClient where Task resolution fails.
-     *
-     * @param errorMessage The error message to throw.
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> taskResolutionFailsMock(String errorMessage) {
         return (mock, ctx) -> {
-            when(mock.getTask(anyString(), anyString()))
+            when(mock.getTask(anyString()))
                     .thenThrow(new IOException(errorMessage));
         };
     }
 
-    /**
-     * Mock initializer for ApifyClient where the API response is missing the data.id field.
-     *
-     * @param responseBody The JSON response body to return (missing data.id).
-     * @return A MockInitializer for ApifyClient.
-     */
     public static MockedConstruction.MockInitializer<ApifyClient> actorResolutionMissingIdMock(String responseBody) {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
             when(actorResult.getStatusCode()).thenReturn(200);
             when(actorResult.getResponseBody()).thenReturn(responseBody);
-            when(mock.getActor(anyString(), anyString())).thenReturn(actorResult);
+            when(mock.getActor(anyString())).thenReturn(actorResult);
         };
     }
 }

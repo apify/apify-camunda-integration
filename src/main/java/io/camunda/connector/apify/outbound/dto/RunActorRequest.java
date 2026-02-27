@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Min;
 
 
-public record RunActorInput(
+public record RunActorRequest(
     @NotEmpty String actorId,
     JsonNode inputJson,
     @Min(value = 0, message = "timeout can't be negative") Integer timeout,

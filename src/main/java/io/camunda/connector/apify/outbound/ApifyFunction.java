@@ -5,17 +5,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.api.annotation.OutboundConnector;
 import io.camunda.connector.apify.common.ApifyClient;
+import io.camunda.connector.apify.common.ApifyClientException;
 import io.camunda.connector.apify.common.RunOptions;
 import io.camunda.connector.apify.common.URLValidator;
 import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
-import io.camunda.connector.apify.outbound.dto.GetDatasetItemsInput;
+import io.camunda.connector.apify.outbound.dto.GetDatasetItemsRequest;
 import io.camunda.connector.apify.outbound.dto.GetDatasetItemsResponse;
+import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordRequest;
+import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse;
 import io.camunda.connector.apify.outbound.dto.RunActorResponse;
 import io.camunda.connector.apify.outbound.dto.RunTaskResponse;
 import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlResponse;
-import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordInput;
-import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse;
 import io.camunda.connector.api.error.ConnectorInputException;
 import io.camunda.connector.api.outbound.OutboundConnectorContext;
 import io.camunda.connector.api.outbound.OutboundConnectorFunction;
@@ -24,8 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -36,11 +37,11 @@ import java.util.Set;
         "authentication",
         "operation",
         "apifyRequestInput",
-        "apifyRequestInput.runActorInput",
-        "apifyRequestInput.runTaskInput",
-        "apifyRequestInput.getDatasetItemsInput",
-        "apifyRequestInput.scrapeSingleUrlInput",
-        "apifyRequestInput.getKeyValueStoreRecordInput"
+        "apifyRequestInput.runActorRequest",
+        "apifyRequestInput.runTaskRequest",
+        "apifyRequestInput.getDatasetItemsRequest",
+        "apifyRequestInput.scrapeSingleUrlRequest",
+        "apifyRequestInput.getKeyValueStoreRecordRequest"
     },
     type = "io.camunda:apify-outbound:1")
 @ElementTemplate(
@@ -58,6 +59,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
   private static final Set<String> TERMINAL_STATUSES = Set.of("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT");
   private static final String WEB_CONTENT_SCRAPER_ACTOR_ID = "aYG0l9s7dbB7j3gbS";
 
+  // ---- Entry point ----
+
   @Override
   public Object execute(OutboundConnectorContext context) {
     final var connectorRequest = context.bindVariables(ApifyRequest.class);
@@ -73,8 +76,6 @@ public class ApifyFunction implements OutboundConnectorFunction {
     LOGGER.info("Operation Type {}", operationType);
     LOGGER.info("Apify Request Input {}", apifyRequestInput);
 
-    
-    // Handle different operation types
     switch (operationType) {
       case "runActor":
         return handleRunActor(authentication, apifyRequestInput);
@@ -91,51 +92,45 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  // ---- Operation handlers ----
+
   private ApifyResult handleRunActor(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    if (apifyRequestInput == null || apifyRequestInput.runActorInput() == null) {
-      throw new ConnectorInputException("Error: runActorInput is null");
+    if (apifyRequestInput == null || apifyRequestInput.runActorRequest() == null) {
+      throw new ConnectorInputException("Error: runActorRequest is null");
     }
     validateAuthentication(authentication);
 
-    var input = apifyRequestInput.runActorInput();
+    var input = apifyRequestInput.runActorRequest();
 
-    // Transform actorId to the format "username~actor-name" if it is not already in that format
     final String actorId = input.actorId().replace("/", "~");
 
-    try (ApifyClient apifyClient = new ApifyClient()) {
-      // Get actor details to validate and get build info
-      ApifyClient.ResponseResult actorResponseResult = apifyClient.getActor(actorId, authentication.token());
+    try (var apifyClient = new ApifyClient(authentication.token())) {
+      ApifyClient.ResponseResult actorResponseResult = apifyClient.getActor(actorId);
       String actorResponse = actorResponseResult.getResponseBody();
       if (actorResponse == null || actorResponse.trim().isEmpty()) {
         throw new RuntimeException("Error: Actor not found - " + actorId);
       }
 
-      // Get build information (either specified build or default)
       String buildResponse;
       if (input.buildTag() != null && !input.buildTag().trim().isEmpty()) {
-        // Get build by tag from actor's taggedBuilds
         String buildId = extractBuildIdFromTag(actorResponse, input.buildTag());
         if (buildId == null) {
           throw new RuntimeException("Error: Build tag '" + input.buildTag() + "' not found for actor " + actorId);
         }
-        buildResponse = apifyClient.getBuild(buildId, authentication.token()).getResponseBody();
+        buildResponse = apifyClient.getBuild(buildId).getResponseBody();
       } else {
-        // Get default build
-        buildResponse = apifyClient.getDefaultBuild(actorId, authentication.token()).getResponseBody();
+        buildResponse = apifyClient.getDefaultBuild(actorId).getResponseBody();
       }
 
       if (buildResponse == null || buildResponse.trim().isEmpty()) {
         throw new RuntimeException("Error: Build not found for actor " + actorId);
       }
 
-      // Extract default input values from build definition
       Map<String, Object> defaultInput = extractDefaultInputFromBuild(buildResponse);
-      
-      // Parse user input JSON (convert JsonNode to Map)
+
       Map<String, Object> userInput = new HashMap<>();
       if (input.inputJson() != null && !input.inputJson().isNull()) {
         JsonNode inputJsonNode = input.inputJson();
-        // If it's a string node, parse it first
         if (inputJsonNode.isTextual()) {
           try {
             inputJsonNode = objectMapper.readTree(inputJsonNode.asText());
@@ -145,35 +140,32 @@ public class ApifyFunction implements OutboundConnectorFunction {
         }
         userInput = convertJsonNodeToMap(inputJsonNode);
       }
-      
-      // Merge default input with user input (user input takes precedence)
+
       Map<String, Object> mergedInput = new HashMap<>(defaultInput);
         mergedInput.putAll(userInput);
-      
-      // Convert merged input back to JSON
+
       String mergedInputJson = mapToJson(mergedInput);
-      
-      // Run the actor with merged input and parameters
+
       var runOptions = new RunOptions(
         input.timeout(),
         input.memory(),
         input.buildTag(),
-        null // Don't wait for finish initially
+        null
       );
       ApifyClient.ResponseResult runResponseResult = apifyClient.runActor(
-        authentication.token(),
         actorId,
         mergedInputJson,
         runOptions
       );
       String response = runResponseResult.getResponseBody();
-      
-      // If waitForFinish is true, poll for completion
+
       if (Boolean.TRUE.equals(input.waitForFinish())) {
-        response = pollRunStatus(apifyClient, response, authentication.token());
+        response = pollRunStatus(apifyClient, response);
       }
-      
+
       return new RunActorResponse(response);
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("run actor", e);
     } catch (Exception e) {
       LOGGER.error("Failed to run actor: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to run actor - " + e.getMessage(), e);
@@ -182,56 +174,51 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
   private ApifyResult handleRunTask(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     LOGGER.info("Handling runTask operation");
-    if (apifyRequestInput == null || apifyRequestInput.runTaskInput() == null) {
-      throw new ConnectorInputException("Error: runTaskInput is null");
+    if (apifyRequestInput == null || apifyRequestInput.runTaskRequest() == null) {
+      throw new ConnectorInputException("Error: runTaskRequest is null");
     }
     validateAuthentication(authentication);
 
-    var input = apifyRequestInput.runTaskInput();
+    var input = apifyRequestInput.runTaskRequest();
 
-    // Transform taskId to the format "username~task-name" if it is not already in that format
     final String taskId = input.taskId().replace("/", "~");
 
-    try (ApifyClient apifyClient = new ApifyClient()) {
-      // Check if task exists
-      String taskResponse = apifyClient.getTask(taskId, authentication.token()).getResponseBody();
+    try (var apifyClient = new ApifyClient(authentication.token())) {
+      String taskResponse = apifyClient.getTask(taskId).getResponseBody();
       if (taskResponse == null || taskResponse.trim().isEmpty()) {
         throw new RuntimeException("Error: Task not found - " + taskId);
       }
 
-      // Use input JSON if provided, otherwise use task's default input
       String inputJson = null;
       if (input.inputJson() != null && !input.inputJson().isNull()) {
         JsonNode inputJsonNode = input.inputJson();
-        // If it's a string node, use it directly; otherwise serialize the node
         if (inputJsonNode.isTextual()) {
           inputJson = inputJsonNode.asText();
         } else {
           inputJson = objectMapper.writeValueAsString(inputJsonNode);
         }
       }
-      
-      // Run the task with parameters
+
       var runOptions = new RunOptions(
         input.timeout(),
         input.memory(),
         input.buildTag(),
-        null // Don't wait for finish initially
+        null
       );
       ApifyClient.ResponseResult runResponseResult = apifyClient.runTask(
-        authentication.token(),
         taskId,
         inputJson,
         runOptions
       );
       String response = runResponseResult.getResponseBody();
-      
-      // If waitForFinish is true, poll for completion
+
       if (Boolean.TRUE.equals(input.waitForFinish())) {
-        response = pollRunStatus(apifyClient, response, authentication.token());
+        response = pollRunStatus(apifyClient, response);
       }
-      
+
       return new RunTaskResponse(response);
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("run task", e);
     } catch (Exception e) {
       LOGGER.error("Failed to run task: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to run task - " + e.getMessage(), e);
@@ -239,25 +226,26 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult handleGetDatasetItems(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    GetDatasetItemsInput datasetInput = apifyRequestInput.getDatasetItemsInput();
-    
+    GetDatasetItemsRequest datasetInput = apifyRequestInput.getDatasetItemsRequest();
+
     if (datasetInput == null) {
-      throw new ConnectorInputException("Error: getDatasetItemsInput is null");
+      throw new ConnectorInputException("Error: getDatasetItemsRequest is null");
     }
-    
+
     validateAuthentication(authentication);
-    
-    try (ApifyClient apifyClient = new ApifyClient()) {
-      
+
+    try (var apifyClient = new ApifyClient(authentication.token())) {
+
       String datasetItems = apifyClient.getDatasetItems(
         datasetInput.datasetId(),
-        authentication.token(),
         datasetInput.offset(),
         datasetInput.limit()
       ).getResponseBody();
-      
+
       return new GetDatasetItemsResponse(datasetItems);
-      
+
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("get dataset items", e);
     } catch (Exception e) {
       LOGGER.error("Failed to get dataset items: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to get dataset items - " + e.getMessage(), e);
@@ -265,16 +253,15 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult handleScrapeSingleUrl(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    if (apifyRequestInput == null || apifyRequestInput.scrapeSingleUrlInput() == null) {
-      throw new ConnectorInputException("Error: scrapeSingleUrlInput is null");
+    if (apifyRequestInput == null || apifyRequestInput.scrapeSingleUrlRequest() == null) {
+      throw new ConnectorInputException("Error: scrapeSingleUrlRequest is null");
     }
     validateAuthentication(authentication);
 
-    var input = apifyRequestInput.scrapeSingleUrlInput();
+    var input = apifyRequestInput.scrapeSingleUrlRequest();
     URLValidator.validateUrl(input.url());
 
-    try (ApifyClient apifyClient = new ApifyClient()) {
-      // Build input for web content scraper actor
+    try (var apifyClient = new ApifyClient(authentication.token())) {
       Map<String, Object> actorInput = new HashMap<>();
       Map<String, Object> startUrlObj = new HashMap<>();
       startUrlObj.put("url", input.url());
@@ -289,7 +276,6 @@ public class ApifyFunction implements OutboundConnectorFunction {
       actorInput.put("saveMarkdown", true);
       String mergedInputJson = mapToJson(actorInput);
 
-      // Start WCC Actor
       var runOptions = new RunOptions(
         null,
         null,
@@ -297,14 +283,12 @@ public class ApifyFunction implements OutboundConnectorFunction {
         null
       );
       String runStartResponse = apifyClient.runActor(
-        authentication.token(),
         WEB_CONTENT_SCRAPER_ACTOR_ID,
         mergedInputJson,
         runOptions
       ).getResponseBody();
 
-      // Poll for finished status
-      String finalRunResponse = pollRunStatus(apifyClient, runStartResponse, authentication.token());
+      String finalRunResponse = pollRunStatus(apifyClient, runStartResponse);
       JsonNode runNode = objectMapper.readTree(finalRunResponse);
       JsonNode dataNode = runNode.path("data");
       JsonNode defaultDatasetIdNode = dataNode.isMissingNode() ? null : dataNode.path("defaultDatasetId");
@@ -312,39 +296,62 @@ public class ApifyFunction implements OutboundConnectorFunction {
         throw new RuntimeException("Error: No dataset ID returned from actor run");
       }
       String datasetId = defaultDatasetIdNode.asText();
-      
-      // Fetch first item from dataset
-      String datasetItemsJson = apifyClient.getDatasetItems(datasetId, authentication.token(), 0, 1).getResponseBody();
+
+      String datasetItemsJson = apifyClient.getDatasetItems(datasetId, 0, 1).getResponseBody();
       JsonNode itemsNode = objectMapper.readTree(datasetItemsJson);
       if (!itemsNode.isArray() || itemsNode.isEmpty()) {
         throw new RuntimeException("Error: No items found in dataset for URL: " + input.url());
       }
-      
-      // Remove text field to reduce usage of tokens if AI Agent is used in the process
+
       ObjectNode itemNode = (ObjectNode) itemsNode.get(0);
       itemNode.remove("text");
-      
+
       return new ScrapeSingleUrlResponse(itemNode.toString());
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("scrape single URL", e);
     } catch (Exception e) {
       LOGGER.error("Failed to scrape single URL: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to scrape single URL - " + e.getMessage(), e);
     }
   }
 
-  private String pollRunStatus(ApifyClient apifyClient, String runResponse, String authToken) throws IOException {
-    // Extract run ID from the response (assuming it's JSON with an "id" field)
-    // This is a simplified approach - in production you might want to use a proper JSON parser
+  private GetKeyValueStoreRecordResponse handleGetKeyValueStoreRecord(Authentication authentication, ApifyRequestInput apifyRequestInput) {
+    GetKeyValueStoreRecordRequest recordInput = apifyRequestInput.getKeyValueStoreRecordRequest();
+
+    if (recordInput == null) {
+      throw new ConnectorInputException("Error: getKeyValueStoreRecordRequest is null");
+    }
+
+    validateAuthentication(authentication);
+
+    try (var apifyClient = new ApifyClient(authentication.token())) {
+
+      ApifyClient.ResponseResult result = apifyClient.getKeyValueStoreRecord(
+        recordInput.storeId(),
+        recordInput.recordKey()
+      );
+
+      return parseKeyValueStoreResponse(result);
+
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("get key-value store record", e);
+    } catch (IOException e) {
+      LOGGER.error("Failed to get key-value store record: {}", e.getMessage(), e);
+      throw new RuntimeException("Failed to get key-value store record: " + e.getMessage(), e);
+    }
+  }
+
+  // ---- Run polling helpers ----
+
+  private String pollRunStatus(ApifyClient apifyClient, String runResponse) throws IOException {
     String runId = extractRunId(runResponse);
     if (runId == null) {
       throw new IOException("Could not extract run ID from response");
     }
-    
-    
+
     while (true) {
-      // Wait for finish automatically waits for 1 second or until the run is terminal
-        String statusResponse = apifyClient.getRunStatus(runId, authToken, 1).getResponseBody();
-        
-        // Check if run is in terminal state (simplified check)
+        String statusResponse = apifyClient.getRunStatus(runId, 1).getResponseBody();
+
         if (isRunFinished(statusResponse)) {
           return statusResponse;
         }
@@ -356,20 +363,18 @@ public class ApifyFunction implements OutboundConnectorFunction {
       if (response == null || response.trim().isEmpty()) {
         return null;
       }
-      
+
       JsonNode rootNode = objectMapper.readTree(response);
-      
-      // Look for the run ID in the data object: {"data": {"id": "runId", ...}}
+
       JsonNode dataNode = rootNode.get("data");
       if (dataNode != null && dataNode.has("id")) {
         return dataNode.get("id").asText();
       }
-      
-      // Fallback: look for any "id" field at root level
+
       if (rootNode.has("id")) {
         return rootNode.get("id").asText();
       }
-      
+
       return null;
     } catch (Exception e) {
       LOGGER.warn("Failed to parse JSON response for run ID extraction: {}", e.getMessage());
@@ -382,15 +387,15 @@ public class ApifyFunction implements OutboundConnectorFunction {
       if (statusResponse == null || statusResponse.trim().isEmpty()) {
         return false;
       }
-      
+
       JsonNode rootNode = objectMapper.readTree(statusResponse);
       JsonNode dataNode = rootNode.get("data");
-      
+
       if (dataNode != null && dataNode.has("status")) {
         String status = dataNode.get("status").asText();
         return TERMINAL_STATUSES.contains(status);
       }
-      
+
       return false;
     } catch (Exception e) {
       LOGGER.warn("Failed to parse JSON response for status check: {}", e.getMessage());
@@ -398,22 +403,23 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  // ---- Actor/build helpers ----
+
   private String extractBuildIdFromTag(String actorResponse, String buildTag) {
     try {
       JsonNode rootNode = objectMapper.readTree(actorResponse);
-      // Check if taggedBuilds is nested under "data" property
       JsonNode dataNode = rootNode.path("data");
-      JsonNode taggedBuildsNode = dataNode.isMissingNode() 
-          ? rootNode.path("taggedBuilds") 
+      JsonNode taggedBuildsNode = dataNode.isMissingNode()
+          ? rootNode.path("taggedBuilds")
           : dataNode.path("taggedBuilds");
-      
+
       if (taggedBuildsNode.isObject()) {
         JsonNode buildTagNode = taggedBuildsNode.path(buildTag);
         if (buildTagNode.isObject() && buildTagNode.has("buildId")) {
           return buildTagNode.get("buildId").asText();
         }
       }
-      
+
       return null;
     } catch (Exception e) {
       LOGGER.warn("Failed to parse JSON response for build ID extraction: {}", e.getMessage());
@@ -423,22 +429,21 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
   private Map<String, Object> extractDefaultInputFromBuild(String buildResponse) {
     Map<String, Object> defaultInput = new HashMap<>();
-    
+
     try {
       JsonNode rootNode = objectMapper.readTree(buildResponse);
       JsonNode actorDefinitionNode = rootNode.path("actorDefinition");
-      
+
       if (actorDefinitionNode.isObject()) {
         JsonNode inputNode = actorDefinitionNode.path("input");
         if (inputNode.isObject()) {
           JsonNode propertiesNode = inputNode.path("properties");
-          
+
           if (propertiesNode.isObject()) {
-            // Iterate through each property
             propertiesNode.properties().forEach(entry -> {
               String propertyName = entry.getKey();
               JsonNode propertyNode = entry.getValue();
-              
+
               if (propertyNode.isObject() && propertyNode.has("prefill")) {
                 JsonNode prefillNode = propertyNode.get("prefill");
                 Object prefillValue = convertJsonNodeToObject(prefillNode);
@@ -451,10 +456,12 @@ public class ApifyFunction implements OutboundConnectorFunction {
     } catch (Exception e) {
       LOGGER.warn("Failed to parse JSON response for default input extraction: {}", e.getMessage());
     }
-    
+
     return defaultInput;
   }
-  
+
+  // ---- JSON / validation utilities ----
+
   private Object convertJsonNodeToObject(JsonNode node) {
     if (node.isTextual()) {
       return node.asText();
@@ -504,56 +511,38 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Translates an {@link ApifyClientException} into the appropriate Camunda exception type.
+   * User-correctable errors (400-404) become {@link ConnectorInputException};
+   * all others become {@link RuntimeException}.
+   */
+  private RuntimeException handleApifyClientException(String operation, ApifyClientException e) {
+    LOGGER.error("Failed to {}: {}", operation, e.getMessage(), e);
+    if (e.isLikelyUserError()) {
+      return new ConnectorInputException("Error: Failed to " + operation + " - " + e.getMessage(), e);
+    }
+    return new RuntimeException("Error: Failed to " + operation + " - " + e.getMessage(), e);
+  }
+
   private void validateAuthentication(Authentication authentication) {
     if (authentication == null || authentication.token() == null || authentication.token().isEmpty()) {
       throw new ConnectorInputException("Error: Authentication token is required");
     }
   }
 
-  private GetKeyValueStoreRecordResponse handleGetKeyValueStoreRecord(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    GetKeyValueStoreRecordInput recordInput = apifyRequestInput.getKeyValueStoreRecordInput();
-    
-    if (recordInput == null) {
-      throw new ConnectorInputException("Error: getKeyValueStoreRecordInput is null");
-    }
-    
-    validateAuthentication(authentication);
-    
-    try (ApifyClient apifyClient = new ApifyClient()) {
-      
-      ApifyClient.ResponseResult result = apifyClient.getKeyValueStoreRecord(
-        recordInput.storeId(),
-        recordInput.recordKey(),
-        authentication.token()
-      );
-      
-      return parseKeyValueStoreResponse(result);
-      
-    } catch (IOException e) {
-      LOGGER.error("Failed to get key-value store record: {}", e.getMessage(), e);
-      throw new RuntimeException("Failed to get key-value store record: " + e.getMessage(), e);
-    }
-  }
-
   private GetKeyValueStoreRecordResponse parseKeyValueStoreResponse(ApifyClient.ResponseResult responseResult) {
     GetKeyValueStoreRecordResponse result = new GetKeyValueStoreRecordResponse();
-    
-    // Use the content type from the HTTP response header
+
     String contentTypeFromHeader = responseResult.getContentType();
     result.setContentType(contentTypeFromHeader != null ? contentTypeFromHeader : "application/octet-stream");
-    
+
     byte[] bodyBytes = responseResult.getResponseBodyInBytes();
     if (bodyBytes == null || bodyBytes.length == 0) {
       return result;
     }
-    
-    // Decision logic: Determine if content is JSON, text, or binary (e.g., image)
-    // Strategy: Check for binary magic bytes first, then try JSON, then check if valid UTF-8 text
-    
-    // Use the content type from HTTP header to determine how to parse the response
+
     String contentType = contentTypeFromHeader != null ? contentTypeFromHeader.toLowerCase() : "application/octet-stream";
-    
-    // If content type indicates JSON, try to parse as JSON
+
     if (contentType.contains("application/json") || contentType.contains("text/json")) {
       try {
         String jsonString = responseResult.getResponseBody();
@@ -561,24 +550,20 @@ public class ApifyFunction implements OutboundConnectorFunction {
         result.setJsonValue(jsonNode);
         return result;
       } catch (Exception e) {
-        // If JSON parsing fails, fall through to text/binary handling
         LOGGER.warn("Failed to parse as JSON despite content-type: {}", e.getMessage());
       }
     }
-    
-    // If content type indicates text, treat as text
+
     if (contentType.startsWith("text/")) {
       try {
         String textValue = responseResult.getResponseBody();
         result.setTextValue(textValue);
         return result;
       } catch (Exception e) {
-        // If text conversion fails, fall through to binary
         LOGGER.warn("Failed to convert to text: {}", e.getMessage());
       }
     }
-    
-    // For binary content types or if parsing failed, return as binary
+
     result.setBase64Value(Base64.getEncoder().encodeToString(bodyBytes));
     return result;
   }

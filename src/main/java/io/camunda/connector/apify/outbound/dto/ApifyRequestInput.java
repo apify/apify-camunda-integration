@@ -5,9 +5,9 @@ import io.camunda.connector.generator.java.annotation.TemplateProperty;
 
 
 public record ApifyRequestInput(
-    @Valid @TemplateProperty(group = "apifyRequestInput") RunActorInput runActorInput,
-    @Valid @TemplateProperty(group = "apifyRequestInput") RunTaskInput runTaskInput,
-    @Valid @TemplateProperty(group = "apifyRequestInput") GetDatasetItemsInput getDatasetItemsInput,
-    @Valid @TemplateProperty(group = "apifyRequestInput") ScrapeSingleUrlInput scrapeSingleUrlInput,
-    @Valid @TemplateProperty(group = "apifyRequestInput") GetKeyValueStoreRecordInput getKeyValueStoreRecordInput
+    @Valid @TemplateProperty(group = "apifyRequestInput") RunActorRequest runActorRequest,
+    @Valid @TemplateProperty(group = "apifyRequestInput") RunTaskRequest runTaskRequest,
+    @Valid @TemplateProperty(group = "apifyRequestInput") GetDatasetItemsRequest getDatasetItemsRequest,
+    @Valid @TemplateProperty(group = "apifyRequestInput") ScrapeSingleUrlRequest scrapeSingleUrlRequest,
+    @Valid @TemplateProperty(group = "apifyRequestInput") GetKeyValueStoreRecordRequest getKeyValueStoreRecordRequest
 ) {}

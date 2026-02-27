@@ -398,7 +398,7 @@ class ApifyInboundExecutableTest {
 
                 assertThat(mockedClient.constructed()).hasSize(1);
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
-                verify(constructedClient).createWebhook(eq("test-token"), anyString());
+                verify(constructedClient).createWebhook(anyString());
             }
         }
 
@@ -438,7 +438,7 @@ class ApifyInboundExecutableTest {
                     executable.activate(context);
 
                     ApifyClient constructedClient = mockedClient.constructed().get(0);
-                    verify(constructedClient).createWebhook(eq("test-token"), anyString());
+                    verify(constructedClient).createWebhook(anyString());
 
                     ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
                     verify(context).reportHealth(healthCaptor.capture());
@@ -458,7 +458,7 @@ class ApifyInboundExecutableTest {
 
                     ApifyClient constructedClient = mockedClient.constructed().get(0);
                     ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-                    verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                    verify(constructedClient).createWebhook(payloadCaptor.capture());
 
                     // Verify idempotencyKey is included in the payload
                     String payload = payloadCaptor.getValue();
@@ -483,7 +483,7 @@ class ApifyInboundExecutableTest {
 
                     ApifyClient constructedClient = mockedClient.constructed().get(0);
                     ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-                    verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                    verify(constructedClient).createWebhook(payloadCaptor.capture());
 
                     // Pre-computed SHA-256 of "http://example.com/inbound/test-context-123:my-actor-id"
                     String payload = payloadCaptor.getValue();
@@ -531,7 +531,7 @@ class ApifyInboundExecutableTest {
 
                 assertThat(mockedClient.constructed()).hasSize(1);
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
-                verify(constructedClient).deleteWebhook(eq("test-token"), eq("webhook-123"));
+                verify(constructedClient).deleteWebhook(eq("webhook-123"));
                 verify(constructedClient).close();
             }
         }
@@ -549,7 +549,7 @@ class ApifyInboundExecutableTest {
                 executable.deactivate();
 
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
-                verify(constructedClient).deleteWebhook(eq("test-token"), eq("webhook-123"));
+                verify(constructedClient).deleteWebhook(eq("webhook-123"));
                 verify(constructedClient).close();
 
                 // Health.up from activate + Health.down from failed delete
@@ -582,7 +582,7 @@ class ApifyInboundExecutableTest {
 
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
                 verify(constructedClient).close();
-                verify(constructedClient, never()).deleteWebhook(anyString(), anyString());
+                verify(constructedClient, never()).deleteWebhook(anyString());
             }
         }
     }
@@ -603,10 +603,10 @@ class ApifyInboundExecutableTest {
 
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
                 ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-                verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                verify(constructedClient).createWebhook(payloadCaptor.capture());
 
                 // Verify slug was resolved via getActor API call
-                verify(constructedClient).getActor(eq("apify~google-search"), eq("test-token"));
+                verify(constructedClient).getActor(eq("apify~google-search"));
 
                 String payload = payloadCaptor.getValue();
 
@@ -648,11 +648,11 @@ class ApifyInboundExecutableTest {
 
                 // then - should call getActor with the tilde-normalized slug
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
-                verify(constructedClient).getActor(eq("apify~google-search"), eq("test-token"));
+                verify(constructedClient).getActor(eq("apify~google-search"));
 
                 // Verify webhook payload uses resolved ID
                 ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-                verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                verify(constructedClient).createWebhook(payloadCaptor.capture());
                 String payload = payloadCaptor.getValue();
                 assertThat(payload).contains("\"actorId\":\"E2jjCZBezvAZnX8Rb\"");
                 assertThat(payload).doesNotContain("apify~google-search");
@@ -673,11 +673,11 @@ class ApifyInboundExecutableTest {
 
                 // then - should call getTask with the tilde-normalized slug
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
-                verify(constructedClient).getTask(eq("username~my-task"), eq("test-token"));
+                verify(constructedClient).getTask(eq("username~my-task"));
 
                 // Verify webhook payload uses resolved ID and correct condition key
                 ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-                verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                verify(constructedClient).createWebhook(payloadCaptor.capture());
                 String payload = payloadCaptor.getValue();
                 assertThat(payload).contains("\"actorTaskId\":\"abc123DEF456\"");
                 assertThat(payload).doesNotContain("username~my-task");
@@ -698,12 +698,12 @@ class ApifyInboundExecutableTest {
 
                 // then - should NOT call getActor (no resolution needed)
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
-                verify(constructedClient, never()).getActor(anyString(), anyString());
-                verify(constructedClient, never()).getTask(anyString(), anyString());
+                verify(constructedClient, never()).getActor(anyString());
+                verify(constructedClient, never()).getTask(anyString());
 
                 // Verify webhook payload uses the ID as-is
                 ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-                verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                verify(constructedClient).createWebhook(payloadCaptor.capture());
                 String payload = payloadCaptor.getValue();
                 assertThat(payload).contains("\"actorId\":\"E2jjCZBezvAZnX8Rb\"");
             }
@@ -803,7 +803,7 @@ class ApifyInboundExecutableTest {
 
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
                 ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-                verify(constructedClient).createWebhook(eq("test-token"), payloadCaptor.capture());
+                verify(constructedClient).createWebhook(payloadCaptor.capture());
 
                 String payload = payloadCaptor.getValue();
                 // Should normalize the URL without double slashes
