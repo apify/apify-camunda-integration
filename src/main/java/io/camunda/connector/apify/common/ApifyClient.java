@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 /**
  * HTTP client wrapper for Apify API interactions.
@@ -43,11 +44,20 @@ public class ApifyClient implements AutoCloseable {
     private final CloseableHttpClient httpClient;
     private final String authToken;
 
+    /**
+     * Creates a new client bound to the given authentication token.
+     * A dedicated {@link CloseableHttpClient} is created and must be released
+     * by calling {@link #close()}.
+     *
+     * @param authToken The Apify API token used for all requests; must not be null
+     */
     public ApifyClient(String authToken) {
+        Objects.requireNonNull(authToken, "authToken must not be null");
         this.httpClient = HttpClients.createDefault();
         this.authToken = authToken;
     }
 
+    /** Closes the underlying HTTP client and releases its resources. */
     @Override
     public void close() throws IOException {
         if (httpClient != null) {
@@ -70,31 +80,7 @@ public class ApifyClient implements AutoCloseable {
      */
     public ResponseResult runActor(String actorId, String inputJson, RunOptions runOptions)
             throws IOException {
-        try {
-            URIBuilder builder = new URIBuilder(APIFY_API_URL)
-                    .setPath("/v2/acts/" + actorId + "/runs");
-
-            if (runOptions != null) {
-                if (runOptions.timeout != null) {
-                    builder.setParameter("timeout", runOptions.timeout.toString());
-                }
-                if (runOptions.memory != null && !runOptions.memory.isBlank()) {
-                    builder.setParameter("memory", runOptions.memory);
-                }
-                if (runOptions.build != null && !runOptions.build.isBlank()) {
-                    builder.setParameter("build", runOptions.build);
-                }
-                if (runOptions.waitForFinishSecs != null && runOptions.waitForFinishSecs > 0) {
-                    builder.setParameter("waitForFinish", runOptions.waitForFinishSecs.toString());
-                }
-            }
-
-            URI uri = builder.build();
-            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
-            return executeRequest(Method.POST, urlPath, inputJson);
-        } catch (URISyntaxException e) {
-            throw new IOException("Invalid URI for actor run request", e);
-        }
+        return executeRunRequest("/v2/acts/" + actorId + "/runs", inputJson, runOptions);
     }
 
     /**
@@ -152,31 +138,7 @@ public class ApifyClient implements AutoCloseable {
      */
     public ResponseResult runTask(String taskId, String inputJson, RunOptions runOptions)
             throws IOException {
-        try {
-            URIBuilder builder = new URIBuilder(APIFY_API_URL)
-                    .setPath("/v2/actor-tasks/" + taskId + "/runs");
-
-            if (runOptions != null) {
-                if (runOptions.timeout != null) {
-                    builder.setParameter("timeout", runOptions.timeout.toString());
-                }
-                if (runOptions.memory != null && !runOptions.memory.isBlank()) {
-                    builder.setParameter("memory", runOptions.memory);
-                }
-                if (runOptions.build != null && !runOptions.build.isBlank()) {
-                    builder.setParameter("build", runOptions.build);
-                }
-                if (runOptions.waitForFinishSecs != null && runOptions.waitForFinishSecs > 0) {
-                    builder.setParameter("waitForFinish", runOptions.waitForFinishSecs.toString());
-                }
-            }
-
-            URI uri = builder.build();
-            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
-            return executeRequest(Method.POST, urlPath, inputJson);
-        } catch (URISyntaxException e) {
-            throw new IOException("Invalid URI for task run request", e);
-        }
+        return executeRunRequest("/v2/actor-tasks/" + taskId + "/runs", inputJson, runOptions);
     }
 
     /**
@@ -322,6 +284,67 @@ public class ApifyClient implements AutoCloseable {
 
     // ---- Internal HTTP infrastructure ----
 
+    /**
+     * Builds a run URI from the given API path and options, then POSTs the input JSON.
+     * Shared by {@link #runActor} and {@link #runTask} to avoid duplicating
+     * the URI-building and option-mapping logic.
+     *
+     * @param path       The API path (e.g. "/v2/acts/{id}/runs")
+     * @param inputJson  The request body as JSON string; may be null
+     * @param runOptions Optional run parameters (timeout, memory, build, waitForFinish)
+     * @return ResponseResult from the Apify API
+     * @throws ApifyClientException if the API returns a non-success HTTP status
+     * @throws IOException if the request fails at the network level
+     */
+    private ResponseResult executeRunRequest(String path, String inputJson, RunOptions runOptions)
+            throws IOException {
+        try {
+            URIBuilder builder = new URIBuilder(APIFY_API_URL).setPath(path);
+            applyRunOptions(builder, runOptions);
+
+            URI uri = builder.build();
+            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
+            return executeRequest(Method.POST, urlPath, inputJson);
+        } catch (URISyntaxException e) {
+            throw new IOException("Invalid URI for run request: " + path, e);
+        }
+    }
+
+    /**
+     * Appends non-null {@link RunOptions} fields as query parameters to the URI builder.
+     *
+     * @param builder    The URI builder to add parameters to
+     * @param runOptions The run options; if null this method is a no-op
+     */
+    private void applyRunOptions(URIBuilder builder, RunOptions runOptions) {
+        if (runOptions == null) {
+            return;
+        }
+        if (runOptions.timeout != null) {
+            builder.setParameter("timeout", runOptions.timeout.toString());
+        }
+        if (runOptions.memory != null && !runOptions.memory.isBlank()) {
+            builder.setParameter("memory", runOptions.memory);
+        }
+        if (runOptions.build != null && !runOptions.build.isBlank()) {
+            builder.setParameter("build", runOptions.build);
+        }
+        if (runOptions.waitForFinishSecs != null && runOptions.waitForFinishSecs > 0) {
+            builder.setParameter("waitForFinish", runOptions.waitForFinishSecs.toString());
+        }
+    }
+
+    /**
+     * Resolves the given URL path against the Apify base URL and delegates to
+     * {@link #retryWithExponentialBackoff} for execution with retries.
+     *
+     * @param method  The HTTP method (GET, POST, DELETE)
+     * @param urlPath The URL path (may include query string)
+     * @param body    The request body; null for bodiless requests
+     * @return ResponseResult from the Apify API
+     * @throws ApifyClientException if the API returns a non-success HTTP status
+     * @throws IOException if the request fails at the network level
+     */
     private ResponseResult executeRequest(Method method, String urlPath, String body)
             throws IOException {
         URI baseUri = URI.create(APIFY_API_URL);
@@ -331,6 +354,20 @@ public class ApifyClient implements AutoCloseable {
         return retryWithExponentialBackoff(method, fullUrl, body);
     }
 
+    /**
+     * Executes an HTTP request with exponential backoff retry logic.
+     * Retries on HTTP 429 (rate limit) and 5xx (server errors) up to
+     * {@link #DEFAULT_EXP_BACKOFF_RETRIES} times with delays of
+     * {@code interval * exponential^attempt} seconds (1 s, 2 s, 4 s, ...).
+     * Network-level {@link IOException}s are also retried.
+     *
+     * @param method The HTTP method
+     * @param url    The fully-qualified URL
+     * @param body   The request body; null for bodiless requests
+     * @return ResponseResult on a successful (2xx) response
+     * @throws ApifyClientException if the API returns a non-retryable or exhausted-retries HTTP error
+     * @throws IOException if the request fails at the network level after all retries
+     */
     private ResponseResult retryWithExponentialBackoff(Method method, String url, String body)
             throws IOException {
         IOException lastError = null;
@@ -338,8 +375,8 @@ public class ApifyClient implements AutoCloseable {
         for (int i = 0; i < DEFAULT_EXP_BACKOFF_RETRIES; i++) {
             try {
                 ResponseResult result = performHttpRequest(method, url, body);
-                int statusCode = result.statusCode;
-                String responseBody = result.responseBody;
+                int statusCode = result.statusCode();
+                String responseBody = result.responseBody();
 
                 if (statusCode >= 200 && statusCode < 300) {
                     return result;
@@ -369,12 +406,7 @@ public class ApifyClient implements AutoCloseable {
                 }
                 throw e;
             } catch (IOException e) {
-                ApifyClientException wrappedException = new ApifyClientException(
-                        String.format(
-                                "HTTP %s request to %s failed: %s",
-                                method, url, e.getMessage()),
-                        0, e);
-                lastError = wrappedException;
+                lastError = e;
 
                 if (i < DEFAULT_EXP_BACKOFF_RETRIES - 1) {
                     double sleepTimeSecs = DEFAULT_EXP_BACKOFF_INTERVAL * Math.pow(DEFAULT_EXP_BACKOFF_EXPONENTIAL, i);
@@ -389,7 +421,10 @@ public class ApifyClient implements AutoCloseable {
 
                     continue;
                 }
-                throw wrappedException;
+                throw new IOException(
+                        String.format("HTTP %s request to %s failed: %s",
+                                method, url, e.getMessage()),
+                        e);
             } catch (RuntimeException e) {
                 throw new IOException(
                         String.format(
@@ -408,6 +443,17 @@ public class ApifyClient implements AutoCloseable {
                         method, url, DEFAULT_EXP_BACKOFF_RETRIES));
     }
 
+    /**
+     * Performs a single HTTP request (no retries) and returns the raw response.
+     * Constructs the appropriate request object, attaches headers and optional body,
+     * then executes it via the underlying {@link CloseableHttpClient}.
+     *
+     * @param method The HTTP method (GET, POST, DELETE)
+     * @param url    The fully-qualified URL to call
+     * @param body   The JSON request body; null for bodiless requests
+     * @return ResponseResult with status code, body (as string and bytes), and content type
+     * @throws IOException if the request fails at the network level
+     */
     private ResponseResult performHttpRequest(Method method, String url, String body)
             throws IOException {
         ClassicHttpRequest request;
@@ -459,6 +505,10 @@ public class ApifyClient implements AutoCloseable {
         return httpClient.execute(null, request, responseHandler);
     }
 
+    /**
+     * Adds the standard Apify request headers: {@code Authorization} (Bearer token)
+     * and {@code x-apify-integration-platform}.
+     */
     private void addHeaders(HttpRequest request) {
         if (authToken != null && !authToken.isEmpty()) {
             request.setHeader("Authorization", "Bearer " + authToken);
@@ -482,35 +532,17 @@ public class ApifyClient implements AutoCloseable {
     // ---- Inner classes ----
 
     /**
-     * Result class to hold response status code and body.
+     * Immutable holder for an HTTP response from the Apify API.
+     *
+     * @param statusCode        The HTTP status code
+     * @param responseBody      The response body decoded as a UTF-8 string
+     * @param responseBodyInBytes The raw response body bytes
+     * @param contentType       The MIME content type (without charset parameters)
      */
-    public static class ResponseResult {
-        private final int statusCode;
-        private final String responseBody;
-        private final byte[] responseBodyInBytes;
-        private final String contentType;
-
-        ResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) {
-            this.statusCode = statusCode;
-            this.responseBody = responseBody;
-            this.responseBodyInBytes = responseBodyBytes;
-            this.contentType = contentType;
-        }
-
-        public int getStatusCode() {
-            return statusCode;
-        }
-
-        public String getResponseBody() {
-            return responseBody;
-        }
-
-        public byte[] getResponseBodyInBytes() {
-            return responseBodyInBytes;
-        }
-
-        public String getContentType() {
-            return contentType;
-        }
-    }
+    public record ResponseResult(
+            int statusCode,
+            String responseBody,
+            byte[] responseBodyInBytes,
+            String contentType
+    ) {}
 }
