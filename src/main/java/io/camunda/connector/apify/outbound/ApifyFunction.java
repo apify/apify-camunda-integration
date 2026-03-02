@@ -57,7 +57,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
   private static final Logger LOGGER = LoggerFactory.getLogger(ApifyFunction.class);
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final Set<String> TERMINAL_STATUSES = Set.of("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT");
-  private static final int MAX_POLL_DURATION_SECONDS = 3600;
+  private static final int MAX_POLL_DURATION_SECONDS = 300;
+  private static final int POLL_INTERVAL_MS = 2000;
   private static final String WEB_CONTENT_SCRAPER_ACTOR_ID = "aYG0l9s7dbB7j3gbS";
 
   // ---- Entry point ----
@@ -336,7 +337,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
     } catch (ApifyClientException e) {
       throw handleApifyClientException("get key-value store record", e);
-    } catch (IOException e) {
+    } catch (Exception e) {
       LOGGER.error("Failed to get key-value store record: {}", e.getMessage(), e);
       throw new RuntimeException("Failed to get key-value store record: " + e.getMessage(), e);
     }
@@ -359,6 +360,13 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
       if (isRunFinished(statusResponse)) {
         return statusResponse;
+      }
+
+      try {
+        Thread.sleep(POLL_INTERVAL_MS);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Polling interrupted for run " + runId, ie);
       }
     }
 
@@ -440,7 +448,10 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
     try {
       JsonNode rootNode = objectMapper.readTree(buildResponse);
-      JsonNode actorDefinitionNode = rootNode.path("actorDefinition");
+      JsonNode dataNode = rootNode.path("data");
+      JsonNode actorDefinitionNode = dataNode.isMissingNode()
+          ? rootNode.path("actorDefinition")
+          : dataNode.path("actorDefinition");
 
       if (actorDefinitionNode.isObject()) {
         JsonNode inputNode = actorDefinitionNode.path("input");

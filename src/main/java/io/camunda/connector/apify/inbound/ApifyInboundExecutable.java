@@ -293,14 +293,6 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             case TASK -> apifyClient.getTask(normalizedResourceId);
         };
 
-        // Check the status code of the API response
-        final int statusCode = result.statusCode();
-        if (statusCode < 200 || statusCode >= 300) {
-            throw new IOException(String.format(
-                    "Failed to resolve resource ID '%s': Apify API returned HTTP %d.",
-                    normalizedResourceId, statusCode));
-        }
-
         final var responseBody = result.responseBody();
         final var responseNode = OBJECT_MAPPER.readTree(responseBody);
         final var idNode = responseNode.path("data").path("id");

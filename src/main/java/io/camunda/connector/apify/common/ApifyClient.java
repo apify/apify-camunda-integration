@@ -26,9 +26,8 @@ import java.util.Objects;
 /**
  * HTTP client wrapper for Apify API interactions.
  * Holds the authentication token for the lifetime of the client instance.
- *
- * @throws ApifyClientException for HTTP errors with status code information
- * @throws IOException for network/IO level failures
+ * Methods throw {@link ApifyClientException} for HTTP errors with status code
+ * information, and {@link IOException} for network/IO level failures.
  */
 public class ApifyClient implements AutoCloseable {
 
@@ -167,11 +166,18 @@ public class ApifyClient implements AutoCloseable {
      * @throws IOException if the request fails at the network level
      */
     public ResponseResult getRunStatus(String runId, Integer waitForFinishSecs) throws IOException {
-        String urlPath = "/v2/actor-runs/" + runId;
-        if (waitForFinishSecs != null && waitForFinishSecs > 0) {
-            urlPath += "?waitForFinish=" + waitForFinishSecs.toString();
+        try {
+            URIBuilder builder = new URIBuilder(APIFY_API_URL)
+                    .setPath("/v2/actor-runs/" + runId);
+            if (waitForFinishSecs != null && waitForFinishSecs > 0) {
+                builder.setParameter("waitForFinish", waitForFinishSecs.toString());
+            }
+            URI uri = builder.build();
+            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
+            return executeRequest(Method.GET, urlPath, null);
+        } catch (URISyntaxException e) {
+            throw new IOException("Invalid URI for run status request", e);
         }
-        return executeRequest(Method.GET, urlPath, null);
     }
 
     // ---- Dataset operations ----
@@ -255,7 +261,7 @@ public class ApifyClient implements AutoCloseable {
      * DELETE is idempotent: a 404 means the webhook is already gone, which is treated as success.
      *
      * @param webhookId The ID of the webhook to delete
-     * @return ResponseResult containing the deletion confirmation, or null if the webhook was already deleted (404)
+     * @return ResponseResult containing the deletion confirmation, or an empty ResponseResult if the webhook was already deleted (404)
      * @throws ApifyClientException if the API returns a non-success, non-404 HTTP status
      * @throws IOException if the request fails at the network level
      */
@@ -265,7 +271,7 @@ public class ApifyClient implements AutoCloseable {
         } catch (ApifyClientException e) {
             if (e.getStatusCode() == HTTP_NOT_FOUND) {
                 LOGGER.info("Webhook {} already deleted, treating as success.", webhookId);
-                return null;
+                return new ResponseResult(HTTP_NOT_FOUND, "", new byte[0], "application/json");
             }
             throw e;
         }

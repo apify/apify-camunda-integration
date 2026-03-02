@@ -100,7 +100,7 @@ public final class InboundTestFixtures {
     public static MockedConstruction.MockInitializer<ApifyClient> fullLifecycleActorMock() {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult responseResult = mock(ApifyClient.ResponseResult.class);
-            when(responseResult.getResponseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
+            when(responseResult.responseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
             when(mock.createWebhook(anyString())).thenReturn(responseResult);
             when(mock.deleteWebhook(anyString())).thenReturn(responseResult);
         };
@@ -119,7 +119,6 @@ public final class InboundTestFixtures {
     public static MockedConstruction.MockInitializer<ApifyClient> actorSlugResolutionMock(String resolvedActorId) {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
-            when(actorResult.statusCode()).thenReturn(200);
             when(actorResult.responseBody()).thenReturn(
                     String.format("{\"data\":{\"id\":\"%s\"}}", resolvedActorId));
             when(mock.getActor(anyString())).thenReturn(actorResult);
@@ -133,7 +132,6 @@ public final class InboundTestFixtures {
     public static MockedConstruction.MockInitializer<ApifyClient> taskSlugResolutionMock(String resolvedTaskId) {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult taskResult = mock(ApifyClient.ResponseResult.class);
-            when(taskResult.statusCode()).thenReturn(200);
             when(taskResult.responseBody()).thenReturn(
                     String.format("{\"data\":{\"id\":\"%s\"}}", resolvedTaskId));
             when(mock.getTask(anyString())).thenReturn(taskResult);
@@ -161,7 +159,6 @@ public final class InboundTestFixtures {
     public static MockedConstruction.MockInitializer<ApifyClient> actorResolutionMissingIdMock(String responseBody) {
         return (mock, ctx) -> {
             ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
-            when(actorResult.statusCode()).thenReturn(200);
             when(actorResult.responseBody()).thenReturn(responseBody);
             when(mock.getActor(anyString())).thenReturn(actorResult);
         };
