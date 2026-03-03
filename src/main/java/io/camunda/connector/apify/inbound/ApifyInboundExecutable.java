@@ -117,14 +117,10 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             final var currentWebhookId = webhookId;
             webhookId = null;
             LOGGER.info("Deactivating Apify webhook with webhook ID: {}.", currentWebhookId);
-            final var currentWebhookId = webhookId;
-            webhookId = null;
-            LOGGER.info("Deactivating Apify webhook with webhook ID: {}.", currentWebhookId);
             try {
                 apifyClient.deleteWebhook(currentWebhookId);
                 LOGGER.info("Successfully deleted Apify webhook with webhook ID: {}.", currentWebhookId);
             } catch (IOException e) {
-                LOGGER.error("Failed to delete Apify webhook with webhook ID: {}: {}.", currentWebhookId, e.getMessage(), e);
                 LOGGER.error("Failed to delete Apify webhook with webhook ID: {}: {}.", currentWebhookId, e.getMessage(), e);
                 if (context != null) {
                     context.reportHealth(Health.down(e));
