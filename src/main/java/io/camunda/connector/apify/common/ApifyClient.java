@@ -56,6 +56,14 @@ public class ApifyClient implements AutoCloseable {
         this.authToken = authToken;
     }
 
+    /** Package-private constructor for unit testing with a pre-configured HTTP client. */
+    ApifyClient(String authToken, CloseableHttpClient httpClient) {
+        Objects.requireNonNull(authToken, "authToken must not be null");
+        Objects.requireNonNull(httpClient, "httpClient must not be null");
+        this.httpClient = httpClient;
+        this.authToken = authToken;
+    }
+
     /** Closes the underlying HTTP client and releases its resources. */
     @Override
     public void close() throws IOException {
@@ -326,17 +334,17 @@ public class ApifyClient implements AutoCloseable {
         if (runOptions == null) {
             return;
         }
-        if (runOptions.timeout != null) {
-            builder.setParameter("timeout", runOptions.timeout.toString());
+        if (runOptions.timeout() != null) {
+            builder.setParameter("timeout", runOptions.timeout().toString());
         }
-        if (runOptions.memory != null && !runOptions.memory.isBlank()) {
-            builder.setParameter("memory", runOptions.memory);
+        if (runOptions.memory() != null && !runOptions.memory().isBlank()) {
+            builder.setParameter("memory", runOptions.memory());
         }
-        if (runOptions.build != null && !runOptions.build.isBlank()) {
-            builder.setParameter("build", runOptions.build);
+        if (runOptions.build() != null && !runOptions.build().isBlank()) {
+            builder.setParameter("build", runOptions.build());
         }
-        if (runOptions.waitForFinishSecs != null && runOptions.waitForFinishSecs > 0) {
-            builder.setParameter("waitForFinish", runOptions.waitForFinishSecs.toString());
+        if (runOptions.waitForFinishSecs() != null && runOptions.waitForFinishSecs() > 0) {
+            builder.setParameter("waitForFinish", runOptions.waitForFinishSecs().toString());
         }
     }
 
@@ -462,24 +470,18 @@ public class ApifyClient implements AutoCloseable {
      */
     private ResponseResult performHttpRequest(Method method, String url, String body)
             throws IOException {
-        ClassicHttpRequest request;
-
-        switch (method) {
-            case GET:
-                request = new HttpGet(url);
-                break;
-            case POST:
-                request = new HttpPost(url);
+        ClassicHttpRequest request = switch (method) {
+            case GET -> new HttpGet(url);
+            case POST -> {
+                var post = new HttpPost(url);
                 if (body != null && !body.isEmpty()) {
-                    ((HttpPost) request).setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
+                    post.setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
                 }
-                break;
-            case DELETE:
-                request = new HttpDelete(url);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported HTTP method: " + method);
-        }
+                yield post;
+            }
+            case DELETE -> new HttpDelete(url);
+            default -> throw new IllegalArgumentException("Unsupported HTTP method: " + method);
+        };
 
         addHeaders(request);
 
