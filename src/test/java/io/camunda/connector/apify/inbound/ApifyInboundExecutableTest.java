@@ -551,6 +551,11 @@ class ApifyInboundExecutableTest {
                 ApifyClient constructedClient = mockedClient.constructed().get(0);
                 verify(constructedClient).deleteWebhook(eq("test-token"), eq("webhook-123"));
                 verify(constructedClient).close();
+
+                // Health.up from activate + Health.down from failed delete
+                ArgumentCaptor<Health> healthCaptor = ArgumentCaptor.forClass(Health.class);
+                verify(context, org.mockito.Mockito.times(2)).reportHealth(healthCaptor.capture());
+                assertThat(healthCaptor.getAllValues().get(1).getStatus()).isEqualTo(Health.Status.DOWN);
             }
         }
 

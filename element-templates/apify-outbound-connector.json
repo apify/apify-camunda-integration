@@ -86,9 +86,8 @@
     {
       "id": "apifyRequestInput.runActorInput.inputJson",
       "label": "Input Body",
-      "description": "JSON object for Actor input.",
-      "optional": false,
-      "constraints": { "notEmpty": true },
+      "description": "JSON object. Defaults to Actor's value; check Actor config—may be required.",
+      "optional": true,
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
@@ -169,8 +168,8 @@
     },
     {
       "id": "apifyRequestInput.runActorInput.buildTag",
-      "label": "Build",
-      "description": "Actor build tag or ID (e.g., 'latest', '1.2.3'). Default: 'latest'.",
+      "label": "Build tag",
+      "description": "Actor build tag (e.g., 'latest', 'beta'). Default: 'latest'.",
       "optional": true,
       "feel": "optional",
       "placeholder": "latest",
@@ -291,8 +290,8 @@
     },
     {
       "id": "apifyRequestInput.runTaskInput.buildTag",
-      "label": "Build",
-      "description": "Build tag or ID (e.g., 'latest', '1.2.3'). Default: 'latest'.",
+      "label": "Build tag",
+      "description": "Actor build tag (e.g., 'latest', 'beta'). Default: 'latest'.",
       "optional": true,
       "feel": "optional",
       "placeholder": "latest",
