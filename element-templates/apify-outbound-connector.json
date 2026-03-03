@@ -88,8 +88,6 @@
       "label": "Input Body",
       "description": "JSON object. Defaults to Actor's value; check Actor config—may be required.",
       "optional": true,
-      "description": "JSON object. Defaults to Actor's value; check Actor config—may be required.",
-      "optional": true,
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
