@@ -1,5 +1,6 @@
 package io.camunda.connector.apify.outbound;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -29,7 +30,6 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 @OutboundConnector(
     name = "APIFY",
@@ -49,19 +49,16 @@ import java.util.Set;
     name = "Apify Connector",
     version = 1,
     description = "Access Apify tools for web scraping, data extraction, and automation.",
-    // TODO: update documentation link
     documentationRef = "https://docs.camunda.io/docs/components/connectors/out-of-the-box-connectors/available-connectors-overview/",
     inputDataClass = ApifyRequest.class)
 public class ApifyFunction implements OutboundConnectorFunction {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ApifyFunction.class);
-  private static final ObjectMapper objectMapper = new ObjectMapper();
-  private static final Set<String> TERMINAL_STATUSES = Set.of("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT");
-  private static final int MAX_POLL_DURATION_SECONDS = 300;
-  private static final int POLL_INTERVAL_MS = 2000;
-  private static final String WEB_CONTENT_SCRAPER_ACTOR_ID = "aYG0l9s7dbB7j3gbS";
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private static final TypeReference<Map<String, Object>> MAP_TYPE_REF = new TypeReference<>() {};
 
-  // ---- Entry point ----
+  /** Apify's Web Content Scraper Actor (https://apify.com/apify/web-content-scraper) */
+  private static final String WEB_CONTENT_SCRAPER_ACTOR_ID = "aYG0l9s7dbB7j3gbS";
 
   @Override
   public Object execute(OutboundConnectorContext context) {
@@ -71,27 +68,19 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
   private ApifyResult executeConnector(final ApifyRequest connectorRequest) {
     String operationType = connectorRequest.operation().type();
-
     Authentication authentication = connectorRequest.authentication();
     ApifyRequestInput apifyRequestInput = connectorRequest.apifyRequestInput();
 
-    LOGGER.info("Operation Type {}", operationType);
-    LOGGER.info("Apify Request Input {}", apifyRequestInput);
+    LOGGER.debug("Executing operation: {}", operationType);
 
-    switch (operationType) {
-      case "runActor":
-        return handleRunActor(authentication, apifyRequestInput);
-      case "runTask":
-        return handleRunTask(authentication, apifyRequestInput);
-      case "getDatasetItems":
-        return handleGetDatasetItems(authentication, apifyRequestInput);
-      case "scrapeSingleUrl":
-        return handleScrapeSingleUrl(authentication, apifyRequestInput);
-      case "getKeyValueStoreRecord":
-        return handleGetKeyValueStoreRecord(authentication, apifyRequestInput);
-      default:
-        throw new ConnectorInputException("Unsupported operation type: " + operationType);
-    }
+    return switch (operationType) {
+      case "runActor" -> handleRunActor(authentication, apifyRequestInput);
+      case "runTask" -> handleRunTask(authentication, apifyRequestInput);
+      case "getDatasetItems" -> handleGetDatasetItems(authentication, apifyRequestInput);
+      case "scrapeSingleUrl" -> handleScrapeSingleUrl(authentication, apifyRequestInput);
+      case "getKeyValueStoreRecord" -> handleGetKeyValueStoreRecord(authentication, apifyRequestInput);
+      default -> throw new ConnectorInputException("Unsupported operation type: " + operationType);
+    };
   }
 
   // ---- Operation handlers ----
@@ -103,66 +92,26 @@ public class ApifyFunction implements OutboundConnectorFunction {
     validateAuthentication(authentication);
 
     var input = apifyRequestInput.runActorRequest();
-
     final String actorId = input.actorId().replace("/", "~");
 
     try (var apifyClient = new ApifyClient(authentication.token())) {
-      ApifyClient.ResponseResult actorResponseResult = apifyClient.getActor(actorId);
-      String actorResponse = actorResponseResult.responseBody();
+      String actorResponse = apifyClient.getActor(actorId).responseBody();
       if (actorResponse == null || actorResponse.trim().isEmpty()) {
         throw new RuntimeException("Error: Actor not found - " + actorId);
       }
 
-      String buildResponse;
-      if (input.buildTag() != null && !input.buildTag().trim().isEmpty()) {
-        String buildId = extractBuildIdFromTag(actorResponse, input.buildTag());
-        if (buildId == null) {
-          throw new RuntimeException("Error: Build tag '" + input.buildTag() + "' not found for actor " + actorId);
-        }
-        buildResponse = apifyClient.getBuild(buildId).responseBody();
-      } else {
-        buildResponse = apifyClient.getDefaultBuild(actorId).responseBody();
-      }
-
-      if (buildResponse == null || buildResponse.trim().isEmpty()) {
-        throw new RuntimeException("Error: Build not found for actor " + actorId);
-      }
-
-      Map<String, Object> defaultInput = extractDefaultInputFromBuild(buildResponse);
-
-      Map<String, Object> userInput = new HashMap<>();
-      if (input.inputJson() != null && !input.inputJson().isNull()) {
-        JsonNode inputJsonNode = input.inputJson();
-        if (inputJsonNode.isTextual()) {
-          try {
-            inputJsonNode = objectMapper.readTree(inputJsonNode.asText());
-          } catch (Exception e) {
-            LOGGER.warn("Failed to parse inputJson as JSON string: {}", e.getMessage());
-          }
-        }
-        userInput = convertJsonNodeToMap(inputJsonNode);
-      }
+      String buildResponse = fetchBuildResponse(apifyClient, actorId, actorResponse, input.buildTag());
+      Map<String, Object> defaultInput = ActorBuildHelper.extractDefaultInputFromBuild(buildResponse);
+      Map<String, Object> userInput = parseInputJson(input.inputJson());
 
       Map<String, Object> mergedInput = new HashMap<>(defaultInput);
       mergedInput.putAll(userInput);
 
-      String mergedInputJson = mapToJson(mergedInput);
-
-      var runOptions = new RunOptions(
-        input.timeout(),
-        input.memory(),
-        input.buildTag(),
-        null
-      );
-      ApifyClient.ResponseResult runResponseResult = apifyClient.runActor(
-        actorId,
-        mergedInputJson,
-        runOptions
-      );
-      String response = runResponseResult.responseBody();
+      var runOptions = new RunOptions(input.timeout(), input.memory(), input.buildTag(), null);
+      String response = apifyClient.runActor(actorId, toJson(mergedInput), runOptions).responseBody();
 
       if (Boolean.TRUE.equals(input.waitForFinish())) {
-        response = pollRunStatus(apifyClient, response);
+        response = RunPollingHelper.pollRunStatus(apifyClient, response);
       }
 
       return new RunActorResponse(response);
@@ -175,14 +124,12 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult handleRunTask(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    LOGGER.info("Handling runTask operation");
     if (apifyRequestInput == null || apifyRequestInput.runTaskRequest() == null) {
       throw new ConnectorInputException("Error: runTaskRequest is null");
     }
     validateAuthentication(authentication);
 
     var input = apifyRequestInput.runTaskRequest();
-
     final String taskId = input.taskId().replace("/", "~");
 
     try (var apifyClient = new ApifyClient(authentication.token())) {
@@ -191,31 +138,13 @@ public class ApifyFunction implements OutboundConnectorFunction {
         throw new RuntimeException("Error: Task not found - " + taskId);
       }
 
-      String inputJson = null;
-      if (input.inputJson() != null && !input.inputJson().isNull()) {
-        JsonNode inputJsonNode = input.inputJson();
-        if (inputJsonNode.isTextual()) {
-          inputJson = inputJsonNode.asText();
-        } else {
-          inputJson = objectMapper.writeValueAsString(inputJsonNode);
-        }
-      }
+      String inputJson = serializeInputJson(input.inputJson());
 
-      var runOptions = new RunOptions(
-        input.timeout(),
-        input.memory(),
-        input.buildTag(),
-        null
-      );
-      ApifyClient.ResponseResult runResponseResult = apifyClient.runTask(
-        taskId,
-        inputJson,
-        runOptions
-      );
-      String response = runResponseResult.responseBody();
+      var runOptions = new RunOptions(input.timeout(), input.memory(), input.buildTag(), null);
+      String response = apifyClient.runTask(taskId, inputJson, runOptions).responseBody();
 
       if (Boolean.TRUE.equals(input.waitForFinish())) {
-        response = pollRunStatus(apifyClient, response);
+        response = RunPollingHelper.pollRunStatus(apifyClient, response);
       }
 
       return new RunTaskResponse(response);
@@ -228,24 +157,18 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult handleGetDatasetItems(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    GetDatasetItemsRequest datasetInput = apifyRequestInput.getDatasetItemsRequest();
-
-    if (datasetInput == null) {
+    if (apifyRequestInput == null || apifyRequestInput.getDatasetItemsRequest() == null) {
       throw new ConnectorInputException("Error: getDatasetItemsRequest is null");
     }
-
     validateAuthentication(authentication);
 
+    GetDatasetItemsRequest datasetInput = apifyRequestInput.getDatasetItemsRequest();
+
     try (var apifyClient = new ApifyClient(authentication.token())) {
-
       String datasetItems = apifyClient.getDatasetItems(
-        datasetInput.datasetId(),
-        datasetInput.offset(),
-        datasetInput.limit()
+          datasetInput.datasetId(), datasetInput.offset(), datasetInput.limit()
       ).responseBody();
-
       return new GetDatasetItemsResponse(datasetItems);
-
     } catch (ApifyClientException e) {
       throw handleApifyClientException("get dataset items", e);
     } catch (Exception e) {
@@ -264,43 +187,32 @@ public class ApifyFunction implements OutboundConnectorFunction {
     URLValidator.validateUrl(input.url());
 
     try (var apifyClient = new ApifyClient(authentication.token())) {
-      Map<String, Object> actorInput = new HashMap<>();
-      Map<String, Object> startUrlObj = new HashMap<>();
-      startUrlObj.put("url", input.url());
-      actorInput.put("startUrls", Collections.singletonList(startUrlObj));
-      actorInput.put("crawlerType", input.crawlerType());
-      actorInput.put("maxCrawlDepth", 0);
-      actorInput.put("maxCrawlPages", 1);
-      actorInput.put("maxResults", 1);
-      actorInput.put("proxyConfiguration", Collections.singletonMap("useApifyProxy", true));
-      actorInput.put("removeCookieWarnings", true);
-      actorInput.put("saveHtml", true);
-      actorInput.put("saveMarkdown", true);
-      String mergedInputJson = mapToJson(actorInput);
-
-      var runOptions = new RunOptions(
-        null,
-        null,
-        null,
-        null
+      Map<String, Object> actorInput = Map.of(
+          "startUrls", Collections.singletonList(Map.of("url", input.url())),
+          "crawlerType", input.crawlerType(),
+          "maxCrawlDepth", 0,
+          "maxCrawlPages", 1,
+          "maxResults", 1,
+          "proxyConfiguration", Map.of("useApifyProxy", true),
+          "removeCookieWarnings", true,
+          "saveHtml", true,
+          "saveMarkdown", true
       );
+
       String runStartResponse = apifyClient.runActor(
-        WEB_CONTENT_SCRAPER_ACTOR_ID,
-        mergedInputJson,
-        runOptions
+          WEB_CONTENT_SCRAPER_ACTOR_ID, toJson(actorInput), new RunOptions(null, null, null, null)
       ).responseBody();
 
-      String finalRunResponse = pollRunStatus(apifyClient, runStartResponse);
-      JsonNode runNode = objectMapper.readTree(finalRunResponse);
-      JsonNode dataNode = runNode.path("data");
+      String finalRunResponse = RunPollingHelper.pollRunStatus(apifyClient, runStartResponse);
+      JsonNode dataNode = OBJECT_MAPPER.readTree(finalRunResponse).path("data");
       JsonNode defaultDatasetIdNode = dataNode.isMissingNode() ? null : dataNode.path("defaultDatasetId");
+
       if (defaultDatasetIdNode == null || defaultDatasetIdNode.isMissingNode() || !defaultDatasetIdNode.isTextual()) {
         throw new RuntimeException("Error: No dataset ID returned from actor run");
       }
-      String datasetId = defaultDatasetIdNode.asText();
 
-      String datasetItemsJson = apifyClient.getDatasetItems(datasetId, 0, 1).responseBody();
-      JsonNode itemsNode = objectMapper.readTree(datasetItemsJson);
+      String datasetItemsJson = apifyClient.getDatasetItems(defaultDatasetIdNode.asText(), 0, 1).responseBody();
+      JsonNode itemsNode = OBJECT_MAPPER.readTree(datasetItemsJson);
       if (!itemsNode.isArray() || itemsNode.isEmpty()) {
         throw new RuntimeException("Error: No items found in dataset for URL: " + input.url());
       }
@@ -318,216 +230,87 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private GetKeyValueStoreRecordResponse handleGetKeyValueStoreRecord(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    GetKeyValueStoreRecordRequest recordInput = apifyRequestInput.getKeyValueStoreRecordRequest();
-
-    if (recordInput == null) {
+    if (apifyRequestInput == null || apifyRequestInput.getKeyValueStoreRecordRequest() == null) {
       throw new ConnectorInputException("Error: getKeyValueStoreRecordRequest is null");
     }
-
     validateAuthentication(authentication);
 
+    GetKeyValueStoreRecordRequest recordInput = apifyRequestInput.getKeyValueStoreRecordRequest();
+
     try (var apifyClient = new ApifyClient(authentication.token())) {
-
       ApifyClient.ResponseResult result = apifyClient.getKeyValueStoreRecord(
-        recordInput.storeId(),
-        recordInput.recordKey()
+          recordInput.storeId(), recordInput.recordKey()
       );
-
       return parseKeyValueStoreResponse(result);
-
     } catch (ApifyClientException e) {
       throw handleApifyClientException("get key-value store record", e);
     } catch (Exception e) {
       LOGGER.error("Failed to get key-value store record: {}", e.getMessage(), e);
-      throw new RuntimeException("Failed to get key-value store record: " + e.getMessage(), e);
+      throw new RuntimeException("Error: Failed to get key-value store record - " + e.getMessage(), e);
     }
   }
 
-  // ---- Run polling helpers ----
+  // ---- Shared helpers ----
 
-  private String pollRunStatus(ApifyClient apifyClient, String runResponse) throws IOException {
-    String runId = extractRunId(runResponse);
-    if (runId == null) {
-      throw new IOException("Could not extract run ID from response");
-    }
-
-    // Safety net: stop polling after MAX_POLL_DURATION_SECONDS to prevent infinite loops
-    // if a run gets stuck in a non-terminal state.
-    long deadline = System.currentTimeMillis() + MAX_POLL_DURATION_SECONDS * 1000L;
-
-    while (System.currentTimeMillis() < deadline) {
-      String statusResponse = apifyClient.getRunStatus(runId, 1).responseBody();
-
-      if (isRunFinished(statusResponse)) {
-        return statusResponse;
+  private String fetchBuildResponse(ApifyClient apifyClient, String actorId, String actorResponse, String buildTag)
+      throws IOException {
+    String buildResponse;
+    if (buildTag != null && !buildTag.trim().isEmpty()) {
+      String buildId = ActorBuildHelper.extractBuildIdFromTag(actorResponse, buildTag);
+      if (buildId == null) {
+        throw new RuntimeException("Error: Build tag '" + buildTag + "' not found for actor " + actorId);
       }
-
-      try {
-        Thread.sleep(POLL_INTERVAL_MS);
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-        throw new IOException("Polling interrupted for run " + runId, ie);
-      }
-    }
-
-    throw new IOException(
-        "Polling timed out after " + MAX_POLL_DURATION_SECONDS + " seconds for run " + runId);
-  }
-
-  private String extractRunId(String response) {
-    try {
-      if (response == null || response.trim().isEmpty()) {
-        return null;
-      }
-
-      JsonNode rootNode = objectMapper.readTree(response);
-
-      JsonNode dataNode = rootNode.get("data");
-      if (dataNode != null && dataNode.has("id")) {
-        return dataNode.get("id").asText();
-      }
-
-      if (rootNode.has("id")) {
-        return rootNode.get("id").asText();
-      }
-
-      return null;
-    } catch (Exception e) {
-      LOGGER.warn("Failed to parse JSON response for run ID extraction: {}", e.getMessage());
-      return null;
-    }
-  }
-
-  private boolean isRunFinished(String statusResponse) {
-    try {
-      if (statusResponse == null || statusResponse.trim().isEmpty()) {
-        return false;
-      }
-
-      JsonNode rootNode = objectMapper.readTree(statusResponse);
-      JsonNode dataNode = rootNode.get("data");
-
-      if (dataNode != null && dataNode.has("status")) {
-        String status = dataNode.get("status").asText();
-        return TERMINAL_STATUSES.contains(status);
-      }
-
-      return false;
-    } catch (Exception e) {
-      LOGGER.warn("Failed to parse JSON response for status check: {}", e.getMessage());
-      return false;
-    }
-  }
-
-  // ---- Actor/build helpers ----
-
-  private String extractBuildIdFromTag(String actorResponse, String buildTag) {
-    try {
-      JsonNode rootNode = objectMapper.readTree(actorResponse);
-      JsonNode dataNode = rootNode.path("data");
-      JsonNode taggedBuildsNode = dataNode.isMissingNode()
-          ? rootNode.path("taggedBuilds")
-          : dataNode.path("taggedBuilds");
-
-      if (taggedBuildsNode.isObject()) {
-        JsonNode buildTagNode = taggedBuildsNode.path(buildTag);
-        if (buildTagNode.isObject() && buildTagNode.has("buildId")) {
-          return buildTagNode.get("buildId").asText();
-        }
-      }
-
-      return null;
-    } catch (Exception e) {
-      LOGGER.warn("Failed to parse JSON response for build ID extraction: {}", e.getMessage());
-      return null;
-    }
-  }
-
-  private Map<String, Object> extractDefaultInputFromBuild(String buildResponse) {
-    Map<String, Object> defaultInput = new HashMap<>();
-
-    try {
-      JsonNode rootNode = objectMapper.readTree(buildResponse);
-      JsonNode dataNode = rootNode.path("data");
-      JsonNode actorDefinitionNode = dataNode.isMissingNode()
-          ? rootNode.path("actorDefinition")
-          : dataNode.path("actorDefinition");
-
-      if (actorDefinitionNode.isObject()) {
-        JsonNode inputNode = actorDefinitionNode.path("input");
-        if (inputNode.isObject()) {
-          JsonNode propertiesNode = inputNode.path("properties");
-
-          if (propertiesNode.isObject()) {
-            propertiesNode.properties().forEach(entry -> {
-              String propertyName = entry.getKey();
-              JsonNode propertyNode = entry.getValue();
-
-              if (propertyNode.isObject() && propertyNode.has("prefill")) {
-                JsonNode prefillNode = propertyNode.get("prefill");
-                Object prefillValue = convertJsonNodeToObject(prefillNode);
-                defaultInput.put(propertyName, prefillValue);
-              }
-            });
-          }
-        }
-      }
-    } catch (Exception e) {
-      LOGGER.warn("Failed to parse JSON response for default input extraction: {}", e.getMessage());
-    }
-
-    return defaultInput;
-  }
-
-  // ---- JSON / validation utilities ----
-
-  private Object convertJsonNodeToObject(JsonNode node) {
-    if (node.isTextual()) {
-      return node.asText();
-    } else if (node.isBoolean()) {
-      return node.asBoolean();
-    } else if (node.isInt()) {
-      return node.asInt();
-    } else if (node.isLong()) {
-      return node.asLong();
-    } else if (node.isDouble()) {
-      return node.asDouble();
-    } else if (node.isArray()) {
-      return objectMapper.convertValue(node, Object.class);
-    } else if (node.isObject()) {
-      Map<String, Object> map = new HashMap<>();
-      node.properties().forEach(entry -> {
-        map.put(entry.getKey(), convertJsonNodeToObject(entry.getValue()));
-      });
-      return map;
-    } else if (node.isNull()) {
-      return null;
+      buildResponse = apifyClient.getBuild(buildId).responseBody();
     } else {
-      return node.asText();
+      buildResponse = apifyClient.getDefaultBuild(actorId).responseBody();
     }
+
+    if (buildResponse == null || buildResponse.trim().isEmpty()) {
+      throw new RuntimeException("Error: Build not found for actor " + actorId);
+    }
+    return buildResponse;
   }
 
-  private Map<String, Object> convertJsonNodeToMap(JsonNode node) {
-    if (node == null || node.isNull()) {
+  /**
+   * Parses a {@link JsonNode} input into a mutable map for merging with defaults.
+   * Handles the case where inputJson is a string-encoded JSON.
+   */
+  private Map<String, Object> parseInputJson(JsonNode inputJson) {
+    if (inputJson == null || inputJson.isNull()) {
       return new HashMap<>();
     }
-    if (!node.isObject()) {
+
+    JsonNode resolved = inputJson;
+    if (resolved.isTextual()) {
+      try {
+        resolved = OBJECT_MAPPER.readTree(resolved.asText());
+      } catch (Exception e) {
+        LOGGER.warn("Failed to parse inputJson as JSON string: {}", e.getMessage());
+        return new HashMap<>();
+      }
+    }
+
+    if (!resolved.isObject()) {
       return new HashMap<>();
     }
-    Map<String, Object> map = new HashMap<>();
-    node.properties().forEach(entry -> {
-      map.put(entry.getKey(), convertJsonNodeToObject(entry.getValue()));
-    });
-    return map;
+    return OBJECT_MAPPER.convertValue(resolved, MAP_TYPE_REF);
   }
 
-  private String mapToJson(Map<String, Object> map) {
-    try {
-      return objectMapper.writeValueAsString(map);
-    } catch (Exception e) {
-      LOGGER.warn("Failed to convert map to JSON: {}, map: {}", e.getMessage(), map);
-      return "{}";
+  /**
+   * Serializes inputJson for task runs (no merging with defaults).
+   * Returns null if inputJson is absent.
+   */
+  private String serializeInputJson(JsonNode inputJson) throws IOException {
+    if (inputJson == null || inputJson.isNull()) {
+      return null;
     }
+    return inputJson.isTextual()
+        ? inputJson.asText()
+        : OBJECT_MAPPER.writeValueAsString(inputJson);
+  }
+
+  private String toJson(Map<String, Object> map) throws IOException {
+    return OBJECT_MAPPER.writeValueAsString(map);
   }
 
   /**
@@ -549,41 +332,31 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
-  private GetKeyValueStoreRecordResponse parseKeyValueStoreResponse(ApifyClient.ResponseResult responseResult) {
-    GetKeyValueStoreRecordResponse result = new GetKeyValueStoreRecordResponse();
-
-    String contentTypeFromHeader = responseResult.contentType();
-    result.setContentType(contentTypeFromHeader != null ? contentTypeFromHeader : "application/octet-stream");
+  GetKeyValueStoreRecordResponse parseKeyValueStoreResponse(ApifyClient.ResponseResult responseResult) {
+    String resolvedContentType = responseResult.contentType() != null
+        ? responseResult.contentType() : "application/octet-stream";
 
     byte[] bodyBytes = responseResult.responseBodyInBytes();
     if (bodyBytes == null || bodyBytes.length == 0) {
-      return result;
+      return new GetKeyValueStoreRecordResponse(resolvedContentType, null, null, null);
     }
 
-    String contentType = contentTypeFromHeader != null ? contentTypeFromHeader.toLowerCase() : "application/octet-stream";
+    String lowerContentType = resolvedContentType.toLowerCase();
 
-    if (contentType.contains("application/json") || contentType.contains("text/json")) {
+    if (lowerContentType.contains("application/json") || lowerContentType.contains("text/json")) {
       try {
-        String jsonString = responseResult.responseBody();
-        JsonNode jsonNode = objectMapper.readTree(jsonString);
-        result.setJsonValue(jsonNode);
-        return result;
+        JsonNode jsonNode = OBJECT_MAPPER.readTree(responseResult.responseBody());
+        return new GetKeyValueStoreRecordResponse(resolvedContentType, jsonNode, null, null);
       } catch (Exception e) {
         LOGGER.warn("Failed to parse as JSON despite content-type: {}", e.getMessage());
       }
     }
 
-    if (contentType.startsWith("text/")) {
-      try {
-        String textValue = responseResult.responseBody();
-        result.setTextValue(textValue);
-        return result;
-      } catch (Exception e) {
-        LOGGER.warn("Failed to convert to text: {}", e.getMessage());
-      }
+    if (lowerContentType.startsWith("text/")) {
+      return new GetKeyValueStoreRecordResponse(resolvedContentType, null, responseResult.responseBody(), null);
     }
 
-    result.setBase64Value(Base64.getEncoder().encodeToString(bodyBytes));
-    return result;
+    String base64 = Base64.getEncoder().encodeToString(bodyBytes);
+    return new GetKeyValueStoreRecordResponse(resolvedContentType, null, null, base64);
   }
 }
