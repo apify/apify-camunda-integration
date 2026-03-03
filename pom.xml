@@ -3,10 +3,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <name>connector-template</name>
-    <description>Camunda Connector Template</description>
+    <name>apify-camunda-connector</name>
+    <description>Camunda 8.8 Connector for Apify web scraping and automation API</description>
     <groupId>io.camunda.connector</groupId>
-    <artifactId>connector-template</artifactId>
+    <artifactId>apify-camunda-connector</artifactId>
     <packaging>jar</packaging>
     <version>0.1.0-SNAPSHOT</version>
 
@@ -19,6 +19,7 @@
         <version.junit-jupiter>5.14.2</version.junit-jupiter>
         <version.mockito>5.21.0</version.mockito>
         <version.httpclient>5.6</version.httpclient>
+        <version.httpcore>5.4</version.httpcore>
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -37,6 +38,7 @@
             <groupId>io.camunda.connector</groupId>
             <artifactId>element-template-generator-core</artifactId>
             <version>${version.connectors}</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- HTTP Client for Apify API calls -->
@@ -50,13 +52,13 @@
         <dependency>
             <groupId>org.apache.httpcomponents.core5</groupId>
             <artifactId>httpcore5</artifactId>
-            <version>5.4</version>
+            <version>${version.httpcore}</version>
         </dependency>
         
         <dependency>
             <groupId>org.apache.httpcomponents.core5</groupId>
             <artifactId>httpcore5-h2</artifactId>
-            <version>5.4</version>
+            <version>${version.httpcore}</version>
         </dependency>
 
         <!-- test dependencies -->
@@ -111,6 +113,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
