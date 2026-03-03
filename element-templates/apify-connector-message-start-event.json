@@ -4,7 +4,7 @@
   "id": "io.camunda.connector.inbound.Apify.v1:MessageStartEvent",
   "version": 1,
   "description": "Creates an Apify webhook for completed Actor or task runs, triggered by message start events with optional subprocess correlation.",
-  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/README.md#2-inbound-connector-start-event",
+  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/README.md#message-start-event",
   "metadata": {
     "keywords": [
       "apify",
@@ -179,7 +179,7 @@
         "equals": "required",
         "type": "simple"
       },
-      "placeholder": "previousEventResponse.runId",
+      "placeholder": "previousEventResponse.data.id",
       "type": "String"
     },
     {
@@ -214,7 +214,7 @@
         "name": "messageIdExpression",
         "type": "zeebe:property"
       },
-      "placeholder": "eventData.actorRunId",
+      "placeholder": "connectorData.eventData.actorRunId",
       "type": "String"
     },
     {

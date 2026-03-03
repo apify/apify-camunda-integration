@@ -16,6 +16,8 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.net.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -31,6 +33,7 @@ import java.util.Objects;
  */
 public class ApifyClient implements AutoCloseable {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApifyClient.class);
     private static final Logger LOGGER = LoggerFactory.getLogger(ApifyClient.class);
     private static final String APIFY_API_URL = "https://api.apify.com";
 
