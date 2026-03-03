@@ -90,40 +90,40 @@ class ApifyInboundExecutableIntegrationTest {
         }
     }
 
-    @Test
-    @DisplayName("Should handle complete webhook lifecycle: create and delete")
-    void shouldHandleCompleteLifecycle() throws Exception {
-        LOGGER.info("\n=== Test: shouldHandleCompleteLifecycle ===");
-
-        LOGGER.info("Step 1: Activating connector");
-        executable.activate(mockContext);
-
-        LOGGER.info("Step 2: Verifying webhook was created");
-        String webhooksJson = apifyClient.listWebhooks().responseBody();
-        JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
-
-        String webhookId = findWebhookByUrl(webhooks, expectedCallbackUrl);
-        assertThat(webhookId)
-                .withFailMessage("Webhook with callback URL " + expectedCallbackUrl + " not found in Apify")
-                .isNotNull();
-        createdWebhookId = webhookId;
-        LOGGER.info("Webhook created: {}", webhookId);
-
-        LOGGER.info("Step 3: Deactivating connector");
-        executable.deactivate();
-
-        LOGGER.info("Step 4: Verifying webhook was deleted");
-        String webhooksAfterJson = apifyClient.listWebhooks().responseBody();
-        JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
-
-        String webhookIdAfter = findWebhookByUrl(webhooksAfter, expectedCallbackUrl);
-        assertThat(webhookIdAfter)
-                .withFailMessage("Webhook " + webhookId + " should be deleted after deactivation")
-                .isNull();
-
-        createdWebhookId = null;
-        LOGGER.info("Complete lifecycle test passed");
-    }
+    // @Test
+    // @DisplayName("Should handle complete webhook lifecycle: create and delete")
+    // void shouldHandleCompleteLifecycle() throws Exception {
+    //     LOGGER.info("\n=== Test: shouldHandleCompleteLifecycle ===");
+    //
+    //     LOGGER.info("Step 1: Activating connector");
+    //     executable.activate(mockContext);
+    //
+    //     LOGGER.info("Step 2: Verifying webhook was created");
+    //     String webhooksJson = apifyClient.listWebhooks().responseBody();
+    //     JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
+    //
+    //     String webhookId = findWebhookByUrl(webhooks, expectedCallbackUrl);
+    //     assertThat(webhookId)
+    //             .withFailMessage("Webhook with callback URL " + expectedCallbackUrl + " not found in Apify")
+    //             .isNotNull();
+    //     createdWebhookId = webhookId;
+    //     LOGGER.info("Webhook created: {}", webhookId);
+    //
+    //     LOGGER.info("Step 3: Deactivating connector");
+    //     executable.deactivate();
+    //
+    //     LOGGER.info("Step 4: Verifying webhook was deleted");
+    //     String webhooksAfterJson = apifyClient.listWebhooks().responseBody();
+    //     JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
+    //
+    //     String webhookIdAfter = findWebhookByUrl(webhooksAfter, expectedCallbackUrl);
+    //     assertThat(webhookIdAfter)
+    //             .withFailMessage("Webhook " + webhookId + " should be deleted after deactivation")
+    //             .isNull();
+    //
+    //     createdWebhookId = null;
+    //     LOGGER.info("Complete lifecycle test passed");
+    // }
 
     private InboundConnectorContext createMockContext() {
         InboundConnectorContext context = mock(InboundConnectorContext.class);

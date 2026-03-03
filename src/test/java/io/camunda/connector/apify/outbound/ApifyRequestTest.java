@@ -14,7 +14,7 @@ import io.camunda.connector.runtime.test.outbound.OutboundConnectorContextBuilde
 
 import org.junit.jupiter.api.Test;
 
-public class MyRequestTest {
+public class ApifyRequestTest {
 
   ObjectMapper objectMapper = new ObjectMapper();
 
@@ -119,7 +119,7 @@ public class MyRequestTest {
     var input = new ApifyRequest(
       new Authentication("testToken"),
       new Operation("runActor"),
-      null // apifyRequestInput is null - this should cause validation error
+      null
     );
     var context = OutboundConnectorContextBuilder.create().variables(objectMapper.writeValueAsString(input)).build();
 
