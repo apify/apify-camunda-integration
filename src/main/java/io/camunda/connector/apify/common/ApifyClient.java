@@ -25,6 +25,9 @@ import java.nio.charset.StandardCharsets;
 /**
  * HTTP client wrapper for Apify API interactions.
  * Provides a simple interface for making HTTP requests to the Apify API.
+ *
+ * Methods throw {@link ApifyClientException} for HTTP errors with status code
+ * information, and {@link IOException} for network/IO level failures.
  */
 public class ApifyClient implements AutoCloseable {
 
@@ -97,13 +100,13 @@ public class ApifyClient implements AutoCloseable {
                     return result;
                 } else {
                     // Create an exception with status code information for retry logic
-                    throw new HttpRequestException(
+                    throw new ApifyClientException(
                             String.format(
                                     "HTTP %s request to %s failed with status %d: %s",
                                     method, url, statusCode, responseBody),
                             statusCode);
                 }
-            } catch (HttpRequestException e) {
+            } catch (ApifyClientException e) {
                 lastError = e;
                 int statusCode = e.getStatusCode();
 
@@ -125,7 +128,7 @@ public class ApifyClient implements AutoCloseable {
                 throw e;
             } catch (IOException e) {
                 // Wrap other IOException to include status code
-                HttpRequestException wrappedException = new HttpRequestException(
+                ApifyClientException wrappedException = new ApifyClientException(
                         String.format(
                                 "HTTP %s request to %s failed: %s",
                                 method, url, e.getMessage()),
@@ -529,7 +532,7 @@ public class ApifyClient implements AutoCloseable {
     public ResponseResult deleteWebhook(String authToken, String webhookId) throws IOException {
         try {
             return executeRequest(Method.DELETE, "/v2/webhooks/" + webhookId, authToken, null);
-        } catch (HttpRequestException e) {
+        } catch (ApifyClientException e) {
             if (e.getStatusCode() == HTTP_NOT_FOUND) {
                 LOGGER.info("Webhook {} already deleted, treating as success.", webhookId);
                 return null;
@@ -559,24 +562,4 @@ public class ApifyClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Custom exception class to carry HTTP status code information for retry logic.
-     */
-    private static class HttpRequestException extends IOException {
-        private final int statusCode;
-
-        public HttpRequestException(String message, int statusCode) {
-            super(message);
-            this.statusCode = statusCode;
-        }
-
-        public HttpRequestException(String message, int statusCode, Throwable cause) {
-            super(message, cause);
-            this.statusCode = statusCode;
-        }
-
-        public int getStatusCode() {
-            return statusCode;
-        }
-    }
 }

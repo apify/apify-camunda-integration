@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.api.annotation.OutboundConnector;
 import io.camunda.connector.apify.common.ApifyClient;
+import io.camunda.connector.apify.common.ApifyClientException;
 import io.camunda.connector.apify.common.RunOptions;
 import io.camunda.connector.apify.common.URLValidator;
 import io.camunda.connector.apify.common.dto.Authentication;
@@ -174,6 +175,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
       }
       
       return new RunActorResponse(response);
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("run actor", e);
     } catch (Exception e) {
       LOGGER.error("Failed to run actor: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to run actor - " + e.getMessage(), e);
@@ -232,6 +235,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
       }
       
       return new RunTaskResponse(response);
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("run task", e);
     } catch (Exception e) {
       LOGGER.error("Failed to run task: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to run task - " + e.getMessage(), e);
@@ -258,6 +263,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
       
       return new GetDatasetItemsResponse(datasetItems);
       
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("get dataset items", e);
     } catch (Exception e) {
       LOGGER.error("Failed to get dataset items: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to get dataset items - " + e.getMessage(), e);
@@ -325,6 +332,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
       itemNode.remove("text");
       
       return new ScrapeSingleUrlResponse(itemNode.toString());
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("scrape single URL", e);
     } catch (Exception e) {
       LOGGER.error("Failed to scrape single URL: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to scrape single URL - " + e.getMessage(), e);
@@ -510,6 +519,19 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Translates an {@link ApifyClientException} into the appropriate Camunda exception type.
+   * User-correctable errors (400-404) become {@link ConnectorInputException};
+   * all others become {@link RuntimeException}.
+   */
+  private RuntimeException handleApifyClientException(String operation, ApifyClientException e) {
+    LOGGER.error("Failed to {}: {}", operation, e.getMessage(), e);
+    if (e.isLikelyUserError()) {
+      return new ConnectorInputException("Error: Failed to " + operation + " - " + e.getMessage(), e);
+    }
+    return new RuntimeException("Error: Failed to " + operation + " - " + e.getMessage(), e);
+  }
+
   private GetKeyValueStoreRecordResponse handleGetKeyValueStoreRecord(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     GetKeyValueStoreRecordInput recordInput = apifyRequestInput.getKeyValueStoreRecordInput();
     
@@ -529,9 +551,11 @@ public class ApifyFunction implements OutboundConnectorFunction {
       
       return parseKeyValueStoreResponse(result);
       
-    } catch (IOException e) {
+    } catch (ApifyClientException e) {
+      throw handleApifyClientException("get key-value store record", e);
+    } catch (Exception e) {
       LOGGER.error("Failed to get key-value store record: {}", e.getMessage(), e);
-      throw new RuntimeException("Failed to get key-value store record: " + e.getMessage(), e);
+      throw new RuntimeException("Error: Failed to get key-value store record - " + e.getMessage(), e);
     }
   }
 
