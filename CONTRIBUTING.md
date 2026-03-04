@@ -35,6 +35,7 @@ This guide walks you through setting up the development environment, running and
 
 ## Prerequisites
 
+- **Camunda 8.8** _(or later)_: [download the Docker Compose distribution](https://github.com/camunda/camunda-distributions/releases/tag/docker-compose-8.8) (use the **full** variant, which includes Web Modeler)
 - **Java 21** or later
 - **Maven 3.8+**
 - **Docker** and **Docker Compose**

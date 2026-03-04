@@ -1,8 +1,6 @@
 # Apify Camunda Connector
 
-Integrate [Apify](https://apify.com/) web scraping and automation capabilities into your **Camunda 8.8** workflows. This connector enables you to run Actors, execute tasks, and retrieve data from Apify directly within your BPMN processes.
-
-> **Compatibility:** Requires Camunda 8.8 or later.
+Integrate [Apify](https://apify.com/) web scraping and automation capabilities into your **Camunda** workflows. This connector enables you to run Actors, execute tasks, and retrieve data from Apify directly within your BPMN processes.
 
 ## Features
 
