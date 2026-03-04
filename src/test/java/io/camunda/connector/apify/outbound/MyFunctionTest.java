@@ -15,7 +15,6 @@ import io.camunda.connector.runtime.test.outbound.OutboundConnectorContextBuilde
 
 import io.camunda.connector.apify.common.ApifyClient;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -26,11 +25,8 @@ public class MyFunctionTest {
 
   ObjectMapper objectMapper = new ObjectMapper();
 
-  private ApifyClient.ResponseResult createResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) throws Exception {
-    Constructor<ApifyClient.ResponseResult> constructor = ApifyClient.ResponseResult.class.getDeclaredConstructor(
-        int.class, String.class, byte[].class, String.class);
-    constructor.setAccessible(true);
-    return constructor.newInstance(statusCode, responseBody, responseBodyBytes, contentType);
+  private ApifyClient.ResponseResult createResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) {
+    return new ApifyClient.ResponseResult(statusCode, responseBody, responseBodyBytes, contentType);
   }
 
   @Test

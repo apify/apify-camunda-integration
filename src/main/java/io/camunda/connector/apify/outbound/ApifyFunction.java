@@ -102,10 +102,10 @@ public class ApifyFunction implements OutboundConnectorFunction {
     // Transform actorId to the format "username~actor-name" if it is not already in that format
     final String actorId = input.actorId().replace("/", "~");
 
-    try (ApifyClient apifyClient = new ApifyClient()) {
+    try (var apifyClient = new ApifyClient(authentication.token())) {
       // Get actor details to validate and get build info
-      ApifyClient.ResponseResult actorResponseResult = apifyClient.getActor(actorId, authentication.token());
-      String actorResponse = actorResponseResult.getResponseBody();
+      ApifyClient.ResponseResult actorResponseResult = apifyClient.getActor(actorId);
+      String actorResponse = actorResponseResult.responseBody();
       if (actorResponse == null || actorResponse.trim().isEmpty()) {
         throw new RuntimeException("Error: Actor not found - " + actorId);
       }
@@ -118,10 +118,10 @@ public class ApifyFunction implements OutboundConnectorFunction {
         if (buildId == null) {
           throw new RuntimeException("Error: Build tag '" + input.buildTag() + "' not found for actor " + actorId);
         }
-        buildResponse = apifyClient.getBuild(buildId, authentication.token()).getResponseBody();
+        buildResponse = apifyClient.getBuild(buildId).responseBody();
       } else {
         // Get default build
-        buildResponse = apifyClient.getDefaultBuild(actorId, authentication.token()).getResponseBody();
+        buildResponse = apifyClient.getDefaultBuild(actorId).responseBody();
       }
 
       if (buildResponse == null || buildResponse.trim().isEmpty()) {
@@ -161,16 +161,15 @@ public class ApifyFunction implements OutboundConnectorFunction {
         null // Don't wait for finish initially
       );
       ApifyClient.ResponseResult runResponseResult = apifyClient.runActor(
-        authentication.token(),
         actorId,
         mergedInputJson,
         runOptions
       );
-      String response = runResponseResult.getResponseBody();
+      String response = runResponseResult.responseBody();
       
       // If waitForFinish is true, poll for completion
       if (Boolean.TRUE.equals(input.waitForFinish())) {
-        response = pollRunStatus(apifyClient, response, authentication.token());
+        response = pollRunStatus(apifyClient, response);
       }
       
       return new RunActorResponse(response);
@@ -192,9 +191,9 @@ public class ApifyFunction implements OutboundConnectorFunction {
     // Transform taskId to the format "username~task-name" if it is not already in that format
     final String taskId = input.taskId().replace("/", "~");
 
-    try (ApifyClient apifyClient = new ApifyClient()) {
+    try (var apifyClient = new ApifyClient(authentication.token())) {
       // Check if task exists
-      String taskResponse = apifyClient.getTask(taskId, authentication.token()).getResponseBody();
+      String taskResponse = apifyClient.getTask(taskId).responseBody();
       if (taskResponse == null || taskResponse.trim().isEmpty()) {
         throw new RuntimeException("Error: Task not found - " + taskId);
       }
@@ -219,16 +218,15 @@ public class ApifyFunction implements OutboundConnectorFunction {
         null // Don't wait for finish initially
       );
       ApifyClient.ResponseResult runResponseResult = apifyClient.runTask(
-        authentication.token(),
         taskId,
         inputJson,
         runOptions
       );
-      String response = runResponseResult.getResponseBody();
+      String response = runResponseResult.responseBody();
       
       // If waitForFinish is true, poll for completion
       if (Boolean.TRUE.equals(input.waitForFinish())) {
-        response = pollRunStatus(apifyClient, response, authentication.token());
+        response = pollRunStatus(apifyClient, response);
       }
       
       return new RunTaskResponse(response);
@@ -247,14 +245,13 @@ public class ApifyFunction implements OutboundConnectorFunction {
     
     validateAuthentication(authentication);
     
-    try (ApifyClient apifyClient = new ApifyClient()) {
+    try (var apifyClient = new ApifyClient(authentication.token())) {
       
       String datasetItems = apifyClient.getDatasetItems(
         datasetInput.datasetId(),
-        authentication.token(),
         datasetInput.offset(),
         datasetInput.limit()
-      ).getResponseBody();
+      ).responseBody();
       
       return new GetDatasetItemsResponse(datasetItems);
       
@@ -273,7 +270,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
     var input = apifyRequestInput.scrapeSingleUrlInput();
     URLValidator.validateUrl(input.url());
 
-    try (ApifyClient apifyClient = new ApifyClient()) {
+    try (var apifyClient = new ApifyClient(authentication.token())) {
       // Build input for web content scraper actor
       Map<String, Object> actorInput = new HashMap<>();
       Map<String, Object> startUrlObj = new HashMap<>();
@@ -297,14 +294,13 @@ public class ApifyFunction implements OutboundConnectorFunction {
         null
       );
       String runStartResponse = apifyClient.runActor(
-        authentication.token(),
         WEB_CONTENT_SCRAPER_ACTOR_ID,
         mergedInputJson,
         runOptions
-      ).getResponseBody();
+      ).responseBody();
 
       // Poll for finished status
-      String finalRunResponse = pollRunStatus(apifyClient, runStartResponse, authentication.token());
+      String finalRunResponse = pollRunStatus(apifyClient, runStartResponse);
       JsonNode runNode = objectMapper.readTree(finalRunResponse);
       JsonNode dataNode = runNode.path("data");
       JsonNode defaultDatasetIdNode = dataNode.isMissingNode() ? null : dataNode.path("defaultDatasetId");
@@ -314,7 +310,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       String datasetId = defaultDatasetIdNode.asText();
       
       // Fetch first item from dataset
-      String datasetItemsJson = apifyClient.getDatasetItems(datasetId, authentication.token(), 0, 1).getResponseBody();
+      String datasetItemsJson = apifyClient.getDatasetItems(datasetId, 0, 1).responseBody();
       JsonNode itemsNode = objectMapper.readTree(datasetItemsJson);
       if (!itemsNode.isArray() || itemsNode.isEmpty()) {
         throw new RuntimeException("Error: No items found in dataset for URL: " + input.url());
@@ -331,18 +327,14 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
-  private String pollRunStatus(ApifyClient apifyClient, String runResponse, String authToken) throws IOException {
-    // Extract run ID from the response (assuming it's JSON with an "id" field)
-    // This is a simplified approach - in production you might want to use a proper JSON parser
+  private String pollRunStatus(ApifyClient apifyClient, String runResponse) throws IOException {
     String runId = extractRunId(runResponse);
     if (runId == null) {
       throw new IOException("Could not extract run ID from response");
     }
     
-    
     while (true) {
-      // Wait for finish automatically waits for 1 second or until the run is terminal
-        String statusResponse = apifyClient.getRunStatus(runId, authToken, 1).getResponseBody();
+        String statusResponse = apifyClient.getRunStatus(runId, 1).responseBody();
         
         // Check if run is in terminal state (simplified check)
         if (isRunFinished(statusResponse)) {
@@ -519,12 +511,11 @@ public class ApifyFunction implements OutboundConnectorFunction {
     
     validateAuthentication(authentication);
     
-    try (ApifyClient apifyClient = new ApifyClient()) {
+    try (var apifyClient = new ApifyClient(authentication.token())) {
       
       ApifyClient.ResponseResult result = apifyClient.getKeyValueStoreRecord(
         recordInput.storeId(),
-        recordInput.recordKey(),
-        authentication.token()
+        recordInput.recordKey()
       );
       
       return parseKeyValueStoreResponse(result);
@@ -539,10 +530,10 @@ public class ApifyFunction implements OutboundConnectorFunction {
     GetKeyValueStoreRecordResponse result = new GetKeyValueStoreRecordResponse();
     
     // Use the content type from the HTTP response header
-    String contentTypeFromHeader = responseResult.getContentType();
+    String contentTypeFromHeader = responseResult.contentType();
     result.setContentType(contentTypeFromHeader != null ? contentTypeFromHeader : "application/octet-stream");
     
-    byte[] bodyBytes = responseResult.getResponseBodyInBytes();
+    byte[] bodyBytes = responseResult.responseBodyInBytes();
     if (bodyBytes == null || bodyBytes.length == 0) {
       return result;
     }
@@ -556,7 +547,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
     // If content type indicates JSON, try to parse as JSON
     if (contentType.contains("application/json") || contentType.contains("text/json")) {
       try {
-        String jsonString = responseResult.getResponseBody();
+        String jsonString = responseResult.responseBody();
         JsonNode jsonNode = objectMapper.readTree(jsonString);
         result.setJsonValue(jsonNode);
         return result;
@@ -569,7 +560,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
     // If content type indicates text, treat as text
     if (contentType.startsWith("text/")) {
       try {
-        String textValue = responseResult.getResponseBody();
+        String textValue = responseResult.responseBody();
         result.setTextValue(textValue);
         return result;
       } catch (Exception e) {

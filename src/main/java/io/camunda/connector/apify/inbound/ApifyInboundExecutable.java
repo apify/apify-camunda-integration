@@ -74,7 +74,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             // Validate callback URL format
             URLValidator.validateUrl(callbackUrl);
 
-            this.apifyClient = new ApifyClient();
+            this.apifyClient = new ApifyClient(properties.authentication().token());
 
             // Resolve slug-based resource IDs (e.g., "username~actor-name") to actual IDs
             final var resolvedResourceId = resolveResourceId(properties.getNormalizedResourceId());
@@ -118,7 +118,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
             webhookId = null;
             LOGGER.info("Deactivating Apify webhook with webhook ID: {}.", currentWebhookId);
             try {
-                apifyClient.deleteWebhook(properties.authentication().token(), currentWebhookId);
+                apifyClient.deleteWebhook(currentWebhookId);
                 LOGGER.info("Successfully deleted Apify webhook with webhook ID: {}.", currentWebhookId);
             } catch (IOException e) {
                 LOGGER.error("Failed to delete Apify webhook with webhook ID: {}: {}.", currentWebhookId, e.getMessage(), e);
@@ -249,8 +249,8 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         String webhookJson = buildWebhookPayload(resolvedResourceId);
 
         // Create the webhook
-        ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.authentication().token(), webhookJson);
-        String responseBody = result.getResponseBody();
+        ApifyClient.ResponseResult result = apifyClient.createWebhook(webhookJson);
+        String responseBody = result.responseBody();
         JsonNode responseNode = OBJECT_MAPPER.readTree(responseBody);
         JsonNode dataNode = responseNode.path("data");
 
@@ -288,21 +288,12 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         }
 
         LOGGER.debug("Resource ID '{}' contains '~', resolving via Apify API.", normalizedResourceId);
-        final var authToken = properties.authentication().token();
         final var result = switch (properties.resourceType()) {
-            case ACTOR -> apifyClient.getActor(normalizedResourceId, authToken);
-            case TASK -> apifyClient.getTask(normalizedResourceId, authToken);
+            case ACTOR -> apifyClient.getActor(normalizedResourceId);
+            case TASK -> apifyClient.getTask(normalizedResourceId);
         };
 
-        // Check the status code of the API response
-        final int statusCode = result.getStatusCode();
-        if (statusCode < 200 || statusCode >= 300) {
-            throw new IOException(String.format(
-                    "Failed to resolve resource ID '%s': Apify API returned HTTP %d.",
-                    normalizedResourceId, statusCode));
-        }
-
-        final var responseBody = result.getResponseBody();
+        final var responseBody = result.responseBody();
         final var responseNode = OBJECT_MAPPER.readTree(responseBody);
         final var idNode = responseNode.path("data").path("id");
 
