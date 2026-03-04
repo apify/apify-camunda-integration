@@ -15,7 +15,6 @@ import io.camunda.connector.runtime.test.outbound.OutboundConnectorContextBuilde
 
 import io.camunda.connector.apify.common.ApifyClient;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -26,11 +25,8 @@ public class MyFunctionTest {
 
   ObjectMapper objectMapper = new ObjectMapper();
 
-  private ApifyClient.ResponseResult createResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) throws Exception {
-    Constructor<ApifyClient.ResponseResult> constructor = ApifyClient.ResponseResult.class.getDeclaredConstructor(
-        int.class, String.class, byte[].class, String.class);
-    constructor.setAccessible(true);
-    return constructor.newInstance(statusCode, responseBody, responseBodyBytes, contentType);
+  private ApifyClient.ResponseResult createResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) {
+    return new ApifyClient.ResponseResult(statusCode, responseBody, responseBodyBytes, contentType);
   }
 
   @Test
@@ -88,12 +84,7 @@ public class MyFunctionTest {
   }
 
   @Test
-  void testExtractBuildIdFromTagWithRealJson() throws Exception {
-    ApifyFunction function = new ApifyFunction();
-    Method method = ApifyFunction.class.getDeclaredMethod(
-        "extractBuildIdFromTag", String.class, String.class);
-    method.setAccessible(true);
-
+  void testExtractBuildIdFromTagWithRealJson() {
     String actorResponse = """
         {
           "data": {
@@ -174,21 +165,16 @@ public class MyFunctionTest {
         """;
 
     // Test extracting build ID for "latest" tag (with data wrapper)
-    String buildId = (String) method.invoke(function, actorResponse, "latest");
+    String buildId = ActorBuildHelper.extractBuildIdFromTag(actorResponse, "latest");
     assertThat(buildId).isEqualTo("z2EryhbfhgSyqj6Hn");
 
     // Test with non-existent tag
-    buildId = (String) method.invoke(function, actorResponse, "nonexistent");
+    buildId = ActorBuildHelper.extractBuildIdFromTag(actorResponse, "nonexistent");
     assertThat(buildId).isNull();
   }
 
   @Test
-  void testExtractDefaultInputFromBuildWithRealJson() throws Exception {
-    ApifyFunction function = new ApifyFunction();
-    Method method = ApifyFunction.class.getDeclaredMethod(
-        "extractDefaultInputFromBuild", String.class);
-    method.setAccessible(true);
-
+  void testExtractDefaultInputFromBuildWithRealJson() {
     String buildResponse = """
         {
           "data": {
@@ -278,13 +264,8 @@ public class MyFunctionTest {
         }
         """;
 
-    // Extract the data object since the method expects actorDefinition at root level
-    var rootNode = objectMapper.readTree(buildResponse);
-    var dataNode = rootNode.get("data");
-    String buildResponseData = objectMapper.writeValueAsString(dataNode);
-
-    @SuppressWarnings("unchecked")
-    Map<String, Object> defaultInput = (Map<String, Object>) method.invoke(function, buildResponseData);
+    // The helper handles the "data" wrapper automatically
+    Map<String, Object> defaultInput = ActorBuildHelper.extractDefaultInputFromBuild(buildResponse);
 
     assertThat(defaultInput).isNotNull();
     assertThat(defaultInput).hasSize(2); // prompt and maxTokens have prefill values
