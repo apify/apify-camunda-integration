@@ -9,13 +9,13 @@ import io.camunda.connector.apify.common.RunOptions;
 import io.camunda.connector.apify.common.URLValidator;
 import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
-import io.camunda.connector.apify.outbound.dto.GetDatasetItemsInput;
+import io.camunda.connector.apify.outbound.dto.GetDatasetItemsRequest;
 import io.camunda.connector.apify.outbound.dto.GetDatasetItemsResponse;
+import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordRequest;
+import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse;
 import io.camunda.connector.apify.outbound.dto.RunActorResponse;
 import io.camunda.connector.apify.outbound.dto.RunTaskResponse;
 import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlResponse;
-import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordInput;
-import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse;
 import io.camunda.connector.api.error.ConnectorInputException;
 import io.camunda.connector.api.outbound.OutboundConnectorContext;
 import io.camunda.connector.api.outbound.OutboundConnectorFunction;
@@ -36,11 +36,11 @@ import java.util.Set;
         "authentication",
         "operation",
         "apifyRequestInput",
-        "apifyRequestInput.runActorInput",
-        "apifyRequestInput.runTaskInput",
-        "apifyRequestInput.getDatasetItemsInput",
-        "apifyRequestInput.scrapeSingleUrlInput",
-        "apifyRequestInput.getKeyValueStoreRecordInput"
+        "apifyRequestInput.runActorRequest",
+        "apifyRequestInput.runTaskRequest",
+        "apifyRequestInput.getDatasetItemsRequest",
+        "apifyRequestInput.scrapeSingleUrlRequest",
+        "apifyRequestInput.getKeyValueStoreRecordRequest"
     },
     type = "io.camunda:apify-outbound:1")
 @ElementTemplate(
@@ -92,12 +92,12 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult handleRunActor(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    if (apifyRequestInput == null || apifyRequestInput.runActorInput() == null) {
-      throw new ConnectorInputException("Error: runActorInput is null");
+    if (apifyRequestInput == null || apifyRequestInput.runActorRequest() == null) {
+      throw new ConnectorInputException("Error: runActorRequest is null");
     }
     validateAuthentication(authentication);
 
-    var input = apifyRequestInput.runActorInput();
+    var input = apifyRequestInput.runActorRequest();
 
     // Transform actorId to the format "username~actor-name" if it is not already in that format
     final String actorId = input.actorId().replace("/", "~");
@@ -182,12 +182,12 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
   private ApifyResult handleRunTask(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     LOGGER.info("Handling runTask operation");
-    if (apifyRequestInput == null || apifyRequestInput.runTaskInput() == null) {
-      throw new ConnectorInputException("Error: runTaskInput is null");
+    if (apifyRequestInput == null || apifyRequestInput.runTaskRequest() == null) {
+      throw new ConnectorInputException("Error: runTaskRequest is null");
     }
     validateAuthentication(authentication);
 
-    var input = apifyRequestInput.runTaskInput();
+    var input = apifyRequestInput.runTaskRequest();
 
     // Transform taskId to the format "username~task-name" if it is not already in that format
     final String taskId = input.taskId().replace("/", "~");
@@ -239,10 +239,10 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult handleGetDatasetItems(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    GetDatasetItemsInput datasetInput = apifyRequestInput.getDatasetItemsInput();
+    GetDatasetItemsRequest datasetInput = apifyRequestInput.getDatasetItemsRequest();
     
     if (datasetInput == null) {
-      throw new ConnectorInputException("Error: getDatasetItemsInput is null");
+      throw new ConnectorInputException("Error: getDatasetItemsRequest is null");
     }
     
     validateAuthentication(authentication);
@@ -265,12 +265,12 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private ApifyResult handleScrapeSingleUrl(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    if (apifyRequestInput == null || apifyRequestInput.scrapeSingleUrlInput() == null) {
-      throw new ConnectorInputException("Error: scrapeSingleUrlInput is null");
+    if (apifyRequestInput == null || apifyRequestInput.scrapeSingleUrlRequest() == null) {
+      throw new ConnectorInputException("Error: scrapeSingleUrlRequest is null");
     }
     validateAuthentication(authentication);
 
-    var input = apifyRequestInput.scrapeSingleUrlInput();
+    var input = apifyRequestInput.scrapeSingleUrlRequest();
     URLValidator.validateUrl(input.url());
 
     try (ApifyClient apifyClient = new ApifyClient()) {
@@ -511,10 +511,10 @@ public class ApifyFunction implements OutboundConnectorFunction {
   }
 
   private GetKeyValueStoreRecordResponse handleGetKeyValueStoreRecord(Authentication authentication, ApifyRequestInput apifyRequestInput) {
-    GetKeyValueStoreRecordInput recordInput = apifyRequestInput.getKeyValueStoreRecordInput();
+    GetKeyValueStoreRecordRequest recordInput = apifyRequestInput.getKeyValueStoreRecordRequest();
     
     if (recordInput == null) {
-      throw new ConnectorInputException("Error: getKeyValueStoreRecordInput is null");
+      throw new ConnectorInputException("Error: getKeyValueStoreRecordRequest is null");
     }
     
     validateAuthentication(authentication);

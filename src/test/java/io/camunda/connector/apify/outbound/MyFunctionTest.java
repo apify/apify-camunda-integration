@@ -9,8 +9,8 @@ import io.camunda.connector.api.error.ConnectorInputException;
 import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
-import io.camunda.connector.apify.outbound.dto.RunActorInput;
-import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlInput;
+import io.camunda.connector.apify.outbound.dto.RunActorRequest;
+import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlRequest;
 import io.camunda.connector.runtime.test.outbound.OutboundConnectorContextBuilder;
 
 import io.camunda.connector.apify.common.ApifyClient;
@@ -35,7 +35,7 @@ public class MyFunctionTest {
 
   @Test
   void shouldReturnReceivedMessageWhenExecute() throws Exception {
-    var runActorInput = new RunActorInput(
+    var runActorInput = new RunActorRequest(
       "test-actor",
       null,
       null,
@@ -293,7 +293,7 @@ public class MyFunctionTest {
   }
   
   void shouldHandleScrapeSingleUrlOperation() throws Exception {
-    var scrapeInput = new ScrapeSingleUrlInput(
+    var scrapeInput = new ScrapeSingleUrlRequest(
       "http://example.com",
       null // crawlerType, defaults in handler
     );

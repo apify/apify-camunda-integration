@@ -3,7 +3,7 @@ package io.camunda.connector.apify.outbound.dto;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 
-public record ScrapeSingleUrlInput(
+public record ScrapeSingleUrlRequest(
     @NotEmpty
     @Pattern(regexp = "^https?://.*$", message = "URL must start with http:// or https://")
     String url,

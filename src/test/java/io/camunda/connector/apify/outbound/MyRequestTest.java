@@ -9,7 +9,7 @@ import io.camunda.connector.api.error.ConnectorInputException;
 import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
-import io.camunda.connector.apify.outbound.dto.RunActorInput;
+import io.camunda.connector.apify.outbound.dto.RunActorRequest;
 import io.camunda.connector.runtime.test.outbound.OutboundConnectorContextBuilder;
 
 import org.junit.jupiter.api.Test;
@@ -21,7 +21,7 @@ public class MyRequestTest {
   @Test
   void shouldReplaceTokenSecretWhenReplaceSecrets() throws JsonProcessingException {
 
-    var runActorInput = new RunActorInput(
+    var runActorInput = new RunActorRequest(
       "test-actor",
       null,
       null,
@@ -57,7 +57,7 @@ public class MyRequestTest {
   @Test
   void shouldFailWhenValidateNoAuthentication() throws JsonProcessingException {
 
-    var runActorInput = new RunActorInput(
+    var runActorInput = new RunActorRequest(
       "test-actor",
       null,
       null,
@@ -86,7 +86,7 @@ public class MyRequestTest {
   @Test
   void shouldFailWhenValidateNoToken() throws JsonProcessingException {
 
-    var runActorInput = new RunActorInput(
+    var runActorInput = new RunActorRequest(
       "test-actor",
       null,
       null,
@@ -131,7 +131,7 @@ public class MyRequestTest {
   @Test
   void shouldFailWhenValidateTokenEmpty() throws JsonProcessingException {
 
-    var runActorInput = new RunActorInput(
+    var runActorInput = new RunActorRequest(
       "test-actor",
       null,
       null,

@@ -64,7 +64,7 @@
       ]
     },
     {
-      "id": "apifyRequestInput.runActorInput.actorId",
+      "id": "apifyRequestInput.runActorRequest.actorId",
       "label": "Actor",
       "description": "Actor name or ID (e.g., 'apify/web-scraper' or 'E2jjCZBezvAZnX8Rb').",
       "optional": false,
@@ -72,7 +72,7 @@
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runActorInput.actorId",
+        "name": "apifyRequestInput.runActorRequest.actorId",
         "type": "zeebe:input"
       },
       "condition": {
@@ -84,14 +84,14 @@
       "type": "String"
     },
     {
-      "id": "apifyRequestInput.runActorInput.inputJson",
+      "id": "apifyRequestInput.runActorRequest.inputJson",
       "label": "Input Body",
       "description": "JSON object. Defaults to Actor's value; check Actor config—may be required.",
       "optional": true,
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runActorInput.inputJson",
+        "name": "apifyRequestInput.runActorRequest.inputJson",
         "type": "zeebe:input"
       },
       "condition": {
@@ -103,13 +103,13 @@
       "type": "Text"
     },
     {
-      "id": "apifyRequestInput.runActorInput.waitForFinish",
+      "id": "apifyRequestInput.runActorRequest.waitForFinish",
       "label": "Wait for Finish",
       "description": "Wait for the Actor run to complete.",
       "group": "apifyRequestInput",
       "value": true,
       "binding": {
-        "name": "apifyRequestInput.runActorInput.waitForFinish",
+        "name": "apifyRequestInput.runActorRequest.waitForFinish",
         "type": "zeebe:input"
       },
       "condition": {
@@ -120,14 +120,14 @@
       "type": "Boolean"
     },
     {
-      "id": "apifyRequestInput.runActorInput.timeout",
+      "id": "apifyRequestInput.runActorRequest.timeout",
       "label": "Timeout (seconds)",
       "description": "Maximum time in seconds for the Actor run to complete.",
       "optional": true,
       "feel": "optional",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runActorInput.timeout",
+        "name": "apifyRequestInput.runActorRequest.timeout",
         "type": "zeebe:input"
       },
       "condition": {
@@ -139,13 +139,13 @@
       "type": "String"
     },
     {
-      "id": "apifyRequestInput.runActorInput.memory",
+      "id": "apifyRequestInput.runActorRequest.memory",
       "label": "Memory (MB)",
       "description": "Memory allocation in MB for the Actor run. Optional.",
       "optional": true,
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runActorInput.memory",
+        "name": "apifyRequestInput.runActorRequest.memory",
         "type": "zeebe:input"
       },
       "condition": {
@@ -167,7 +167,7 @@
       ]
     },
     {
-      "id": "apifyRequestInput.runActorInput.buildTag",
+      "id": "apifyRequestInput.runActorRequest.buildTag",
       "label": "Build tag",
       "description": "Actor build tag (e.g., 'latest', 'beta'). Default: 'latest'.",
       "optional": true,
@@ -175,7 +175,7 @@
       "placeholder": "latest",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runActorInput.buildTag",
+        "name": "apifyRequestInput.runActorRequest.buildTag",
         "type": "zeebe:input"
       },
       "condition": {
@@ -186,7 +186,7 @@
       "type": "String"
     },
     {
-      "id": "apifyRequestInput.runTaskInput.taskId",
+      "id": "apifyRequestInput.runTaskRequest.taskId",
       "label": "Task",
       "description": "Task name or ID (e.g., 'username/my-task' or 'abc123DEF456').",
       "optional": false,
@@ -194,7 +194,7 @@
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runTaskInput.taskId",
+        "name": "apifyRequestInput.runTaskRequest.taskId",
         "type": "zeebe:input"
       },
       "condition": {
@@ -206,14 +206,14 @@
       "type": "String"
     },
     {
-      "id": "apifyRequestInput.runTaskInput.inputJson",
+      "id": "apifyRequestInput.runTaskRequest.inputJson",
       "label": "Input Override",
       "description": "JSON object to override the task's default input. Optional.",
       "optional": true,
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runTaskInput.inputJson",
+        "name": "apifyRequestInput.runTaskRequest.inputJson",
         "type": "zeebe:input"
       },
       "condition": {
@@ -225,13 +225,13 @@
       "type": "Text"
     },
     {
-      "id": "apifyRequestInput.runTaskInput.waitForFinish",
+      "id": "apifyRequestInput.runTaskRequest.waitForFinish",
       "label": "Wait for Finish",
       "description": "Wait for the task run to complete.",
       "group": "apifyRequestInput",
       "value": true,
       "binding": {
-        "name": "apifyRequestInput.runTaskInput.waitForFinish",
+        "name": "apifyRequestInput.runTaskRequest.waitForFinish",
         "type": "zeebe:input"
       },
       "condition": {
@@ -242,14 +242,14 @@
       "type": "Boolean"
     },
     {
-      "id": "apifyRequestInput.runTaskInput.timeout",
+      "id": "apifyRequestInput.runTaskRequest.timeout",
       "label": "Timeout (seconds)",
       "description": "Maximum time in seconds for the task run to complete.",
       "optional": true,
       "feel": "optional",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runTaskInput.timeout",
+        "name": "apifyRequestInput.runTaskRequest.timeout",
         "type": "zeebe:input"
       },
       "condition": {
@@ -261,13 +261,13 @@
       "type": "String"
     },
     {
-      "id": "apifyRequestInput.runTaskInput.memory",
+      "id": "apifyRequestInput.runTaskRequest.memory",
       "label": "Memory (MB)",
       "description": "Memory allocation in MB for the task run. Optional.",
       "optional": true,
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runTaskInput.memory",
+        "name": "apifyRequestInput.runTaskRequest.memory",
         "type": "zeebe:input"
       },
       "condition": {
@@ -289,7 +289,7 @@
       ]
     },
     {
-      "id": "apifyRequestInput.runTaskInput.buildTag",
+      "id": "apifyRequestInput.runTaskRequest.buildTag",
       "label": "Build tag",
       "description": "Actor build tag (e.g., 'latest', 'beta'). Default: 'latest'.",
       "optional": true,
@@ -297,7 +297,7 @@
       "placeholder": "latest",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.runTaskInput.buildTag",
+        "name": "apifyRequestInput.runTaskRequest.buildTag",
         "type": "zeebe:input"
       },
       "condition": {
@@ -308,7 +308,7 @@
       "type": "String"
     },
     {
-      "id": "apifyRequestInput.getDatasetItemsInput.datasetId",
+      "id": "apifyRequestInput.getDatasetItemsRequest.datasetId",
       "label": "Dataset",
       "description": "The unique identifier of the dataset to retrieve items from.",
       "feel": "optional",
@@ -316,7 +316,7 @@
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.getDatasetItemsInput.datasetId",
+        "name": "apifyRequestInput.getDatasetItemsRequest.datasetId",
         "type": "zeebe:input"
       },
       "condition": {
@@ -328,13 +328,13 @@
       "type": "String"
     },
     {
-      "id": "apifyRequestInput.getDatasetItemsInput.offset",
+      "id": "apifyRequestInput.getDatasetItemsRequest.offset",
       "label": "Offset",
       "description": "Number of items to skip from the beginning. Default: 0.",
       "optional": true,
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.getDatasetItemsInput.offset",
+        "name": "apifyRequestInput.getDatasetItemsRequest.offset",
         "type": "zeebe:input"
       },
       "condition": {
@@ -347,13 +347,13 @@
       "placeholder": "0"
     },
     {
-      "id": "apifyRequestInput.getDatasetItemsInput.limit",
+      "id": "apifyRequestInput.getDatasetItemsRequest.limit",
       "label": "Limit",
       "description": "Maximum number of items to return. Default: no limit.",
       "optional": true,
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.getDatasetItemsInput.limit",
+        "name": "apifyRequestInput.getDatasetItemsRequest.limit",
         "type": "zeebe:input"
       },
       "condition": {
@@ -366,7 +366,7 @@
       "placeholder": "99"
     },
     {
-      "id": "apifyRequestInput.scrapeSingleUrlInput.url",
+      "id": "apifyRequestInput.scrapeSingleUrlRequest.url",
       "label": "URL",
       "description": "The URL to scrape (must start with http:// or https://).",
       "optional": false,
@@ -374,7 +374,7 @@
       "feel": "optional",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.scrapeSingleUrlInput.url",
+        "name": "apifyRequestInput.scrapeSingleUrlRequest.url",
         "type": "zeebe:input"
       },
       "condition": {
@@ -386,7 +386,7 @@
       "type": "String"
     },
     {
-      "id": "apifyRequestInput.scrapeSingleUrlInput.crawlerType",
+      "id": "apifyRequestInput.scrapeSingleUrlRequest.crawlerType",
       "label": "Crawler Type",
       "description": "The type of crawler to use.",
       "group": "apifyRequestInput",
@@ -396,7 +396,7 @@
         "type": "simple"
       },
       "binding": {
-        "name": "apifyRequestInput.scrapeSingleUrlInput.crawlerType",
+        "name": "apifyRequestInput.scrapeSingleUrlRequest.crawlerType",
         "type": "zeebe:input"
       },
       "choices": [
@@ -409,7 +409,7 @@
       "type": "Dropdown"
     },
     {
-      "id": "apifyRequestInput.getKeyValueStoreRecordInput.storeId",
+      "id": "apifyRequestInput.getKeyValueStoreRecordRequest.storeId",
       "label": "Key-Value Store",
       "description": "The unique identifier of the key-value store.",
       "optional": false,
@@ -417,7 +417,7 @@
       "feel": "optional",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.getKeyValueStoreRecordInput.storeId",
+        "name": "apifyRequestInput.getKeyValueStoreRecordRequest.storeId",
         "type": "zeebe:input"
       },
       "condition": {
@@ -429,7 +429,7 @@
       "type": "String"
     },
     {
-      "id": "apifyRequestInput.getKeyValueStoreRecordInput.recordKey",
+      "id": "apifyRequestInput.getKeyValueStoreRecordRequest.recordKey",
       "label": "Key",
       "description": "The key name to retrieve from the store.",
       "optional": false,
@@ -437,7 +437,7 @@
       "feel": "optional",
       "group": "apifyRequestInput",
       "binding": {
-        "name": "apifyRequestInput.getKeyValueStoreRecordInput.recordKey",
+        "name": "apifyRequestInput.getKeyValueStoreRecordRequest.recordKey",
         "type": "zeebe:input"
       },
       "condition": {
