@@ -26,11 +26,8 @@ public class MyFunctionTest {
 
   ObjectMapper objectMapper = new ObjectMapper();
 
-  private ApifyClient.ResponseResult createResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) throws Exception {
-    Constructor<ApifyClient.ResponseResult> constructor = ApifyClient.ResponseResult.class.getDeclaredConstructor(
-        int.class, String.class, byte[].class, String.class);
-    constructor.setAccessible(true);
-    return constructor.newInstance(statusCode, responseBody, responseBodyBytes, contentType);
+  private ApifyClient.ResponseResult createResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) {
+    return new ApifyClient.ResponseResult(statusCode, responseBody, responseBodyBytes, contentType);
   }
 
   @Test
@@ -335,12 +332,12 @@ public class MyFunctionTest {
         method.invoke(function, responseResult);
 
     assertThat(result).isNotNull();
-    assertThat(result.getContentType()).isEqualTo("application/json");
-    assertThat(result.getJsonValue()).isNotNull();
-    assertThat(result.getJsonValue().get("name").asText()).isEqualTo("test");
-    assertThat(result.getJsonValue().get("value").asInt()).isEqualTo(123);
-    assertThat(result.getTextValue()).isNull();
-    assertThat(result.getBase64Value()).isNull();
+    assertThat(result.contentType()).isEqualTo("application/json");
+    assertThat(result.jsonValue()).isNotNull();
+    assertThat(result.jsonValue().get("name").asText()).isEqualTo("test");
+    assertThat(result.jsonValue().get("value").asInt()).isEqualTo(123);
+    assertThat(result.textValue()).isNull();
+    assertThat(result.base64Value()).isNull();
   }
 
   @Test
@@ -359,10 +356,10 @@ public class MyFunctionTest {
         method.invoke(function, responseResult);
 
     assertThat(result).isNotNull();
-    assertThat(result.getContentType()).isEqualTo("text/plain");
-    assertThat(result.getTextValue()).isEqualTo(textContent);
-    assertThat(result.getJsonValue()).isNull();
-    assertThat(result.getBase64Value()).isNull();
+    assertThat(result.contentType()).isEqualTo("text/plain");
+    assertThat(result.textValue()).isEqualTo(textContent);
+    assertThat(result.jsonValue()).isNull();
+    assertThat(result.base64Value()).isNull();
   }
 
   @Test
@@ -382,11 +379,11 @@ public class MyFunctionTest {
         method.invoke(function, responseResult);
 
     assertThat(result).isNotNull();
-    assertThat(result.getContentType()).isEqualTo("image/jpeg");
-    assertThat(result.getBase64Value()).isNotNull();
-    assertThat(result.getBase64Value()).isEqualTo(java.util.Base64.getEncoder().encodeToString(binaryBytes));
-    assertThat(result.getJsonValue()).isNull();
-    assertThat(result.getTextValue()).isNull();
+    assertThat(result.contentType()).isEqualTo("image/jpeg");
+    assertThat(result.base64Value()).isNotNull();
+    assertThat(result.base64Value()).isEqualTo(java.util.Base64.getEncoder().encodeToString(binaryBytes));
+    assertThat(result.jsonValue()).isNull();
+    assertThat(result.textValue()).isNull();
   }
 
   @Test
@@ -404,10 +401,10 @@ public class MyFunctionTest {
         method.invoke(function, responseResult);
 
     assertThat(result).isNotNull();
-    assertThat(result.getContentType()).isEqualTo("application/octet-stream");
-    assertThat(result.getJsonValue()).isNull();
-    assertThat(result.getTextValue()).isNull();
-    assertThat(result.getBase64Value()).isNull();
+    assertThat(result.contentType()).isEqualTo("application/octet-stream");
+    assertThat(result.jsonValue()).isNull();
+    assertThat(result.textValue()).isNull();
+    assertThat(result.base64Value()).isNull();
   }
 
   @Test
@@ -424,10 +421,10 @@ public class MyFunctionTest {
         method.invoke(function, responseResult);
 
     assertThat(result).isNotNull();
-    assertThat(result.getContentType()).isEqualTo("application/octet-stream");
-    assertThat(result.getJsonValue()).isNull();
-    assertThat(result.getTextValue()).isNull();
-    assertThat(result.getBase64Value()).isNull();
+    assertThat(result.contentType()).isEqualTo("application/octet-stream");
+    assertThat(result.jsonValue()).isNull();
+    assertThat(result.textValue()).isNull();
+    assertThat(result.base64Value()).isNull();
   }
 
   @Test
@@ -446,10 +443,10 @@ public class MyFunctionTest {
         method.invoke(function, responseResult);
 
     assertThat(result).isNotNull();
-    assertThat(result.getContentType()).isEqualTo("text/plain");
-    assertThat(result.getTextValue()).isEqualTo(textContent);
-    assertThat(result.getJsonValue()).isNull();
-    assertThat(result.getBase64Value()).isNull();
+    assertThat(result.contentType()).isEqualTo("text/plain");
+    assertThat(result.textValue()).isEqualTo(textContent);
+    assertThat(result.jsonValue()).isNull();
+    assertThat(result.base64Value()).isNull();
   }
 
   @Test
@@ -469,10 +466,10 @@ public class MyFunctionTest {
         method.invoke(function, responseResult);
 
     assertThat(result).isNotNull();
-    assertThat(result.getContentType()).isEqualTo("text/plain");
-    assertThat(result.getTextValue()).isEqualTo(invalidJson);
-    assertThat(result.getJsonValue()).isNull();
-    assertThat(result.getBase64Value()).isNull();
+    assertThat(result.contentType()).isEqualTo("text/plain");
+    assertThat(result.textValue()).isEqualTo(invalidJson);
+    assertThat(result.jsonValue()).isNull();
+    assertThat(result.base64Value()).isNull();
   }
 
   @Test
@@ -500,10 +497,10 @@ public class MyFunctionTest {
 
     assertThat(result).isNotNull();
     // Should be treated as binary since printable ratio is < 80%
-    assertThat(result.getContentType()).isEqualTo("application/octet-stream");
-    assertThat(result.getBase64Value()).isNotNull();
-    assertThat(result.getTextValue()).isNull();
-    assertThat(result.getJsonValue()).isNull();
+    assertThat(result.contentType()).isEqualTo("application/octet-stream");
+    assertThat(result.base64Value()).isNotNull();
+    assertThat(result.textValue()).isNull();
+    assertThat(result.jsonValue()).isNull();
   }
 
   @Test
@@ -532,11 +529,11 @@ public class MyFunctionTest {
         method.invoke(function, responseResult);
 
     assertThat(result).isNotNull();
-    assertThat(result.getContentType()).isEqualTo("application/json");
-    assertThat(result.getJsonValue()).isNotNull();
-    assertThat(result.getJsonValue().has("array")).isTrue();
-    assertThat(result.getJsonValue().has("nested")).isTrue();
-    assertThat(result.getTextValue()).isNull();
-    assertThat(result.getBase64Value()).isNull();
+    assertThat(result.contentType()).isEqualTo("application/json");
+    assertThat(result.jsonValue()).isNotNull();
+    assertThat(result.jsonValue().has("array")).isTrue();
+    assertThat(result.jsonValue().has("nested")).isTrue();
+    assertThat(result.textValue()).isNull();
+    assertThat(result.base64Value()).isNull();
   }
 }

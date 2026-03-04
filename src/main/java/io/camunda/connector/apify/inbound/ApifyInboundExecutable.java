@@ -250,7 +250,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
 
         // Create the webhook
         ApifyClient.ResponseResult result = apifyClient.createWebhook(properties.authentication().token(), webhookJson);
-        String responseBody = result.getResponseBody();
+        String responseBody = result.responseBody();
         JsonNode responseNode = OBJECT_MAPPER.readTree(responseBody);
         JsonNode dataNode = responseNode.path("data");
 
@@ -295,14 +295,14 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         };
 
         // Check the status code of the API response
-        final int statusCode = result.getStatusCode();
+        final int statusCode = result.statusCode();
         if (statusCode < 200 || statusCode >= 300) {
             throw new IOException(String.format(
                     "Failed to resolve resource ID '%s': Apify API returned HTTP %d.",
                     normalizedResourceId, statusCode));
         }
 
-        final var responseBody = result.getResponseBody();
+        final var responseBody = result.responseBody();
         final var responseNode = OBJECT_MAPPER.readTree(responseBody);
         final var idNode = responseNode.path("data").path("id");
 

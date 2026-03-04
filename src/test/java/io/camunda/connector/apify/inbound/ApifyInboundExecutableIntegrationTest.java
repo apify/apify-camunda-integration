@@ -99,7 +99,7 @@ class ApifyInboundExecutableIntegrationTest {
         executable.activate(mockContext);
 
         LOGGER.info("Step 2: Verifying webhook was created");
-        String webhooksJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+        String webhooksJson = apifyClient.listWebhooks(apifyToken).responseBody();
         JsonNode webhooks = OBJECT_MAPPER.readTree(webhooksJson);
 
         String webhookId = findWebhookByUrl(webhooks, expectedCallbackUrl);
@@ -113,7 +113,7 @@ class ApifyInboundExecutableIntegrationTest {
         executable.deactivate();
 
         LOGGER.info("Step 4: Verifying webhook was deleted");
-        String webhooksAfterJson = apifyClient.listWebhooks(apifyToken).getResponseBody();
+        String webhooksAfterJson = apifyClient.listWebhooks(apifyToken).responseBody();
         JsonNode webhooksAfter = OBJECT_MAPPER.readTree(webhooksAfterJson);
 
         String webhookIdAfter = findWebhookByUrl(webhooksAfter, expectedCallbackUrl);

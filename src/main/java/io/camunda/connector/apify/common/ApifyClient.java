@@ -90,8 +90,8 @@ public class ApifyClient implements AutoCloseable {
         for (int i = 0; i < DEFAULT_EXP_BACKOFF_RETRIES; i++) {
             try {
                 ResponseResult result = performHttpRequest(method, url, authToken, body);
-                int statusCode = result.statusCode;
-                String responseBody = result.responseBody;
+                int statusCode = result.statusCode();
+                String responseBody = result.responseBody();
 
                 if (statusCode >= 200 && statusCode < 300) {
                     return result;
@@ -168,37 +168,14 @@ public class ApifyClient implements AutoCloseable {
     }
 
     /**
-     * Result class to hold response status code and body.
+     * Result record to hold response status code and body.
      */
-    public static class ResponseResult {
-        private final int statusCode;
-        private final String responseBody;
-        private final byte[] responseBodyInBytes;
-        private final String contentType;
-
-        ResponseResult(int statusCode, String responseBody, byte[] responseBodyBytes, String contentType) {
-            this.statusCode = statusCode;
-            this.responseBody = responseBody;
-            this.responseBodyInBytes = responseBodyBytes;
-            this.contentType = contentType;
-        }
-
-        public int getStatusCode() {
-            return statusCode;
-        }
-
-        public String getResponseBody() {
-            return responseBody;
-        }
-
-        public byte[] getResponseBodyInBytes() {
-            return responseBodyInBytes;
-        }
-
-        public String getContentType() {
-            return contentType;
-        }
-    }
+    public record ResponseResult(
+        int statusCode,
+        String responseBody,
+        byte[] responseBodyInBytes,
+        String contentType
+    ) {}
 
     private ResponseResult performHttpRequest(Method method, String url, String authToken, String body)
             throws IOException {
@@ -364,17 +341,17 @@ public class ApifyClient implements AutoCloseable {
                     .setPath("/v2/acts/" + actorId + "/runs");
 
             if (runOptions != null) {
-                if (runOptions.timeout != null) {
-                    builder.setParameter("timeout", runOptions.timeout.toString());
+                if (runOptions.timeout() != null) {
+                    builder.setParameter("timeout", runOptions.timeout().toString());
                 }
-                if (runOptions.memory != null && !runOptions.memory.isBlank()) {
-                    builder.setParameter("memory", runOptions.memory);
+                if (runOptions.memory() != null && !runOptions.memory().isBlank()) {
+                    builder.setParameter("memory", runOptions.memory());
                 }
-                if (runOptions.build != null && !runOptions.build.isBlank()) {
-                    builder.setParameter("build", runOptions.build);
+                if (runOptions.build() != null && !runOptions.build().isBlank()) {
+                    builder.setParameter("build", runOptions.build());
                 }
-                if (runOptions.waitForFinishSecs != null && runOptions.waitForFinishSecs > 0) {
-                    builder.setParameter("waitForFinish", runOptions.waitForFinishSecs.toString());
+                if (runOptions.waitForFinishSecs() != null && runOptions.waitForFinishSecs() > 0) {
+                    builder.setParameter("waitForFinish", runOptions.waitForFinishSecs().toString());
                 }
             }
 
@@ -407,17 +384,17 @@ public class ApifyClient implements AutoCloseable {
                     .setPath("/v2/actor-tasks/" + taskId + "/runs");
 
             if (runOptions != null) {
-                if (runOptions.timeout != null) {
-                    builder.setParameter("timeout", runOptions.timeout.toString());
+                if (runOptions.timeout() != null) {
+                    builder.setParameter("timeout", runOptions.timeout().toString());
                 }
-                if (runOptions.memory != null && !runOptions.memory.isBlank()) {
-                    builder.setParameter("memory", runOptions.memory);
+                if (runOptions.memory() != null && !runOptions.memory().isBlank()) {
+                    builder.setParameter("memory", runOptions.memory());
                 }
-                if (runOptions.build != null && !runOptions.build.isBlank()) {
-                    builder.setParameter("build", runOptions.build);
+                if (runOptions.build() != null && !runOptions.build().isBlank()) {
+                    builder.setParameter("build", runOptions.build());
                 }
-                if (runOptions.waitForFinishSecs != null && runOptions.waitForFinishSecs > 0) {
-                    builder.setParameter("waitForFinish", runOptions.waitForFinishSecs.toString());
+                if (runOptions.waitForFinishSecs() != null && runOptions.waitForFinishSecs() > 0) {
+                    builder.setParameter("waitForFinish", runOptions.waitForFinishSecs().toString());
                 }
             }
 
