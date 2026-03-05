@@ -10,6 +10,8 @@ import java.util.Set;
  */
 public class ApifyClientException extends IOException {
 
+    // 402 (Payment Required) is included because Apify returns it when the account's
+    // usage limit is exceeded; a billing issue the user must fix, not a transient error.
     private static final Set<Integer> LIKELY_USER_ERROR_CODES = Set.of(400, 401, 402, 403, 404);
 
     private final int statusCode;

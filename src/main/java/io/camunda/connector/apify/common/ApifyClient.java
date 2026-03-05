@@ -67,9 +67,7 @@ public class ApifyClient implements AutoCloseable {
     /** Closes the underlying HTTP client and releases its resources. */
     @Override
     public void close() throws IOException {
-        if (httpClient != null) {
-            httpClient.close();
-        }
+        httpClient.close();
     }
 
     // ---- Actor operations ----
@@ -180,9 +178,7 @@ public class ApifyClient implements AutoCloseable {
             if (waitForFinishSecs != null && waitForFinishSecs > 0) {
                 builder.setParameter("waitForFinish", waitForFinishSecs.toString());
             }
-            URI uri = builder.build();
-            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
-            return executeRequest(Method.GET, urlPath, null);
+            return executeRequest(Method.GET, buildPathAndQuery(builder), null);
         } catch (URISyntaxException e) {
             throw new IOException("Invalid URI for run status request", e);
         }
@@ -216,9 +212,7 @@ public class ApifyClient implements AutoCloseable {
                 builder.setParameter("limit", limit.toString());
             }
 
-            URI uri = builder.build();
-            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
-            return executeRequest(Method.GET, urlPath, null);
+            return executeRequest(Method.GET, buildPathAndQuery(builder), null);
         } catch (URISyntaxException e) {
             throw new IOException("Invalid URI for dataset items request", e);
         }
@@ -241,10 +235,7 @@ public class ApifyClient implements AutoCloseable {
         try {
             URIBuilder builder = new URIBuilder(APIFY_API_URL)
                     .setPath("/v2/key-value-stores/" + storeId + "/records/" + recordKey);
-
-            URI uri = builder.build();
-            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
-            return executeRequest(Method.GET, urlPath, null);
+            return executeRequest(Method.GET, buildPathAndQuery(builder), null);
         } catch (URISyntaxException e) {
             throw new IOException("Invalid URI for key-value store record request", e);
         }
@@ -303,10 +294,7 @@ public class ApifyClient implements AutoCloseable {
         try {
             URIBuilder builder = new URIBuilder(APIFY_API_URL).setPath(path);
             applyRunOptions(builder, runOptions);
-
-            URI uri = builder.build();
-            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
-            return executeRequest(Method.POST, urlPath, inputJson);
+            return executeRequest(Method.POST, buildPathAndQuery(builder), inputJson);
         } catch (URISyntaxException e) {
             throw new IOException("Invalid URI for run request: " + path, e);
         }
@@ -328,6 +316,15 @@ public class ApifyClient implements AutoCloseable {
         if (runOptions.waitForFinishSecs() != null && runOptions.waitForFinishSecs() > 0) {
             builder.setParameter("waitForFinish", runOptions.waitForFinishSecs().toString());
         }
+    }
+
+    /**
+     * Reconstructs a relative path-and-query string from a fully built {@link URIBuilder},
+     * avoiding the round-trip of converting a URI back to a string only to re-resolve it.
+     */
+    private static String buildPathAndQuery(URIBuilder builder) throws URISyntaxException {
+        URI uri = builder.build();
+        return uri.getQuery() != null ? uri.getPath() + "?" + uri.getQuery() : uri.getPath();
     }
 
     private ResponseResult executeRequest(Method method, String urlPath, String body)

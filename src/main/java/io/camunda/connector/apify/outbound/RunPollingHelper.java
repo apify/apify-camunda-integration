@@ -45,7 +45,7 @@ final class RunPollingHelper {
 
             String statusResponse = apifyClient.getRunStatus(runId, waitSecs).responseBody();
 
-            if (isRunFinished(statusResponse)) {
+            if (extractTerminalStatus(statusResponse) != null) {
                 return statusResponse;
             }
         }
@@ -54,6 +54,7 @@ final class RunPollingHelper {
             "Polling timed out after " + MAX_POLL_DURATION_SECONDS + " seconds for run " + runId);
     }
 
+    // visible for testing
     static String extractRunId(String response) {
         try {
             if (response == null || response.trim().isEmpty()) {
@@ -78,10 +79,15 @@ final class RunPollingHelper {
         }
     }
 
-    static boolean isRunFinished(String statusResponse) {
+    /**
+     * Returns the terminal status string if the run has reached a terminal state, or {@code null}
+     * if it is still running or the response cannot be parsed.
+     */
+    // visible for testing
+    static String extractTerminalStatus(String statusResponse) {
         try {
             if (statusResponse == null || statusResponse.trim().isEmpty()) {
-                return false;
+                return null;
             }
 
             JsonNode rootNode = OBJECT_MAPPER.readTree(statusResponse);
@@ -89,13 +95,13 @@ final class RunPollingHelper {
 
             if (dataNode != null && dataNode.has("status")) {
                 String status = dataNode.get("status").asText();
-                return TERMINAL_STATUSES.contains(status);
+                return TERMINAL_STATUSES.contains(status) ? status : null;
             }
 
-            return false;
+            return null;
         } catch (Exception e) {
             LOGGER.warn("Failed to parse JSON response for status check: {}", e.getMessage());
-            return false;
+            return null;
         }
     }
 }

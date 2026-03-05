@@ -169,7 +169,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
     if (buildTag != null && !buildTag.trim().isEmpty()) {
       String buildId = ActorBuildHelper.extractBuildIdFromTag(actorResponse, buildTag);
       if (buildId == null) {
-        throw new RuntimeException("Error: Build tag '" + buildTag + "' not found for actor " + actorId);
+        throw new ConnectorInputException(
+            "Error: Build tag '" + buildTag + "' not found for actor " + actorId);
       }
       buildResponse = apifyClient.getBuild(buildId).responseBody();
     } else {
@@ -177,7 +178,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
 
     if (buildResponse == null || buildResponse.trim().isEmpty()) {
-      throw new RuntimeException("Error: Build not found for actor " + actorId);
+      throw new ConnectorInputException("Error: Build not found for actor " + actorId);
     }
     return buildResponse;
   }
