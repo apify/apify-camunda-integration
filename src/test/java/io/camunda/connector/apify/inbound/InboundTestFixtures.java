@@ -97,8 +97,7 @@ public final class InboundTestFixtures {
      */
     public static MockedConstruction.MockInitializer<ApifyClient> defaultActorClientMock() {
         return (mock, ctx) -> {
-            ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-            when(createResult.responseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
+            var createResult = new ApifyClient.ResponseResult(200, VALID_WEBHOOK_RESPONSE, null, null);
             when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
         };
     }
@@ -111,9 +110,8 @@ public final class InboundTestFixtures {
      */
     public static MockedConstruction.MockInitializer<ApifyClient> webhookCreationMockWithId(String webhookId) {
         return (mock, ctx) -> {
-            ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-            when(createResult.responseBody()).thenReturn(
-                    String.format("{\"data\":{\"id\":\"%s\"}}", webhookId));
+            var createResult = new ApifyClient.ResponseResult(
+                    200, String.format("{\"data\":{\"id\":\"%s\"}}", webhookId), null, null);
             when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
         };
     }
@@ -139,8 +137,7 @@ public final class InboundTestFixtures {
      */
     public static MockedConstruction.MockInitializer<ApifyClient> fullLifecycleActorMock() {
         return (mock, ctx) -> {
-            ApifyClient.ResponseResult responseResult = mock(ApifyClient.ResponseResult.class);
-            when(responseResult.responseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
+            var responseResult = new ApifyClient.ResponseResult(200, VALID_WEBHOOK_RESPONSE, null, null);
             when(mock.createWebhook(anyString(), anyString())).thenReturn(responseResult);
             when(mock.deleteWebhook(anyString(), anyString())).thenReturn(responseResult);
         };
@@ -154,8 +151,7 @@ public final class InboundTestFixtures {
      */
     public static MockedConstruction.MockInitializer<ApifyClient> deleteWebhookFailsMock(String errorMessage) {
         return (mock, ctx) -> {
-            ApifyClient.ResponseResult responseResult = mock(ApifyClient.ResponseResult.class);
-            when(responseResult.responseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
+            var responseResult = new ApifyClient.ResponseResult(200, VALID_WEBHOOK_RESPONSE, null, null);
             when(mock.createWebhook(anyString(), anyString())).thenReturn(responseResult);
             when(mock.deleteWebhook(anyString(), anyString()))
                     .thenThrow(new IOException(errorMessage));
@@ -171,16 +167,11 @@ public final class InboundTestFixtures {
      */
     public static MockedConstruction.MockInitializer<ApifyClient> actorSlugResolutionMock(String resolvedActorId) {
         return (mock, ctx) -> {
-            // Mock getActor to return the resolved ID
-            ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
-            when(actorResult.statusCode()).thenReturn(200);
-            when(actorResult.responseBody()).thenReturn(
-                    String.format("{\"data\":{\"id\":\"%s\"}}", resolvedActorId));
+            var actorResult = new ApifyClient.ResponseResult(
+                    200, String.format("{\"data\":{\"id\":\"%s\"}}", resolvedActorId), null, null);
             when(mock.getActor(anyString(), anyString())).thenReturn(actorResult);
 
-            // Mock webhook creation
-            ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-            when(createResult.responseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
+            var createResult = new ApifyClient.ResponseResult(200, VALID_WEBHOOK_RESPONSE, null, null);
             when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
         };
     }
@@ -194,16 +185,11 @@ public final class InboundTestFixtures {
      */
     public static MockedConstruction.MockInitializer<ApifyClient> taskSlugResolutionMock(String resolvedTaskId) {
         return (mock, ctx) -> {
-            // Mock getTask to return the resolved ID
-            ApifyClient.ResponseResult taskResult = mock(ApifyClient.ResponseResult.class);
-            when(taskResult.statusCode()).thenReturn(200);
-            when(taskResult.responseBody()).thenReturn(
-                    String.format("{\"data\":{\"id\":\"%s\"}}", resolvedTaskId));
+            var taskResult = new ApifyClient.ResponseResult(
+                    200, String.format("{\"data\":{\"id\":\"%s\"}}", resolvedTaskId), null, null);
             when(mock.getTask(anyString(), anyString())).thenReturn(taskResult);
 
-            // Mock webhook creation
-            ApifyClient.ResponseResult createResult = mock(ApifyClient.ResponseResult.class);
-            when(createResult.responseBody()).thenReturn(VALID_WEBHOOK_RESPONSE);
+            var createResult = new ApifyClient.ResponseResult(200, VALID_WEBHOOK_RESPONSE, null, null);
             when(mock.createWebhook(anyString(), anyString())).thenReturn(createResult);
         };
     }
@@ -242,9 +228,7 @@ public final class InboundTestFixtures {
      */
     public static MockedConstruction.MockInitializer<ApifyClient> actorResolutionMissingIdMock(String responseBody) {
         return (mock, ctx) -> {
-            ApifyClient.ResponseResult actorResult = mock(ApifyClient.ResponseResult.class);
-            when(actorResult.statusCode()).thenReturn(200);
-            when(actorResult.responseBody()).thenReturn(responseBody);
+            var actorResult = new ApifyClient.ResponseResult(200, responseBody, null, null);
             when(mock.getActor(anyString(), anyString())).thenReturn(actorResult);
         };
     }

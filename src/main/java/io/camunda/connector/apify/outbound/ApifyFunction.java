@@ -556,11 +556,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
     
     if (contentType.startsWith("text/")) {
-      try {
-        return new GetKeyValueStoreRecordResponse(resolvedContentType, null, responseResult.responseBody(), null);
-      } catch (Exception e) {
-        LOGGER.warn("Failed to convert to text: {}", e.getMessage());
-      }
+      return new GetKeyValueStoreRecordResponse(resolvedContentType, null, responseResult.responseBody(), null);
     }
     
     return new GetKeyValueStoreRecordResponse(resolvedContentType, null, null, Base64.getEncoder().encodeToString(bodyBytes));

@@ -169,6 +169,11 @@ public class ApifyClient implements AutoCloseable {
 
     /**
      * Result record to hold response status code and body.
+     *
+     * <p>Note: {@code responseBodyInBytes} is a {@code byte[]} component. Java records do not
+     * generate content-aware {@code equals}/{@code hashCode} for arrays; array comparison falls
+     * back to reference equality. Do not rely on {@code equals}/{@code hashCode} of this record
+     * when byte-level equality of the body is required.
      */
     public record ResponseResult(
         int statusCode,
