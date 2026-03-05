@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <name>apify-camunda-connector</name>
-    <description>Camunda 8.8 Connector for Apify web scraping and automation API</description>
+    <description>Camunda Connector for Apify web scraping and automation API</description>
     <groupId>io.camunda.connector</groupId>
     <artifactId>apify-camunda-connector</artifactId>
     <packaging>jar</packaging>
@@ -15,9 +15,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <version.connectors>8.8.0</version.connectors>
-        <version.assertj>3.27.6</version.assertj>
-        <version.junit-jupiter>5.14.2</version.junit-jupiter>
-        <version.mockito>5.21.0</version.mockito>
+        <version.assertj>3.27.7</version.assertj>
+        <version.junit-jupiter>5.14.3</version.junit-jupiter>
+        <version.mockito>5.22.0</version.mockito>
         <version.httpclient>5.6</version.httpclient>
         <version.httpcore>5.4</version.httpcore>
         <java.version>21</java.version>
