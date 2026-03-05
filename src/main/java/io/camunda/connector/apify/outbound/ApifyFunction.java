@@ -57,6 +57,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final Set<String> TERMINAL_STATUSES = Set.of("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT");
   private static final String WEB_CONTENT_SCRAPER_ACTOR_ID = "aYG0l9s7dbB7j3gbS";
+  private static final String DEFAULT_CRAWLER_TYPE = "cheerio";
 
   @Override
   public Object execute(OutboundConnectorContext context) {
@@ -279,7 +280,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       Map<String, Object> startUrlObj = new HashMap<>();
       startUrlObj.put("url", input.url());
       actorInput.put("startUrls", Collections.singletonList(startUrlObj));
-      actorInput.put("crawlerType", input.crawlerType());
+      actorInput.put("crawlerType", input.crawlerType() != null ? input.crawlerType() : DEFAULT_CRAWLER_TYPE);
       actorInput.put("maxCrawlDepth", 0);
       actorInput.put("maxCrawlPages", 1);
       actorInput.put("maxResults", 1);

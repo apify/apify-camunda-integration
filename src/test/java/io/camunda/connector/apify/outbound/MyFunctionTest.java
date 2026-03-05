@@ -292,6 +292,7 @@ public class MyFunctionTest {
     assertThat(defaultInput.get("maxTokens")).isEqualTo(100);
   }
   
+  @Test
   void shouldHandleScrapeSingleUrlOperation() throws Exception {
     var scrapeInput = new ScrapeSingleUrlRequest(
       "http://example.com",
