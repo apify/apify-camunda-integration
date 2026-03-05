@@ -1,4 +1,4 @@
-package io.camunda.connector.apify.outbound;
+package io.camunda.connector.apify;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -7,6 +7,17 @@ import org.springframework.boot.actuate.autoconfigure.ssl.SslObservabilityAutoCo
 import org.springframework.boot.autoconfigure.http.client.HttpClientAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration;
 
+/**
+ * Local connector runtime for testing both inbound and outbound Apify connectors.
+ *
+ * <p>This runtime starts a Spring Boot application that loads both:
+ * <ul>
+ *   <li>Outbound connector (ApifyFunction) - for executing Apify tasks from BPMN processes</li>
+ *   <li>Inbound connector (ApifyInboundExecutable) - for receiving webhooks from Apify</li>
+ * </ul>
+ *
+ * <p>Connectors are discovered via SPI (Service Provider Interface) from META-INF/services.
+ */
 @SpringBootApplication(exclude = {
     JmxEndpointAutoConfiguration.class,
     SslObservabilityAutoConfiguration.class,
@@ -15,6 +26,11 @@ import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfigura
 })
 public class LocalConnectorRuntime {
 
+  /**
+   * Starts the local connector runtime.
+   *
+   * @param args command line arguments
+   */
   public static void main(String[] args) {
     SpringApplication.run(LocalConnectorRuntime.class, args);
   }

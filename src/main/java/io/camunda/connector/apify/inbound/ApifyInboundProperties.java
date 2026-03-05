@@ -1,6 +1,8 @@
 package io.camunda.connector.apify.inbound;
 
+import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.inbound.dto.ResourceType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
@@ -14,9 +16,9 @@ import jakarta.validation.constraints.NotNull;
  */
 public record ApifyInboundProperties(
         /**
-         * The Apify API token for authentication.
+         * Authentication credentials for the Apify API.
          */
-        @NotEmpty String token,
+        @Valid @NotNull Authentication authentication,
 
         /**
          * The type of resource to subscribe to (actor or task).
@@ -40,8 +42,10 @@ public record ApifyInboundProperties(
 
     @Override
     public String toString() {
+        String tokenDisplay = authentication != null && authentication.token() != null 
+                && !authentication.token().isEmpty() ? "****" : "null";
         return "ApifyInboundProperties[" +
-                "token='" + (token != null && !token.isEmpty() ? "****" : "null") + '\'' +
+                "authentication.token='" + tokenDisplay + '\'' +
                 ", resourceType=" + resourceType +
                 ", resourceId='" + resourceId + '\'' +
                 ']';

@@ -1,292 +1,411 @@
 # Apify Camunda Connector
 
-This connector is used to interact with the Apify API in the **Camunda 8** environment. It includes both **Outbound** and **Inbound** connectors.
+Integrate [Apify](https://apify.com/) web scraping and automation capabilities into your **Camunda** workflows. This connector enables you to run Actors, execute tasks, and retrieve data from Apify directly within your BPMN processes.
+
+## Features
+
+**Outbound Connector** (call Apify from your process):
+- **Run Actor**: Start an Apify Actor with custom input
+- **Run task**: Execute a saved Actor task with optional input override
+- **Get dataset items**: Retrieve data from Apify datasets
+- **Get key-value store record**: Fetch stored data by key
+- **Scrape single URL**: Quick web scraping for a single page
+
+**Inbound Connectors** (trigger processes from Apify):
+- **Start Event**: Start a new process when an Apify event occurs
+- **Message Start Event**: Start a new process via message correlation (supports subprocesses)
+- **Intermediate Catch Event**: Pause and wait for an Apify event before continuing
+- **Boundary Event**: React to Apify events while an activity is running
+
+> **Documentation:** For in-depth tutorials and detailed documentation, visit the [Apify Camunda Integration Guide](https://docs.apify.com/platform/integrations/camunda).
 
 ---
 
 ## Table of Contents
 
-- [Prerequisites (shared setup)](#prerequisites-shared-setup)
-- [Connector Types](#connector-types)
-  - [Outbound Connector](#1-outbound-connector)
-  - [Inbound Connector (Start Event)](#2-inbound-connector-start-event)
-  - [Inbound Connector (Intermediate Event)](#3-inbound-connector-intermediate-event)
+- [Authentication](#authentication)
+- [Outbound Connector](#outbound-connector)
+  - [Run Actor](#run-actor)
+  - [Run Task](#run-task)
+  - [Scrape Single URL](#scrape-single-url)
+  - [Get Dataset Items](#get-dataset-items)
+  - [Get Key-Value Store Record](#get-key-value-store-record)
+  - [Error Handling and Retries](#error-handling-and-retries)
+- [Inbound Connectors](#inbound-connectors)
+  - [Activation Condition](#activation-condition)
+  - [Start Event](#start-event)
+  - [Message Start Event](#message-start-event)
+  - [Intermediate Catch Event](#intermediate-catch-event)
+  - [Boundary Event](#boundary-event)
+- [Usage Patterns](#usage-patterns)
+  - [Async Execution with Parallel Gateway](#async-execution-with-parallel-gateway)
+  - [Boundary Event for Runtime Reactions](#boundary-event-for-runtime-reactions)
+- [Reference](#reference)
+  - [Finding Resource IDs](#finding-resource-ids)
+  - [Common FEEL Expressions](#common-feel-expressions)
+  - [Webhook Payload Structure](#webhook-payload-structure)
+  - [Event Types and Statuses](#event-types-and-statuses)
 - [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 
 ---
 
-## Prerequisites (Shared Setup)
+## Authentication
 
-Follow these steps to set up the environment for both _Outbound_ and _Inbound_ connectors.
+All Apify Connector operations require an **Apify API Token**.
 
-### 1. Camunda Stack in Docker
+1. Log in to [Apify Console](https://console.apify.com/).
+2. Navigate to [**Settings → Integrations**](https://console.apify.com/settings/integrations).
+3. Copy your **API Token**.
 
-Locally spin up a Camunda stack using _Docker Compose_ following [this quickstart guide](https://docs.camunda.io/docs/self-managed/quickstart/developer-quickstart/docker-compose).
-
-> **Note:** Make sure to install FULLY configured Camunda stack which includes the Modeler.
-
-In case you want to choose a specific version, you can find their `docker-compose.yaml` files in [Camunda's official repository](https://github.com/camunda/camunda-distributions/tree/main/docker-compose/versions).
-
-> **Note:** When developing this connector, we used the [Camunda 8.7](https://github.com/camunda/camunda-distributions/releases/download/docker-compose-8.7/docker-compose-8.7.zip) version.
-
-### 2. Clone and Build the Connector
-
-Clone this repository and build the connector:
-
-```bash
-git clone https://github.com/apify/apify-camunda-integration.git
-
-cd apify-camunda-integration
-
-mvn clean package
-```
-
-### 3. Useful URLs
-
-Once the Camunda stack is running, you can access the following services:
-
-| Service | URL | Credentials (username / password) |
-|---------|-----|-------------|
-| **Web Modeler** | http://localhost:8070/ | `demo` / `demo` |
-| **Camunda Operate** | http://localhost:8081/operate | `demo` / `demo` |
-| **Camunda Tasklist** | http://localhost:8082/tasklist | `demo` / `demo` |
+> **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`secrets.APIFY_TOKEN`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
 
 ---
 
-## Connector Types
+## Outbound Connector
 
-The _Camunda_ provides two types of connectors:
+The **Apify Outbound Connector** allows your BPMN process to call out to Apify to invoke operations.
 
-1. **Outbound Connector** - Calls the Apify API to run Actors, tasks, or retrieve datasets
-2. **Inbound Connector** - Listens for webhook events from Apify to trigger or continue processes
+**Output Mapping:** Each outbound operation returns a JSON response. Use the **Result Variable** field (e.g., `runResult`) to store the full response, or use a **Result Expression** (FEEL) to extract specific fields into process variables (e.g., `={ runId: response.data.id, datasetId: response.data.defaultDatasetId }`).
+
+> **Note:** Throughout this document, a leading `=` in a value denotes a FEEL expression. For example, `=runResult.data.id` means "evaluate the FEEL expression `runResult.data.id`".
+
+### Run Actor
+
+Start a new execution of an Actor.
+
+**Configuration:**
+
+| Setting | Description |
+|---------|-------------|
+| **Operation** | Select `Run Actor` |
+| **Actor** | The Actor name or ID (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`) |
+| **Input Body** | *(Optional)* JSON input configuration for the run (e.g., `={ "message": "Hello from Camunda!" }`) |
+| **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
+| **Timeout (seconds)** | Maximum duration for the run (optional) |
+| **Memory (MB)** | Memory allocation (optional). Dropdown: 128, 256, 512, 1024, 2048, 4096, 8192, 16384, or 32768 MB |
+| **Build** | Build tag to use (optional, defaults to `latest`) |
+
+**Wait for Finish options:**
+- `true` (Synchronous): The process waits until the Actor run completes. Use for short-running tasks.
+- `false` (Asynchronous): The process starts the run and immediately moves to the next step. Use for long-running scrapes or with [Intermediate Catch Events](#intermediate-catch-event).
+
+### Run Task
+
+Execute a saved Actor task.
+
+**Configuration:**
+
+| Setting | Description |
+|---------|-------------|
+| **Operation** | Select `Run task` |
+| **Task** | The task name or ID (e.g., `username/my-task` or `abc123DEF456`) |
+| **Input Override** | *(Optional)* JSON to override the task's saved input |
+| **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
+| **Timeout (seconds)** | Maximum duration (optional) |
+| **Memory (MB)** | Memory allocation (optional). Dropdown: 128, 256, 512, 1024, 2048, 4096, 8192, 16384, or 32768 MB |
+| **Build** | Build tag to use (optional, defaults to `latest`) |
+
+### Scrape Single URL
+
+Quickly scrape a webpage using one of Apify's standard crawlers.
+
+**Configuration:**
+
+| Setting | Description |
+|---------|-------------|
+| **Operation** | Select `Scrape single URL` |
+| **URL** | The full URL to scrape (e.g., `https://example.com`) |
+| **Crawler Type** | `Cheerio` (lightweight), `JSDOM`, `Playwright Adaptive`, or `Playwright Firefox` |
+
+### Get Dataset Items
+
+Retrieve the results of an Actor run. Typically used after a `Run Actor` task has completed.
+
+**Configuration:**
+
+| Setting | Description |
+|---------|-------------|
+| **Operation** | Select `Get dataset items` |
+| **Dataset** | The dataset ID. Use a variable from a previous run: `=runResult.data.defaultDatasetId` |
+| **Offset** | *(Optional)* Number of items to skip from the beginning. Default: `0` |
+| **Limit** | *(Optional)* Maximum number of items to return. Default: no limit |
+
+### Get Key-Value Store Record
+
+Fetch a specific record from a key-value store.
+
+**Configuration:**
+
+| Setting | Description |
+|---------|-------------|
+| **Operation** | Select `Get key-value store record` |
+| **Key-Value Store** | The store ID (e.g., `=runResult.data.defaultKeyValueStoreId`) |
+| **Key** | The record key to retrieve (e.g., `OUTPUT`) |
+
+### Error Handling and Retries
+
+All outbound operations support error handling and automatic retries. These fields appear in the Modeler under the **Error handling** and **Retries** groups.
+
+| Setting | Description |
+|---------|-------------|
+| **Error Expression** | *(Optional)* A FEEL expression to handle errors (e.g., `if error.code = "ACTOR_NOT_FOUND" then null else error`) |
+| **Retries** | Number of retry attempts. Default: `3` |
+| **Retry Backoff** | ISO-8601 duration to wait between retries. Default: `PT0S` (no delay). Example: `PT5S` for 5 seconds |
 
 ---
 
-## 1. Outbound Connector
+## Inbound Connectors
 
-The Outbound connector allows you to call the Apify API from your BPMN process.
+Inbound connectors allow Apify to start or resume your Camunda processes via webhooks.
 
-### Run the Outbound Connector Locally
+All inbound connectors share these common fields:
 
-**Important:** Before proceeding with Camunda Modeler, make sure both the Camunda stack and your connector are running locally.
+| Setting | Description |
+|---------|-------------|
+| **Apify API Token** | Your Apify API token (see [Authentication](#authentication)) |
+| **Resource Type** | `Actor` or `Task` |
+| **Actor** / **Task** | The Actor or task name or ID to monitor (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`). The field label changes based on the selected Resource Type. |
+| **Activation Condition** | *(Optional)* FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). Leave empty to process all events. |
+| **Result Variable** | *(Optional)* Variable name to store the webhook payload |
+| **Result Expression** | *(Optional)* FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
 
-1. Ensure your Camunda stack is running in Docker.
+#### Activation Condition
 
-2. Start the local runtime to expose your connector:
+The **Activation Condition** is an optional FEEL expression that acts as a gate for incoming webhook events. When set, the connector evaluates the expression against each incoming event and only triggers the process if the expression evaluates to `true`. Events that do not match are silently ignored, no process instance is created and no correlation occurs.
 
-```bash
-mvn test-compile exec:java -Dexec.mainClass="io.camunda.connector.apify.outbound.LocalConnectorRuntime" -Dexec.classpathScope=test
-```
+This is useful when you subscribe to all event types from an Actor or Task but only want to react to specific outcomes. For example, you might want to start a process only when a run succeeds and ignore failures, timeouts, and aborts.
 
-Keep this terminal running while you work with Camunda Modeler.
+**Examples:**
 
-### Set up and Test the Outbound Connector
+| Expression | Effect |
+|------------|--------|
+| *(empty)* | All events trigger the connector (default) |
+| `=connectorData.status = "SUCCEEDED"` | Only successful runs trigger the connector |
+| `=connectorData.status != "ABORTED"` | All events except aborted runs trigger the connector |
+| `=connectorData.eventType = "ACTOR.RUN.FAILED" or connectorData.eventType = "ACTOR.RUN.TIMED_OUT"` | Only failures and timeouts trigger the connector |
 
-1. Go to **Web Modeler** (http://localhost:8070/) and create a new project.
+> **Tip:** The expression has access to the full `connectorData` object described in the [Webhook Payload Structure](#webhook-payload-structure) section. You can filter on any field, including `status`, `eventType`, `actorId`, or `runId`. For more details on webhook dispatch events and available fields, see the Apify client docs: [JavaScript](https://docs.apify.com/api/client/js/reference/interface/WebhookDispatch) | [Python](https://docs.apify.com/api/client/python/reference/class/WebhookDispatch).
 
-![Creating a new project](docs/modeler-create-project.png)
+### Start Event
 
-2. Upload the outbound connector template JSON:
-   - Template file: `element-templates/apify-outbound-connector.json`
+Use the **Apify Start Event Connector** to begin a *new* process instance when a specific event occurs in Apify (e.g., "Run Succeeded"). This is the simplest inbound connector, each incoming webhook event creates a new top-level process instance.
 
-![Uploading the connector template JSON](docs/modeler-upload-template.png)
+**When to use:**
+- Trigger a workflow based on an external event (e.g., "Every time this daily scrape finishes, start a review process")
 
-3. **Publish** the connector template to the project.
+**Configuration:**
 
-![Publishing the connector template](docs/modeler-publish-template.png)
+Uses the [common inbound fields](#inbound-connectors) listed above. No additional fields are required.
 
-4. Create a new **BPMN diagram**.
+### Message Start Event
 
-![Creating a new BPMN diagram](docs/modeler-create-bpmp-diagram.png)
+Use the **Apify Message Start Event Connector** to start a process instance through message correlation. Unlike the plain Start Event, this variant uses Camunda's message correlation mechanism, which prevents duplicate instances for the same correlation key and supports starting embedded subprocesses.
 
-5. Design a process using the **Apify BPMN connector** as a BPMN service task.
+**When to use:**
+- You need to prevent duplicate process instances for the same run (using correlation keys)
+- You want to start an embedded subprocess from an Apify event
 
-![Designing a process using the Apify BPMN connector as a BPMN service task](docs/modeler-create-apify-bpmn-task.png)
+**Configuration:**
 
-6. Set the connector input variables and run the process.
+Uses the [common inbound fields](#inbound-connectors), plus:
 
-![Setting the connector input variables and running the process](docs/modeler-set-inputs-and-run.png)
+| Setting | Description |
+|---------|-------------|
+| **Subprocess Correlation Required** | Select `Correlation not required` (default) or `Correlation required`. When set to required, the Correlation Key fields below become visible. This is needed for event-based subprocess message start events. |
+| **Correlation Key (Process)** | *(Shown when correlation is required)* FEEL expression for the correlation key from process variables (e.g., `=previousEventResponse.data.id`) |
+| **Correlation Key (Payload)** | *(Shown when correlation is required)* FEEL expression to extract the correlation key from the incoming webhook (e.g., `=connectorData.runId`) |
+| **Message ID Expression** | *(Optional)* Expression to extract a unique ID from the webhook payload for deduplication (e.g., `=connectorData.eventData.actorRunId`) |
+| **Message TTL** | *(Optional)* Time-to-live for the message in the broker as an ISO-8601 duration (e.g., `PT1H` for 1 hour) |
 
-7. Verify the run status and result in **Camunda Operate** (http://localhost:8081/operate).
+### Intermediate Catch Event
 
-![Verifying the run status and result in Camunda Operate](docs/operate-check-run-result.png)
+Use the **Apify Intermediate Catch Event Connector** to pause a running process and wait for a callback from Apify.
+
+**When to use:**
+- Long-running Actor (async execution) where you want to wait without blocking process engine resources
+- Running tasks in parallel while waiting for a scrape to complete
+
+**Configuration:**
+
+Uses the [common inbound fields](#inbound-connectors), plus:
+
+| Setting | Description |
+|---------|-------------|
+| **Correlation Key (Process)** | FEEL expression for the correlation key from process variables (e.g., `=runResult.data.id`) |
+| **Correlation Key (Payload)** | FEEL expression to extract the correlation key from the incoming webhook (e.g., `=connectorData.runId`) |
+| **Message ID Expression** | *(Optional)* Expression to extract a unique ID from the webhook payload for deduplication |
+| **Message TTL** | *(Optional)* Time-to-live for the message in the broker as an ISO-8601 duration (e.g., `PT1H`) |
+
+To ensure the webhook resumes the *correct* process instance, the **Correlation Key (Process)** value must exactly match the **Correlation Key (Payload)** value extracted from the incoming webhook.
+
+### Boundary Event
+
+Use the **Apify Boundary Event Connector** to react to an Apify event while an activity is still running. A boundary event is attached to an activity (e.g., a user task or subprocess) and triggers when the specified webhook event arrives.
+
+**When to use:**
+- Cancel or redirect a running activity when an Apify run completes, fails, or times out
+- Implement timeout/fallback logic, e.g., if a scrape fails, take an alternative path
+
+**Configuration:**
+
+Same configuration as the [Intermediate Catch Event](#intermediate-catch-event) (common inbound fields plus Correlation Keys, Message ID Expression, and Message TTL). The boundary event can be **interrupting** (terminates the activity) or **non-interrupting** (allows the activity to continue).
 
 ---
 
-## 2. Inbound Connector (Start Event)
+## Usage Patterns
 
-The Inbound connector listens for webhook events from Apify. When a configured event occurs (e.g., Actor run finished), Apify sends a webhook to your connector, which then triggers a new process instance in Camunda.
+### Async Execution with Parallel Gateway
 
-### Set Up Environment Variables
+This is the recommended pattern for handling long-running scrapes reliably. It prevents timeout issues and allows other tasks while waiting.
 
-Since the inbound connector runs on your local machine and needs to receive webhooks from Apify, you must configure the `CONNECTOR_BASE_URL` environment variable.
+**Flow:**
 
-**Option A: Using a placeholder URL (for initial setup)**
-
-```bash
-export CONNECTOR_BASE_URL=http://example.com
+```
+                              ┌───→ [Other Tasks (Optional)] ────┐
+[Start] → [Run Actor Async] → [Fork]                           [Join] → [Get Dataset] → [End]
+                              └───→ [Wait for Webhook] ──────────┘
 ```
 
-**Option B: Using ngrok for actual webhook testing (recommended)**
+**Steps:**
 
-> **Note:** This approach simplifies iterative development by eliminating the need to repeatedly update the webhook URL for testing.
+1. **Run Actor (Async)**:
+   - Select `Run Actor` or `Run task`
+   - Set **Wait for Finish** to `false`
+   - Save the response to a result variable (e.g., `runResult`)
 
-1. Install [ngrok](https://ngrok.com/) if you haven't already.
+2. **Parallel Gateway (Fork)**: Split the flow immediately after the run starts.
 
-2. Start ngrok to expose port 9898 (the default port for the inbound connector):
+3. **Apify Intermediate Catch Event**:
+   - Set **Correlation Key (Process)** to `=runResult.data.id`
+   - Set **Correlation Key (Payload)** to `=connectorData.runId`
 
-```bash
-ngrok http 9898
+4. **Parallel Gateway (Join)**: Merge the branches. The process continues only when the webhook is received.
+
+5. **Get Dataset Items**:
+   - Set **Dataset** to `=runResult.data.defaultDatasetId`
+
+### Boundary Event for Runtime Reactions
+
+A [Boundary Event](https://docs.camunda.io/docs/components/modeler/bpmn/events/) attaches directly to an activity (task or subprocess) and fires when an Apify webhook arrives **while that activity is still running**. Unlike the Async Execution pattern above, the boundary event does **not** wait for the attached activity to finish, it interrupts or runs alongside it. This means any variables that the attached activity would have produced are **not available** after the boundary event fires.
+
+This makes it suited for a different use case than async execution:
+
+- **Interrupting boundary event**: cancel a running activity when an external signal arrives (e.g., abort a long-running scrape when a validation check fails or times out).
+- **Non-interrupting boundary event**: spawn a parallel path without stopping the activity (e.g., send a progress notification while a long-running scrape continues).
+
+**Example flow (interrupting):**
+
+```
+                                    ┌──(Apify Boundary Event)──→ [Handle Failure] → [End]
+[Start] → [Run Actor Async] → [Run Large Scrape]
+                                    └──(normal completion)─────→ [Process Results] → [End]
 ```
 
-3. Copy the generated public URL (e.g., `https://<random_string>.ngrok-free.app`) and set it:
+If the async Actor run fails while the large scrape is still running, the boundary event interrupts the scrape and redirects the flow to a failure-handling path.
 
-```bash
-export CONNECTOR_BASE_URL=https://<random_string>.ngrok-free.app
-```
+> **Tip:** If you need the run results (dataset, key-value store) after the Apify event, use the [Async Execution with Parallel Gateway](#async-execution-with-parallel-gateway) pattern instead. The boundary event pattern is best when you want to **react** to an event (failure, timeout, status change) rather than **collect** its output.
 
-### Run the Inbound Connector Locally
-
-Start the local runtime:
-
-```bash
-mvn test-compile exec:java -Dexec.mainClass="io.camunda.connector.apify.inbound.LocalConnectorRuntime" -Dexec.classpathScope=test
-```
-
-Keep this terminal running while you work with Camunda Modeler.
-
-### Set up and Test the Inbound Connector
-
-1. Go to **Web Modeler** (http://localhost:8070/) and create a new project (or use an existing one).
-![Creating a new project](docs/modeler-create-project.png)
-
-2. Upload the inbound connector templates:
-   - **Start Event template**: `element-templates/apify-inbound-connector.json`
-   - **Intermediate Event template**: `element-templates/apify-inbound-intermediate-connector.json`
-
-3. **Publish** both templates to the project.
-![Publishing the connector template](docs/modeler-publish-inbound-template.png)
-
-4. Create a new **BPMN diagram**.
-![Creating a new BPMN diagram](docs/modeler-create-bpmn-diagram-inbound.png)
-
-5. Design a process with the following structure:
-   - **Start Node**: Select the Apify Inbound Connector as the start event
-   - **End Node**: Add an end event
-![Designing a process with the following structure](docs/modeler-select-inbound.png)
-
-6. Configure the **Start Node** with:
-   - **Token**: Your Apify API token (OAuth is not yet implemented)
-   - **Resource ID**: Use the **Actor/Task ID** (not the name with tilda `~`), e.g., `abcdef123456`
-   - **Output Variable**: Create a variable name where the webhook result will be stored (e.g., `webhookResult`)
-
-7. **Deploy** the process. This will automatically create a webhook in Apify.
-
-![Deploying the process](docs/modeler-set-inputs-and-deploy.png)
-
-8. Verify the webhook was created:
-   - Go to the Actor page on Apify
-   - Navigate to the **Integrations** tab
-   - You should see the newly created webhook
-
-9. **If you used `http://example.com` as the connector base URL:**
-   - Start ngrok: `ngrok http 9898`
-   - Go to the webhook in Apify and update the URL to use your ngrok URL instead of `http://example.com`
-
-10. **Trigger the event** (e.g., run the Actor on Apify).
-
-11. Verify the process was triggered in **Camunda Operate** (http://localhost:8081/operate):
-    - Navigate to the process instances
-    - **Select "Finished" filter** to see completed processes
-![Go to the Processes tab](docs/operate-select.png)
-    - Check the returned data in the process variables
-![Select the finished process](docs/operate-select-finished.png)
 ---
 
-## 3. Inbound Connector (Intermediate Event)
+## Reference
 
-The Intermediate Event connector allows you to pause a running process and wait for an Apify webhook event before continuing. This is perfect for long-running Actors where you want to continue the process only when the specific run finishes.
+### Finding Resource IDs
 
-> **Prerequisite:** Before setting up the intermediate event, ensure you have followed the [Inbound Connector (Start Event)](#2-inbound-connector-start-event) instructions for **Setting up Environment Variables** and **Running the Connector Locally**.
+You can find IDs in the [Apify Console](https://console.apify.com/):
 
-The intermediate event connector template is available at:
-- `element-templates/apify-inbound-intermediate-connector.json`
+- **Actor ID**: `https://console.apify.com/actors/<THIS_IS_THE_ID>` or see the API tab
+- **Task ID**: `https://console.apify.com/actors/tasks/<THIS_IS_THE_ID>` or see the API tab
+- **Dataset ID**: Found in the Storage section or run details
 
-### How Correlation Works
+### Common FEEL Expressions
 
-Unlike the Start Event, an Intermediate Event needs to know **which** specific process instance to wake up. This is done via **Correlation Keys**.
+Camunda uses FEEL (Friendly Enough Expression Language) for dynamic values. The leading `=` in each expression tells Camunda to evaluate what follows as a FEEL expression rather than a literal string.
 
-Think of it as matching a ticket:
-1. **Correlation key (process)**: The "Ticket Number" stored in your process (e.g., a `userId` or `runId` from a previous step).
-2. **Correlation key (payload)**: The "Ticket Number" found in the incoming Apify webhook.
+| Expression | Use Case |
+|------------|----------|
+| `=secrets.APIFY_TOKEN` | Accessing a secure credential |
+| `=runResult.data.id` | Accessing the run ID from a response |
+| `=runResult.data.defaultDatasetId` | Accessing the default dataset ID |
+| `=connectorData.status` | Reading the status from inbound webhook payload |
+| `=connectorData.runId` | Reading the Run ID from inbound webhook payload |
 
-When they match, the process continues.
+### Webhook Payload Structure
 
-### Set up and Test the inbound connector events (start and intermediate)
+When an Apify inbound connector is triggered, it receives a payload with event and run information.
 
-This setup is a demonstration of how the **Inbound Start Event** and **Inbound Intermediate Event** work together using correlation. While this specific flow (linking two webhooks by userId) is a test example, it illustrates the core mechanics of process continuation.
+**Top-Level Structure:**
 
-1. **Design your BPMN process**:
-   - Start with an **Apify Inbound Start Event** (or any other start event).
-   - Add an **Apify Inbound Intermediate Event** later in the flow.
-   - Select the **Apify Inbound Intermediate Event** template for the catch event.
+- `connectorData`: Simplified object with the most important fields
+- `request`: The raw webhook request including headers and body
+- `connectorData.resource`: The full Actor Run object
 
-![Designing a process with an intermediate catch event](docs/modeler-intermediate-design.png)
+**Payload Example:**
 
-2. **Configure the Start Event**:
-   - Set the **Result Variable** to `start_res`.
-   - This variable will store the payload data from the first webhook, including the `userId` or `runId`.
+```json
+{
+  "connectorData": {
+    "eventType": "ACTOR.RUN.SUCCEEDED",
+    "userId": "user1234",
+    "createdAt": "2026-01-03T12:00:00.000Z",
+    "runId": "efgh5678",
+    "status": "SUCCEEDED",
+    "actorId": "abcd1234",
+    "defaultDatasetId": "d9E0f1G2h3I4j5K6",
+    "eventData": {
+      "actorId": "abcd1234",
+      "actorRunId": "efgh5678"
+    },
+    "resource": {
+      "id": "efgh5678",
+      "status": "SUCCEEDED",
+      "stats": { "..." },
+      "options": { "..." },
+      "usage": { "..." }
+    }
+  },
+  "request": {
+    "body": {
+      "eventType": "ACTOR.RUN.SUCCEEDED",
+      "resource": { "..." }
+    },
+    "headers": { "..." }
+  }
+}
+```
 
-3. **Configure the Intermediate Event**:
-   - **Authentication & Trigger**: Set your token and the Actor/Task ID you want to wait for.
-   - **Correlation key (process)**: `=start_res.request.body.userId` (matches the ID stored from the start).
-   - **Correlation key (payload)**: `=request.body.userId` (extracts the ID from the incoming webhook).
-   - **Result Variable**: Set to `inter_res`.
+### Event Types and Statuses
 
-![Configuring correlation keys](docs/modeler-intermediate-correlation.png)
+**Event Types (`eventType`):**
 
-4. **Deploy and Run**:
-   - **Deploy** the process to your Camunda instance.
-   - **Trigger the Start Event**: Run the first Actor on Apify. You will see a new process instance waiting at the Intermediate Event in **Camunda Operate**.
-   - **Trigger the Intermediate Event**: Run the second Actor on Apify.
-   - **Match**: If the `userId` (or `runId`) matches, the process instance will successfully finish.
+- `ACTOR.RUN.CREATED`: A new Actor run has been created
+- `ACTOR.RUN.SUCCEEDED`: Run finished with status `SUCCEEDED`
+- `ACTOR.RUN.FAILED`: Run finished with status `FAILED`
+- `ACTOR.RUN.ABORTED`: Run finished with status `ABORTED`
+- `ACTOR.RUN.TIMED_OUT`: Run finished with status `TIMED-OUT`
+- `ACTOR.RUN.RESURRECTED`: Run has been resurrected (moved back to `RUNNING`)
 
-![Verifying matching in Operate](docs/operate-intermediate-success.png)
+**Run Statuses (`status`):**
+
+- `SUCCEEDED`
+- `FAILED`
+- `ABORTED`
+- `TIMED-OUT`
+
+> **Note:** The event type uses an underscore (`TIMED_OUT`) while the run status uses a hyphen (`TIMED-OUT`). This is how the Apify API returns these values.
 
 ---
 
 ## Troubleshooting
 
-### Cleaning Up Stale Webhooks
-
-During testing, you may accumulate webhooks in the Camunda background. Currently, there's no automated way to delete these webhooks from within the connector (at least not that I know of).
-
-**To start fresh:**
-
-1. Navigate to the docker folder:
-```bash
-cd docker-compose-8.7
-```
-
-2. Stop and remove all containers and volumes:
-```bash
-docker-compose down -v
-```
-
-3. Start the stack again:
-```bash
-docker-compose up -d
-```
-
-**Note:** This will delete all your data including deployed processes, process instances, and webhooks.
-
-**Note:** This won't delete created webhooks in Apify. You can delete them manually in the Apify console.
-
-### Common Issues
-
 | Issue | Solution |
 |-------|----------|
-| Webhook not received | Ensure ngrok is running and `CONNECTOR_BASE_URL` is set correctly to the ngrok URL |
-| "Resource ID not found" | Use the Actor/Task **ID** (e.g., `abcdef123456`), not the name with tilda (e.g., `username~actor-name`) |
-| Process not visible in Operate | Check the **Finished** filter - completed processes may not show in the default view |
-| Connector crashes on startup | Ensure `CONNECTOR_BASE_URL` environment variable is set |
+| Webhook not triggering | Ensure you have deployed the process. For Start Events, deploying automatically creates the webhook in Apify. Check the **Integrations** tab of your Actor in Apify Console to verify the webhook exists. |
+| Process stuck at Intermediate Event | Check your **Correlation Keys**. The value in the process variable must *exactly* match the value in the webhook payload. Use Camunda Operate to inspect variable values. |
+| `401 Unauthorized` | Check your API Token. Regenerate it in Apify Console (Settings → Integrations) if necessary. |
+
+---
+
+## Contributing
+
+For development setup, local testing, and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).

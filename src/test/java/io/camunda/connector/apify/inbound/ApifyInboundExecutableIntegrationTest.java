@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.camunda.connector.api.inbound.InboundConnectorContext;
 import io.camunda.connector.apify.common.ApifyClient;
+import io.camunda.connector.apify.common.dto.Authentication;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -128,7 +129,7 @@ class ApifyInboundExecutableIntegrationTest {
         InboundConnectorContext context = mock(InboundConnectorContext.class);
 
         ApifyInboundProperties properties = new ApifyInboundProperties(
-                apifyToken,
+                new Authentication(apifyToken),
                 ACTOR,
                 testActorId);
 

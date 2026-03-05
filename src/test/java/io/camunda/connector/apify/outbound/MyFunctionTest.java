@@ -6,12 +6,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.camunda.connector.api.error.ConnectorInputException;
-import io.camunda.connector.apify.outbound.dto.Authentication;
+import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.Operation;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
 import io.camunda.connector.apify.outbound.dto.RunActorInput;
 import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlInput;
-import io.camunda.connector.test.outbound.OutboundConnectorContextBuilder;
+import io.camunda.connector.runtime.test.outbound.OutboundConnectorContextBuilder;
 
 import io.camunda.connector.apify.common.ApifyClient;
 

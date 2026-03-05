@@ -6,7 +6,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.api.annotation.OutboundConnector;
 import io.camunda.connector.apify.common.ApifyClient;
 import io.camunda.connector.apify.common.RunOptions;
-import io.camunda.connector.apify.outbound.dto.Authentication;
+import io.camunda.connector.apify.common.URLValidator;
+import io.camunda.connector.apify.common.dto.Authentication;
 import io.camunda.connector.apify.outbound.dto.ApifyRequestInput;
 import io.camunda.connector.apify.outbound.dto.GetDatasetItemsInput;
 import io.camunda.connector.apify.outbound.dto.GetDatasetItemsResponse;
@@ -98,12 +99,15 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
     var input = apifyRequestInput.runActorInput();
 
+    // Transform actorId to the format "username~actor-name" if it is not already in that format
+    final String actorId = input.actorId().replace("/", "~");
+
     try (ApifyClient apifyClient = new ApifyClient()) {
       // Get actor details to validate and get build info
-      ApifyClient.ResponseResult actorResponseResult = apifyClient.getActor(input.actorId(), authentication.token());
+      ApifyClient.ResponseResult actorResponseResult = apifyClient.getActor(actorId, authentication.token());
       String actorResponse = actorResponseResult.getResponseBody();
       if (actorResponse == null || actorResponse.trim().isEmpty()) {
-        throw new RuntimeException("Error: Actor not found - " + input.actorId());
+        throw new RuntimeException("Error: Actor not found - " + actorId);
       }
 
       // Get build information (either specified build or default)
@@ -112,16 +116,16 @@ public class ApifyFunction implements OutboundConnectorFunction {
         // Get build by tag from actor's taggedBuilds
         String buildId = extractBuildIdFromTag(actorResponse, input.buildTag());
         if (buildId == null) {
-          throw new RuntimeException("Error: Build tag '" + input.buildTag() + "' not found for actor " + input.actorId());
+          throw new RuntimeException("Error: Build tag '" + input.buildTag() + "' not found for actor " + actorId);
         }
         buildResponse = apifyClient.getBuild(buildId, authentication.token()).getResponseBody();
       } else {
         // Get default build
-        buildResponse = apifyClient.getDefaultBuild(input.actorId(), authentication.token()).getResponseBody();
+        buildResponse = apifyClient.getDefaultBuild(actorId, authentication.token()).getResponseBody();
       }
 
       if (buildResponse == null || buildResponse.trim().isEmpty()) {
-        throw new RuntimeException("Error: Build not found for actor " + input.actorId());
+        throw new RuntimeException("Error: Build not found for actor " + actorId);
       }
 
       // Extract default input values from build definition
@@ -158,7 +162,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       );
       ApifyClient.ResponseResult runResponseResult = apifyClient.runActor(
         authentication.token(),
-        input.actorId(),
+        actorId,
         mergedInputJson,
         runOptions
       );
@@ -185,11 +189,14 @@ public class ApifyFunction implements OutboundConnectorFunction {
 
     var input = apifyRequestInput.runTaskInput();
 
+    // Transform taskId to the format "username~task-name" if it is not already in that format
+    final String taskId = input.taskId().replace("/", "~");
+
     try (ApifyClient apifyClient = new ApifyClient()) {
       // Check if task exists
-      String taskResponse = apifyClient.getTask(input.taskId(), authentication.token()).getResponseBody();
+      String taskResponse = apifyClient.getTask(taskId, authentication.token()).getResponseBody();
       if (taskResponse == null || taskResponse.trim().isEmpty()) {
-        throw new RuntimeException("Error: Task not found - " + input.taskId());
+        throw new RuntimeException("Error: Task not found - " + taskId);
       }
 
       // Use input JSON if provided, otherwise use task's default input
@@ -213,7 +220,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       );
       ApifyClient.ResponseResult runResponseResult = apifyClient.runTask(
         authentication.token(),
-        input.taskId(),
+        taskId,
         inputJson,
         runOptions
       );
@@ -264,6 +271,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
     validateAuthentication(authentication);
 
     var input = apifyRequestInput.scrapeSingleUrlInput();
+    URLValidator.validateUrl(input.url());
 
     try (ApifyClient apifyClient = new ApifyClient()) {
       // Build input for web content scraper actor
@@ -308,8 +316,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
       // Fetch first item from dataset
       String datasetItemsJson = apifyClient.getDatasetItems(datasetId, authentication.token(), 0, 1).getResponseBody();
       JsonNode itemsNode = objectMapper.readTree(datasetItemsJson);
-      if (!itemsNode.isArray() || itemsNode.size() == 0) {
-        throw new RuntimeException("Error: No items found in dataset");
+      if (!itemsNode.isArray() || itemsNode.isEmpty()) {
+        throw new RuntimeException("Error: No items found in dataset for URL: " + input.url());
       }
       
       // Remove text field to reduce usage of tokens if AI Agent is used in the process
@@ -427,7 +435,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
           
           if (propertiesNode.isObject()) {
             // Iterate through each property
-            propertiesNode.fields().forEachRemaining(entry -> {
+            propertiesNode.properties().forEach(entry -> {
               String propertyName = entry.getKey();
               JsonNode propertyNode = entry.getValue();
               
@@ -462,7 +470,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       return objectMapper.convertValue(node, Object.class);
     } else if (node.isObject()) {
       Map<String, Object> map = new HashMap<>();
-      node.fields().forEachRemaining(entry -> {
+      node.properties().forEach(entry -> {
         map.put(entry.getKey(), convertJsonNodeToObject(entry.getValue()));
       });
       return map;
@@ -481,7 +489,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       return new HashMap<>();
     }
     Map<String, Object> map = new HashMap<>();
-    node.fields().forEachRemaining(entry -> {
+    node.properties().forEach(entry -> {
       map.put(entry.getKey(), convertJsonNodeToObject(entry.getValue()));
     });
     return map;
