@@ -10,7 +10,19 @@ import java.util.Set;
  */
 public class ApifyClientException extends IOException {
 
-    private static final Set<Integer> LIKELY_USER_ERROR_CODES = Set.of(400, 401, 402, 403, 404);
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Sentinel value used when an exception originates from a network/IO failure
+     * and no HTTP response was received (i.e. there is no real HTTP status code).
+     */
+    public static final int NO_HTTP_STATUS = 0;
+
+    /**
+     * Status codes for user input or credential errors (400–404, 422).
+     * Other 4xx codes are intentionally ignored as unexpected.
+     */
+    private static final Set<Integer> LIKELY_USER_ERROR_CODES = Set.of(400, 401, 402, 403, 404, 422);
 
     private final int statusCode;
 

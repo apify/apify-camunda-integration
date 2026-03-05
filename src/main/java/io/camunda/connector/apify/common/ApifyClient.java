@@ -132,7 +132,7 @@ public class ApifyClient implements AutoCloseable {
                         String.format(
                                 "HTTP %s request to %s failed: %s",
                                 method, url, e.getMessage()),
-                        0, e);
+                        ApifyClientException.NO_HTTP_STATUS, e);
                 lastError = wrappedException;
 
                 // For network errors, retry once more

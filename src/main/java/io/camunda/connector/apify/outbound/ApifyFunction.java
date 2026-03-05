@@ -525,10 +525,11 @@ public class ApifyFunction implements OutboundConnectorFunction {
    * all others become {@link RuntimeException}.
    */
   private RuntimeException handleApifyClientException(String operation, ApifyClientException e) {
-    LOGGER.error("Failed to {}: {}", operation, e.getMessage(), e);
     if (e.isLikelyUserError()) {
+      LOGGER.warn("Failed to {} (user error, HTTP {}): {}", operation, e.getStatusCode(), e.getMessage());
       return new ConnectorInputException("Error: Failed to " + operation + " - " + e.getMessage(), e);
     }
+    LOGGER.error("Failed to {}: {}", operation, e.getMessage(), e);
     return new RuntimeException("Error: Failed to " + operation + " - " + e.getMessage(), e);
   }
 

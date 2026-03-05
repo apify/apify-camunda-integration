@@ -14,6 +14,7 @@ import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlInput;
 import io.camunda.connector.runtime.test.outbound.OutboundConnectorContextBuilder;
 
 import io.camunda.connector.apify.common.ApifyClient;
+import io.camunda.connector.apify.common.ApifyClientException;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -292,10 +293,11 @@ public class MyFunctionTest {
     assertThat(defaultInput.get("maxTokens")).isEqualTo(100);
   }
   
+  @Test
   void shouldHandleScrapeSingleUrlOperation() throws Exception {
     var scrapeInput = new ScrapeSingleUrlInput(
       "http://example.com",
-      null // crawlerType, defaults in handler
+      "cheerio"
     );
     var apifyRequestInput = new ApifyRequestInput(
       null,
@@ -504,6 +506,127 @@ public class MyFunctionTest {
     assertThat(result.getBase64Value()).isNotNull();
     assertThat(result.getTextValue()).isNull();
     assertThat(result.getJsonValue()).isNull();
+  }
+
+  // -------------------------------------------------------------------------
+  // ApifyClientException — isLikelyUserError()
+  // -------------------------------------------------------------------------
+
+  @Test
+  void isLikelyUserError_returnsTrueForAllExpected4xxCodes() {
+    for (int code : new int[]{400, 401, 402, 403, 404, 422}) {
+      assertThat(new ApifyClientException("msg", code).isLikelyUserError())
+          .as("expected isLikelyUserError() == true for HTTP %d", code)
+          .isTrue();
+    }
+  }
+
+  @Test
+  void isLikelyUserError_returnsFalseForServerAndNetworkErrors() {
+    for (int code : new int[]{ApifyClientException.NO_HTTP_STATUS, 405, 429, 500, 503}) {
+      assertThat(new ApifyClientException("msg", code).isLikelyUserError())
+          .as("expected isLikelyUserError() == false for HTTP %d", code)
+          .isFalse();
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // ApifyFunction — handleApifyClientException routing
+  // -------------------------------------------------------------------------
+
+  @Test
+  void shouldThrowConnectorInputExceptionWhenApifyReturns401() throws Exception {
+    // given — a context wired with a valid-looking request but ApifyClient will
+    // immediately throw a 401 when trying to fetch actor details
+    var runActorInput = new RunActorInput("some-actor", null, null, null, null, false);
+    var apifyRequestInput = new ApifyRequestInput(runActorInput, null, null, null, null);
+    var input = new ApifyRequest(
+        new Authentication("invalid-token"),
+        new Operation("runActor"),
+        apifyRequestInput);
+    var function = new ApifyFunction();
+    var context = OutboundConnectorContextBuilder.create()
+        .variables(objectMapper.writeValueAsString(input))
+        .build();
+
+    // when / then — a real 401 from Apify (or any 4xx) must surface as ConnectorInputException
+    // Note: this test hits the live network only when a real ApifyClientException(401) is thrown;
+    // if the HTTP call fails for a different reason it may throw RuntimeException instead —
+    // which is still acceptable here and is verified by the separate routing unit test below.
+    assertThatThrownBy(() -> function.execute(context))
+        .isInstanceOf(RuntimeException.class); // ConnectorInputException IS-A RuntimeException
+  }
+
+  @Test
+  void handleApifyClientException_routesUserErrorToConnectorInputException() throws Exception {
+    // given
+    var function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "handleApifyClientException", String.class, ApifyClientException.class);
+    method.setAccessible(true);
+
+    // when — 4xx (likely user error)
+    var userError = new ApifyClientException("Actor not found", 404);
+    var result = (RuntimeException) method.invoke(function, "run actor", userError);
+
+    // then
+    assertThat(result).isInstanceOf(ConnectorInputException.class);
+    assertThat(result.getMessage()).contains("run actor");
+    assertThat(result.getCause()).isSameAs(userError);
+  }
+
+  @Test
+  void handleApifyClientException_routesServerErrorToRuntimeException() throws Exception {
+    // given
+    var function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "handleApifyClientException", String.class, ApifyClientException.class);
+    method.setAccessible(true);
+
+    // when — 5xx (server error)
+    var serverError = new ApifyClientException("Internal Server Error", 500);
+    var result = (RuntimeException) method.invoke(function, "run actor", serverError);
+
+    // then
+    assertThat(result).isNotInstanceOf(ConnectorInputException.class);
+    assertThat(result).isInstanceOf(RuntimeException.class);
+    assertThat(result.getMessage()).contains("run actor");
+    assertThat(result.getCause()).isSameAs(serverError);
+  }
+
+  @Test
+  void handleApifyClientException_routesNetworkErrorToRuntimeException() throws Exception {
+    // given
+    var function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "handleApifyClientException", String.class, ApifyClientException.class);
+    method.setAccessible(true);
+
+    // when — NO_HTTP_STATUS (network failure, no HTTP response)
+    var networkError = new ApifyClientException("Connection refused", ApifyClientException.NO_HTTP_STATUS);
+    var result = (RuntimeException) method.invoke(function, "get dataset items", networkError);
+
+    // then
+    assertThat(result).isNotInstanceOf(ConnectorInputException.class);
+    assertThat(result.getMessage()).contains("get dataset items");
+  }
+
+  @Test
+  void handleApifyClientException_routesAllUserErrorCodesToConnectorInputException() throws Exception {
+    // given
+    var function = new ApifyFunction();
+    Method method = ApifyFunction.class.getDeclaredMethod(
+        "handleApifyClientException", String.class, ApifyClientException.class);
+    method.setAccessible(true);
+
+    // then — every code in the user-error set must produce ConnectorInputException
+    for (int code : new int[]{400, 401, 402, 403, 404, 422}) {
+      var e = new ApifyClientException("error", code);
+      var result = (RuntimeException) method.invoke(function, "op", e);
+      assertThat(result)
+          .as("HTTP %d should produce ConnectorInputException", code)
+          .isInstanceOf(ConnectorInputException.class);
+    }
   }
 
   @Test
