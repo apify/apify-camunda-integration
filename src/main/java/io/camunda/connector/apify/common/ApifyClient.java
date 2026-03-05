@@ -48,10 +48,11 @@ public class ApifyClient implements AutoCloseable {
      * A dedicated {@link CloseableHttpClient} is created and must be released
      * by calling {@link #close()}.
      *
-     * @param authToken The Apify API token used for all requests; must not be null
+     * @param authToken The Apify API token used for all requests; must not be null or blank
      */
     public ApifyClient(String authToken) {
         Objects.requireNonNull(authToken, "authToken must not be null");
+        if (authToken.isBlank()) throw new IllegalArgumentException("authToken must not be blank");
         this.httpClient = HttpClients.createDefault();
         this.authToken = authToken;
     }
@@ -59,6 +60,7 @@ public class ApifyClient implements AutoCloseable {
     /** Package-private constructor for unit testing with a pre-configured HTTP client. */
     ApifyClient(String authToken, CloseableHttpClient httpClient) {
         Objects.requireNonNull(authToken, "authToken must not be null");
+        if (authToken.isBlank()) throw new IllegalArgumentException("authToken must not be blank");
         Objects.requireNonNull(httpClient, "httpClient must not be null");
         this.httpClient = httpClient;
         this.authToken = authToken;
@@ -457,9 +459,7 @@ public class ApifyClient implements AutoCloseable {
     }
 
     private void addHeaders(HttpRequest request) {
-        if (authToken != null && !authToken.isEmpty()) {
-            request.setHeader("Authorization", "Bearer " + authToken);
-        }
+        request.setHeader("Authorization", "Bearer " + authToken);
         request.setHeader("x-apify-integration-platform", "camunda");
     }
 
