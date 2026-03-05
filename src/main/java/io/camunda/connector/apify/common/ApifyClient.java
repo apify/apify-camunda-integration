@@ -265,17 +265,6 @@ public class ApifyClient implements AutoCloseable {
 
     // ---- Internal HTTP infrastructure ----
 
-    /**
-     * Shared POST helper for actor and task run endpoints.
-     * Builds the full URL from {@code path} and the optional {@link RunOptions} query parameters,
-     * then delegates to {@link #executeRequest}.
-     *
-     * @param path       The API path (e.g. {@code /v2/acts/{id}/runs})
-     * @param inputJson  Run input body; may be {@code null}
-     * @param runOptions Optional run configuration query parameters; may be {@code null}
-     * @return The run resource returned by the API
-     * @throws IOException if the HTTP request fails or the URI cannot be constructed
-     */
     private ResponseResult executeRunRequest(String path, String inputJson, RunOptions runOptions)
             throws IOException {
         try {
@@ -290,13 +279,6 @@ public class ApifyClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Appends non-null, non-blank {@link RunOptions} fields as query parameters on {@code builder}.
-     * A {@code null} {@code runOptions} argument is a no-op.
-     *
-     * @param builder    The URI builder to mutate
-     * @param runOptions The run options to apply; may be {@code null}
-     */
     private void applyRunOptions(URIBuilder builder, RunOptions runOptions) {
         if (runOptions == null) {
             return;
@@ -315,16 +297,6 @@ public class ApifyClient implements AutoCloseable {
         }
     }
 
-    /**
-     * Resolves {@code urlPath} against the Apify base URL and delegates to
-     * {@link #retryWithExponentialBackoff}.
-     *
-     * @param method  HTTP method
-     * @param urlPath Path (and optional query string) relative to the API base URL
-     * @param body    Request body; {@code null} for requests with no body
-     * @return The API response
-     * @throws IOException if the request fails after all retries
-     */
     private ResponseResult executeRequest(Method method, String urlPath, String body)
             throws IOException {
         URI baseUri = URI.create(APIFY_API_URL);
@@ -334,19 +306,6 @@ public class ApifyClient implements AutoCloseable {
         return retryWithExponentialBackoff(method, fullUrl, body);
     }
 
-    /**
-     * Executes an HTTP request with exponential-backoff retry logic.
-     * Retries up to {@value #DEFAULT_EXP_BACKOFF_RETRIES} times when the response status is
-     * 429 (rate-limited) or 5xx (server error), waiting
-     * {@code interval * exponential^attempt} seconds between attempts (1 s, 2 s, 4 s, …).
-     * Any other non-2xx status is thrown immediately as {@link HttpRequestException}.
-     *
-     * @param method HTTP method
-     * @param url    Full request URL
-     * @param body   Request body; {@code null} for requests with no body
-     * @return The API response on the first successful (2xx) attempt
-     * @throws IOException if all retries are exhausted or a non-retryable error occurs
-     */
     private ResponseResult retryWithExponentialBackoff(Method method, String url, String body)
             throws IOException {
         IOException lastError = null;
@@ -422,18 +381,6 @@ public class ApifyClient implements AutoCloseable {
                         method, url, DEFAULT_EXP_BACKOFF_RETRIES));
     }
 
-    /**
-     * Performs a single HTTP request without any retry logic.
-     * Reads the full response body into memory and strips charset parameters from the
-     * {@code Content-Type} header before returning.
-     *
-     * @param method HTTP method (GET, POST, DELETE)
-     * @param url    Full request URL
-     * @param body   Request body for POST; ignored for GET and DELETE
-     * @return A {@link ResponseResult} containing the status code, body, raw bytes, and content type
-     * @throws IOException              if the underlying HTTP client throws
-     * @throws IllegalArgumentException if an unsupported HTTP method is supplied
-     */
     private ResponseResult performHttpRequest(Method method, String url, String body)
             throws IOException {
         ClassicHttpRequest request = switch (method) {
@@ -479,24 +426,11 @@ public class ApifyClient implements AutoCloseable {
         return httpClient.execute(null, request, responseHandler);
     }
 
-    /**
-     * Attaches the {@code Authorization} bearer token and the Apify integration platform header
-     * to every outgoing request.
-     *
-     * @param request The request to decorate
-     */
     private void addHeaders(HttpRequest request) {
         request.setHeader("Authorization", "Bearer " + authToken);
         request.setHeader("x-apify-integration-platform", "camunda");
     }
 
-    /**
-     * Returns {@code true} for status codes that warrant a retry: 429 (rate-limited) and 5xx
-     * (server-side errors).
-     *
-     * @param statusCode The HTTP status code to evaluate
-     * @return {@code true} if the request should be retried
-     */
     private boolean isStatusCodeRetryable(int statusCode) {
         boolean isRateLimitError = statusCode == HttpStatus.SC_TOO_MANY_REQUESTS;
         boolean isInternalError = statusCode >= HttpStatus.SC_INTERNAL_SERVER_ERROR;
