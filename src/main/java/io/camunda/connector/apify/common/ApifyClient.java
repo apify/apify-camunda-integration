@@ -45,10 +45,11 @@ public class ApifyClient implements AutoCloseable {
     /**
      * Creates a new client bound to the given authentication token.
      *
-     * @param authToken The Apify API token used for all requests; must not be null
+     * @param authToken The Apify API token used for all requests; must not be null or blank
      */
     public ApifyClient(String authToken) {
         Objects.requireNonNull(authToken, "authToken must not be null");
+        if (authToken.isBlank()) throw new IllegalArgumentException("authToken must not be blank");
         this.httpClient = HttpClients.createDefault();
         this.authToken = authToken;
     }
@@ -56,6 +57,7 @@ public class ApifyClient implements AutoCloseable {
     /** Package-private constructor for unit testing with a pre-configured HTTP client. */
     ApifyClient(String authToken, CloseableHttpClient httpClient) {
         Objects.requireNonNull(authToken, "authToken must not be null");
+        if (authToken.isBlank()) throw new IllegalArgumentException("authToken must not be blank");
         Objects.requireNonNull(httpClient, "httpClient must not be null");
         this.httpClient = httpClient;
         this.authToken = authToken;
@@ -63,43 +65,97 @@ public class ApifyClient implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        if (httpClient != null) {
-            httpClient.close();
-        }
+        httpClient.close();
     }
 
     // ---- Actor operations ----
 
+    /**
+     * Starts an actor run with optional input and run configuration.
+     *
+     * @param actorId    The actor ID or {@code username~actor-name} slug
+     * @param inputJson  Input JSON body; pass {@code null} to use the actor's default input
+     * @param runOptions Optional timeout, memory, build, and waitForFinish overrides; may be {@code null}
+     * @return The run resource as returned by the Apify API
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult runActor(String actorId, String inputJson, RunOptions runOptions)
             throws IOException {
         return executeRunRequest("/v2/acts/" + actorId + "/runs", inputJson, runOptions);
     }
 
+    /**
+     * Fetches actor details by ID.
+     *
+     * @param actorId The actor ID or {@code username~actor-name} slug
+     * @return The actor resource as returned by the Apify API
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult getActor(String actorId) throws IOException {
         return executeRequest(Method.GET, "/v2/acts/" + actorId, null);
     }
 
+    /**
+     * Fetches the default build of an actor.
+     *
+     * @param actorId The actor ID or {@code username~actor-name} slug
+     * @return The build resource as returned by the Apify API
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult getDefaultBuild(String actorId) throws IOException {
         return executeRequest(Method.GET, "/v2/acts/" + actorId + "/builds/default", null);
     }
 
+    /**
+     * Fetches a specific build by its ID.
+     *
+     * @param buildId The build ID
+     * @return The build resource as returned by the Apify API
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult getBuild(String buildId) throws IOException {
         return executeRequest(Method.GET, "/v2/actor-builds/" + buildId, null);
     }
 
     // ---- Task operations ----
 
+    /**
+     * Starts an actor task run with optional input and run configuration.
+     *
+     * @param taskId     The task ID or {@code username~task-name} slug
+     * @param inputJson  Input JSON body; pass {@code null} to use the task's saved default input
+     * @param runOptions Optional timeout, memory, build, and waitForFinish overrides; may be {@code null}
+     * @return The run resource as returned by the Apify API
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult runTask(String taskId, String inputJson, RunOptions runOptions)
             throws IOException {
         return executeRunRequest("/v2/actor-tasks/" + taskId + "/runs", inputJson, runOptions);
     }
 
+    /**
+     * Fetches task details by ID.
+     *
+     * @param taskId The task ID or {@code username~task-name} slug
+     * @return The task resource as returned by the Apify API
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult getTask(String taskId) throws IOException {
         return executeRequest(Method.GET, "/v2/actor-tasks/" + taskId, null);
     }
 
     // ---- Run operations ----
 
+    /**
+     * Fetches the current status of a run.
+     * When {@code waitForFinishSecs} is positive the API long-polls for up to that many seconds
+     * before returning, avoiding repeated short polls from the caller.
+     *
+     * @param runId             The run ID
+     * @param waitForFinishSecs Seconds to long-poll for completion; {@code null} or {@code <= 0} returns immediately
+     * @return The run resource as returned by the Apify API
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult getRunStatus(String runId, Integer waitForFinishSecs) throws IOException {
         try {
             URIBuilder builder = new URIBuilder(APIFY_API_URL)
@@ -117,6 +173,15 @@ public class ApifyClient implements AutoCloseable {
 
     // ---- Dataset operations ----
 
+    /**
+     * Fetches items from a dataset in JSON format with optional pagination.
+     *
+     * @param datasetId The dataset ID
+     * @param offset    Number of items to skip from the start; may be {@code null}
+     * @param limit     Maximum number of items to return; may be {@code null}
+     * @return The dataset items as a JSON array
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult getDatasetItems(String datasetId, Integer offset, Integer limit)
             throws IOException {
         try {
@@ -141,26 +206,41 @@ public class ApifyClient implements AutoCloseable {
 
     // ---- Key-value store operations ----
 
+    /**
+     * Fetches a single record from a key-value store.
+     *
+     * @param storeId   The key-value store ID
+     * @param recordKey The record key
+     * @return The record, preserving the original content-type from the API response
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult getKeyValueStoreRecord(String storeId, String recordKey)
             throws IOException {
-        try {
-            URIBuilder builder = new URIBuilder(APIFY_API_URL)
-                    .setPath("/v2/key-value-stores/" + storeId + "/records/" + recordKey);
-
-            URI uri = builder.build();
-            String urlPath = uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : "");
-            return executeRequest(Method.GET, urlPath, null);
-        } catch (URISyntaxException e) {
-            throw new IOException("Invalid URI for key-value store record request", e);
-        }
+        return executeRequest(Method.GET, "/v2/key-value-stores/" + storeId + "/records/" + recordKey, null);
     }
 
     // ---- Webhook operations ----
 
+    /**
+     * Creates a new webhook.
+     *
+     * @param webhookJson The webhook configuration as a JSON string
+     * @return The created webhook resource
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult createWebhook(String webhookJson) throws IOException {
         return executeRequest(Method.POST, "/v2/webhooks", webhookJson);
     }
 
+    /**
+     * Deletes a webhook by ID.
+     * DELETE is idempotent: a 404 response means the webhook is already gone and is treated as
+     * success, returning a sentinel {@code ResponseResult} with status 404 and an empty body.
+     *
+     * @param webhookId The ID of the webhook to delete
+     * @return The deletion confirmation, or a sentinel 404 result if the webhook was already deleted
+     * @throws IOException if the request fails with any status other than 404
+     */
     public ResponseResult deleteWebhook(String webhookId) throws IOException {
         try {
             return executeRequest(Method.DELETE, "/v2/webhooks/" + webhookId, null);
@@ -173,12 +253,29 @@ public class ApifyClient implements AutoCloseable {
         }
     }
 
+    /**
+     * Lists all webhooks for the authenticated user.
+     *
+     * @return The webhooks list as returned by the Apify API
+     * @throws IOException if the HTTP request fails
+     */
     public ResponseResult listWebhooks() throws IOException {
         return executeRequest(Method.GET, "/v2/webhooks", null);
     }
 
     // ---- Internal HTTP infrastructure ----
 
+    /**
+     * Shared POST helper for actor and task run endpoints.
+     * Builds the full URL from {@code path} and the optional {@link RunOptions} query parameters,
+     * then delegates to {@link #executeRequest}.
+     *
+     * @param path       The API path (e.g. {@code /v2/acts/{id}/runs})
+     * @param inputJson  Run input body; may be {@code null}
+     * @param runOptions Optional run configuration query parameters; may be {@code null}
+     * @return The run resource returned by the API
+     * @throws IOException if the HTTP request fails or the URI cannot be constructed
+     */
     private ResponseResult executeRunRequest(String path, String inputJson, RunOptions runOptions)
             throws IOException {
         try {
@@ -193,6 +290,13 @@ public class ApifyClient implements AutoCloseable {
         }
     }
 
+    /**
+     * Appends non-null, non-blank {@link RunOptions} fields as query parameters on {@code builder}.
+     * A {@code null} {@code runOptions} argument is a no-op.
+     *
+     * @param builder    The URI builder to mutate
+     * @param runOptions The run options to apply; may be {@code null}
+     */
     private void applyRunOptions(URIBuilder builder, RunOptions runOptions) {
         if (runOptions == null) {
             return;
@@ -211,6 +315,16 @@ public class ApifyClient implements AutoCloseable {
         }
     }
 
+    /**
+     * Resolves {@code urlPath} against the Apify base URL and delegates to
+     * {@link #retryWithExponentialBackoff}.
+     *
+     * @param method  HTTP method
+     * @param urlPath Path (and optional query string) relative to the API base URL
+     * @param body    Request body; {@code null} for requests with no body
+     * @return The API response
+     * @throws IOException if the request fails after all retries
+     */
     private ResponseResult executeRequest(Method method, String urlPath, String body)
             throws IOException {
         URI baseUri = URI.create(APIFY_API_URL);
@@ -220,6 +334,19 @@ public class ApifyClient implements AutoCloseable {
         return retryWithExponentialBackoff(method, fullUrl, body);
     }
 
+    /**
+     * Executes an HTTP request with exponential-backoff retry logic.
+     * Retries up to {@value #DEFAULT_EXP_BACKOFF_RETRIES} times when the response status is
+     * 429 (rate-limited) or 5xx (server error), waiting
+     * {@code interval * exponential^attempt} seconds between attempts (1 s, 2 s, 4 s, …).
+     * Any other non-2xx status is thrown immediately as {@link HttpRequestException}.
+     *
+     * @param method HTTP method
+     * @param url    Full request URL
+     * @param body   Request body; {@code null} for requests with no body
+     * @return The API response on the first successful (2xx) attempt
+     * @throws IOException if all retries are exhausted or a non-retryable error occurs
+     */
     private ResponseResult retryWithExponentialBackoff(Method method, String url, String body)
             throws IOException {
         IOException lastError = null;
@@ -295,6 +422,18 @@ public class ApifyClient implements AutoCloseable {
                         method, url, DEFAULT_EXP_BACKOFF_RETRIES));
     }
 
+    /**
+     * Performs a single HTTP request without any retry logic.
+     * Reads the full response body into memory and strips charset parameters from the
+     * {@code Content-Type} header before returning.
+     *
+     * @param method HTTP method (GET, POST, DELETE)
+     * @param url    Full request URL
+     * @param body   Request body for POST; ignored for GET and DELETE
+     * @return A {@link ResponseResult} containing the status code, body, raw bytes, and content type
+     * @throws IOException              if the underlying HTTP client throws
+     * @throws IllegalArgumentException if an unsupported HTTP method is supplied
+     */
     private ResponseResult performHttpRequest(Method method, String url, String body)
             throws IOException {
         ClassicHttpRequest request = switch (method) {
@@ -340,13 +479,24 @@ public class ApifyClient implements AutoCloseable {
         return httpClient.execute(null, request, responseHandler);
     }
 
+    /**
+     * Attaches the {@code Authorization} bearer token and the Apify integration platform header
+     * to every outgoing request.
+     *
+     * @param request The request to decorate
+     */
     private void addHeaders(HttpRequest request) {
-        if (authToken != null && !authToken.isEmpty()) {
-            request.setHeader("Authorization", "Bearer " + authToken);
-        }
+        request.setHeader("Authorization", "Bearer " + authToken);
         request.setHeader("x-apify-integration-platform", "camunda");
     }
 
+    /**
+     * Returns {@code true} for status codes that warrant a retry: 429 (rate-limited) and 5xx
+     * (server-side errors).
+     *
+     * @param statusCode The HTTP status code to evaluate
+     * @return {@code true} if the request should be retried
+     */
     private boolean isStatusCodeRetryable(int statusCode) {
         boolean isRateLimitError = statusCode == HttpStatus.SC_TOO_MANY_REQUESTS;
         boolean isInternalError = statusCode >= HttpStatus.SC_INTERNAL_SERVER_ERROR;

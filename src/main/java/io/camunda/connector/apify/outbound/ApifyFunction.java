@@ -58,12 +58,27 @@ public class ApifyFunction implements OutboundConnectorFunction {
   private static final Set<String> TERMINAL_STATUSES = Set.of("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT");
   private static final String WEB_CONTENT_SCRAPER_ACTOR_ID = "aYG0l9s7dbB7j3gbS";
 
+  /**
+   * Entry point called by the Camunda runtime. Binds connector variables from the process context
+   * and delegates to {@link #executeConnector}.
+   *
+   * @param context The outbound connector context provided by the Camunda runtime
+   * @return The connector result wrapped in an {@link ApifyResult}
+   */
   @Override
   public Object execute(OutboundConnectorContext context) {
     final var connectorRequest = context.bindVariables(ApifyRequest.class);
     return executeConnector(connectorRequest);
   }
 
+  /**
+   * Routes the connector request to the appropriate operation handler based on
+   * {@link ApifyRequest#operation()} type.
+   *
+   * @param connectorRequest The fully bound connector request
+   * @return The operation result
+   * @throws ConnectorInputException if the operation type is not supported
+   */
   private ApifyResult executeConnector(final ApifyRequest connectorRequest) {
     String operationType = connectorRequest.operation().type();
 
@@ -91,6 +106,16 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Handles the {@code runActor} operation.
+   * Validates the actor, resolves the build, merges default input with user-supplied input,
+   * starts the actor run, and optionally polls until the run reaches a terminal state.
+   *
+   * @param authentication    The Apify API credentials
+   * @param apifyRequestInput The connector input containing {@code runActorInput}
+   * @return A {@link RunActorResponse} with the final run JSON
+   * @throws ConnectorInputException if {@code runActorInput} is absent or authentication is invalid
+   */
   private ApifyResult handleRunActor(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     if (apifyRequestInput == null || apifyRequestInput.runActorInput() == null) {
       throw new ConnectorInputException("Error: runActorInput is null");
@@ -179,6 +204,16 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Handles the {@code runTask} operation.
+   * Validates the task exists, starts the run with the provided input (or the task's saved default),
+   * and optionally polls until the run reaches a terminal state.
+   *
+   * @param authentication    The Apify API credentials
+   * @param apifyRequestInput The connector input containing {@code runTaskInput}
+   * @return A {@link RunTaskResponse} with the final run JSON
+   * @throws ConnectorInputException if {@code runTaskInput} is absent or authentication is invalid
+   */
   private ApifyResult handleRunTask(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     LOGGER.info("Handling runTask operation");
     if (apifyRequestInput == null || apifyRequestInput.runTaskInput() == null) {
@@ -236,6 +271,15 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Handles the {@code getDatasetItems} operation.
+   * Fetches paginated items from a dataset in JSON format.
+   *
+   * @param authentication    The Apify API credentials
+   * @param apifyRequestInput The connector input containing {@code getDatasetItemsInput}
+   * @return A {@link GetDatasetItemsResponse} with the items JSON array
+   * @throws ConnectorInputException if {@code getDatasetItemsInput} is absent or authentication is invalid
+   */
   private ApifyResult handleGetDatasetItems(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     GetDatasetItemsInput datasetInput = apifyRequestInput.getDatasetItemsInput();
     
@@ -261,6 +305,17 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Handles the {@code scrapeSingleUrl} operation.
+   * Runs the Web Content Scraper actor ({@value #WEB_CONTENT_SCRAPER_ACTOR_ID}) against the
+   * supplied URL, waits for completion, and returns the first dataset item with the {@code text}
+   * field removed to minimise token usage for downstream AI agents.
+   *
+   * @param authentication    The Apify API credentials
+   * @param apifyRequestInput The connector input containing {@code scrapeSingleUrlInput}
+   * @return A {@link ScrapeSingleUrlResponse} with the scraped page data
+   * @throws ConnectorInputException if the input is absent, the URL is invalid, or authentication fails
+   */
   private ApifyResult handleScrapeSingleUrl(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     if (apifyRequestInput == null || apifyRequestInput.scrapeSingleUrlInput() == null) {
       throw new ConnectorInputException("Error: scrapeSingleUrlInput is null");
@@ -327,6 +382,16 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Polls the Apify API until a run reaches a terminal state (SUCCEEDED, FAILED, ABORTED, or
+   * TIMED-OUT). Each poll uses a 1-second long-poll via {@code waitForFinish=1}, so the loop
+   * only spins when the run finishes within the wait window.
+   *
+   * @param apifyClient The authenticated client to use for polling
+   * @param runResponse The JSON response body from the initial run-start request
+   * @return The final run JSON from the last status poll
+   * @throws IOException if the run ID cannot be extracted or a status request fails
+   */
   private String pollRunStatus(ApifyClient apifyClient, String runResponse) throws IOException {
     String runId = extractRunId(runResponse);
     if (runId == null) {
@@ -334,15 +399,20 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
     
     while (true) {
-        String statusResponse = apifyClient.getRunStatus(runId, 1).responseBody();
-        
-        // Check if run is in terminal state (simplified check)
-        if (isRunFinished(statusResponse)) {
-          return statusResponse;
-        }
+      String statusResponse = apifyClient.getRunStatus(runId, 1).responseBody();
+      if (isRunFinished(statusResponse)) {
+        return statusResponse;
+      }
     }
   }
 
+  /**
+   * Extracts the run ID from an Apify run JSON response.
+   * Looks for {@code data.id} first, then falls back to a root-level {@code id} field.
+   *
+   * @param response The run JSON string; may be {@code null} or empty
+   * @return The run ID, or {@code null} if it cannot be found or the JSON is unparseable
+   */
   private String extractRunId(String response) {
     try {
       if (response == null || response.trim().isEmpty()) {
@@ -369,6 +439,14 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Returns {@code true} when the run status JSON indicates a terminal state.
+   * Terminal statuses are: {@code SUCCEEDED}, {@code FAILED}, {@code ABORTED}, {@code TIMED-OUT}.
+   *
+   * @param statusResponse The run status JSON string
+   * @return {@code true} if the run has finished; {@code false} if it is still running or the
+   *         status cannot be determined
+   */
   private boolean isRunFinished(String statusResponse) {
     try {
       if (statusResponse == null || statusResponse.trim().isEmpty()) {
@@ -390,6 +468,15 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Looks up a build ID by its tag name in an actor's {@code taggedBuilds} map.
+   * Handles both flat ({@code taggedBuilds.{tag}.buildId}) and
+   * data-wrapped ({@code data.taggedBuilds.{tag}.buildId}) response shapes.
+   *
+   * @param actorResponse The actor details JSON string
+   * @param buildTag      The build tag to look up (e.g. {@code "latest"})
+   * @return The build ID, or {@code null} if the tag is not found or the JSON is unparseable
+   */
   private String extractBuildIdFromTag(String actorResponse, String buildTag) {
     try {
       JsonNode rootNode = objectMapper.readTree(actorResponse);
@@ -413,6 +500,14 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Extracts the default (prefill) input values from an actor build definition.
+   * Traverses {@code actorDefinition.input.properties} and collects any property
+   * that has a {@code prefill} value.
+   *
+   * @param buildResponse The build details JSON string
+   * @return A map of property name → prefill value; empty if none are found or parsing fails
+   */
   private Map<String, Object> extractDefaultInputFromBuild(String buildResponse) {
     Map<String, Object> defaultInput = new HashMap<>();
     
@@ -447,6 +542,15 @@ public class ApifyFunction implements OutboundConnectorFunction {
     return defaultInput;
   }
   
+  /**
+   * Recursively converts a {@link JsonNode} to a plain Java object.
+   * Scalar types map to their natural Java equivalents; arrays and objects are converted to
+   * {@code List} / {@code Map} via {@link ObjectMapper#convertValue}; {@code null} nodes return
+   * {@code null}.
+   *
+   * @param node The JSON node to convert
+   * @return The corresponding Java value
+   */
   private Object convertJsonNodeToObject(JsonNode node) {
     if (node.isTextual()) {
       return node.asText();
@@ -473,6 +577,13 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Converts a JSON object node to a {@code Map<String, Object>}.
+   * Returns an empty map for {@code null}, null-valued, or non-object nodes.
+   *
+   * @param node The JSON node to convert; must be an object node for a non-empty result
+   * @return A mutable map representation of the JSON object, or an empty map
+   */
   private Map<String, Object> convertJsonNodeToMap(JsonNode node) {
     if (node == null || node.isNull()) {
       return new HashMap<>();
@@ -487,6 +598,13 @@ public class ApifyFunction implements OutboundConnectorFunction {
     return map;
   }
 
+  /**
+   * Serialises a map to a JSON string using the shared {@link ObjectMapper}.
+   * Returns {@code "{}"} if serialisation fails, so callers always receive valid JSON.
+   *
+   * @param map The map to serialise
+   * @return The JSON string representation, or {@code "{}"} on error
+   */
   private String mapToJson(Map<String, Object> map) {
     try {
       return objectMapper.writeValueAsString(map);
@@ -496,12 +614,29 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Guards every operation handler: throws {@link ConnectorInputException} when
+   * {@code authentication} is {@code null} or its token is absent/empty.
+   *
+   * @param authentication The authentication object to validate
+   * @throws ConnectorInputException if the token is missing or empty
+   */
   private void validateAuthentication(Authentication authentication) {
     if (authentication == null || authentication.token() == null || authentication.token().isEmpty()) {
       throw new ConnectorInputException("Error: Authentication token is required");
     }
   }
 
+  /**
+   * Handles the {@code getKeyValueStoreRecord} operation.
+   * Fetches a single record from a key-value store and delegates content-type-aware parsing
+   * to {@link #parseKeyValueStoreResponse}.
+   *
+   * @param authentication    The Apify API credentials
+   * @param apifyRequestInput The connector input containing {@code getKeyValueStoreRecordInput}
+   * @return A {@link GetKeyValueStoreRecordResponse} with the record value in the appropriate field
+   * @throws ConnectorInputException if {@code getKeyValueStoreRecordInput} is absent or authentication is invalid
+   */
   private GetKeyValueStoreRecordResponse handleGetKeyValueStoreRecord(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     GetKeyValueStoreRecordInput recordInput = apifyRequestInput.getKeyValueStoreRecordInput();
     
@@ -526,6 +661,19 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
   }
 
+  /**
+   * Parses an Apify key-value store HTTP response into a typed {@link GetKeyValueStoreRecordResponse}.
+   * The parsing strategy is driven by the {@code Content-Type} header:
+   * <ul>
+   *   <li>{@code application/json} or {@code text/json} → {@link GetKeyValueStoreRecordResponse#setJsonValue}</li>
+   *   <li>{@code text/*} → {@link GetKeyValueStoreRecordResponse#setTextValue}</li>
+   *   <li>Anything else (or if parsing fails) → Base64-encoded binary via
+   *       {@link GetKeyValueStoreRecordResponse#setBase64Value}</li>
+   * </ul>
+   *
+   * @param responseResult The raw HTTP response from the Apify API
+   * @return The populated response object
+   */
   private GetKeyValueStoreRecordResponse parseKeyValueStoreResponse(ApifyClient.ResponseResult responseResult) {
     GetKeyValueStoreRecordResponse result = new GetKeyValueStoreRecordResponse();
     
