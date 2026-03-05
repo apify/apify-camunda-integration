@@ -49,6 +49,42 @@ class URLValidatorTest {
     }
 
     // -------------------------------------------------------------------------
+    // Partial / malformed URLs (no scheme)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldThrowForHostOnlyWithNoScheme() {
+        // "api.apify.com" has no scheme; parsed as a relative URI path
+        assertThatThrownBy(() -> URLValidator.validateUrl("api.apify.com"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowForHostAndPathWithNoScheme() {
+        assertThatThrownBy(() -> URLValidator.validateUrl("api.apify.com/v2/datasets"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowForProtocolRelativeUrl() {
+        // "//api.apify.com" is protocol-relative; no scheme is present
+        assertThatThrownBy(() -> URLValidator.validateUrl("//api.apify.com/v2"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowForHostWithPortButNoScheme() {
+        assertThatThrownBy(() -> URLValidator.validateUrl("api.apify.com:443/v2"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowForHostWithQueryButNoScheme() {
+        assertThatThrownBy(() -> URLValidator.validateUrl("api.apify.com?format=json"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // -------------------------------------------------------------------------
     // Valid public URLs
     // -------------------------------------------------------------------------
 
@@ -126,7 +162,7 @@ class URLValidatorTest {
 
     @Test
     void shouldThrowForAwsMetadataEndpoint() {
-        // 169.254.169.254 is the AWS EC2 instance metadata endpoint — a common SSRF target
+        // 169.254.169.254 is the AWS EC2 instance metadata endpoint; a common SSRF target
         assertThatThrownBy(() -> URLValidator.validateUrl("http://169.254.169.254/latest/meta-data/"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("169.254.169.254");
@@ -151,7 +187,7 @@ class URLValidatorTest {
     }
 
     // -------------------------------------------------------------------------
-    // Unresolvable host — should NOT throw (fail-open)
+    // Unresolvable host; should NOT throw (fail-open)
     // -------------------------------------------------------------------------
 
     @Test
