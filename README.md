@@ -186,7 +186,7 @@ All inbound connectors share these common fields:
 | **Result Variable** | *(Optional)* Variable name to store the webhook payload |
 | **Result Expression** | *(Optional)* FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
 
-#### Activation Condition
+### Activation Condition
 
 The **Activation Condition** is an optional FEEL expression that acts as a gate for incoming webhook events. When set, the connector evaluates the expression against each incoming event and only triggers the process if the expression evaluates to `true`. Events that do not match are silently ignored, no process instance is created and no correlation occurs.
 

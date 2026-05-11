@@ -48,8 +48,8 @@ import java.util.Set;
     name = "Apify Connector",
     version = 1,
     description = "Access Apify tools for web scraping, data extraction, and automation.",
-    // TODO: update documentation link
-    documentationRef = "https://docs.camunda.io/docs/components/connectors/out-of-the-box-connectors/available-connectors-overview/",
+    icon = "icon.svg",
+    documentationRef = "https://docs.apify.com/platform/integrations/camunda",
     inputDataClass = ApifyRequest.class)
 public class ApifyFunction implements OutboundConnectorFunction {
 

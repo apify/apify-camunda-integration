@@ -224,8 +224,20 @@
                                     <connectorClass>io.camunda.connector.apify.inbound.ApifyInboundExecutable</connectorClass>
                                     <files>
                                         <file>
-                                            <templateId>io.camunda.connector.inbound.Apify.v1</templateId>
-                                            <templateFileName>apify-inbound-connector.json</templateFileName>
+                                            <templateId>io.camunda.connector.inbound.Apify.v1:StartEvent</templateId>
+                                            <templateFileName>apify-connector-start-event.json</templateFileName>
+                                        </file>
+                                        <file>
+                                            <templateId>io.camunda.connector.inbound.Apify.v1:MessageStartEvent</templateId>
+                                            <templateFileName>apify-connector-message-start-event.json</templateFileName>
+                                        </file>
+                                        <file>
+                                            <templateId>io.camunda.connector.inbound.Apify.v1:IntermediateCatchEvent</templateId>
+                                            <templateFileName>apify-connector-intermediate-catch-event.json</templateFileName>
+                                        </file>
+                                        <file>
+                                            <templateId>io.camunda.connector.inbound.Apify.v1:BoundaryEvent</templateId>
+                                            <templateFileName>apify-connector-boundary-event.json</templateFileName>
                                         </file>
                                     </files>
                                 </connector>
