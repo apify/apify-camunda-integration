@@ -3,12 +3,25 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <name>connector-template</name>
-    <description>Camunda Connector Template</description>
-    <groupId>io.camunda.connector</groupId>
-    <artifactId>connector-template</artifactId>
+    <name>Apify Camunda Connector</name>
+    <description>Camunda 8 Connector for the Apify platform - outbound operations (Run Actor, Run Task, Scrape URL, Get Dataset Items, Get Key-Value Store Record) and inbound webhook events (Start, Message Start, Intermediate Catch, Boundary).</description>
+    <url>https://github.com/apify/apify-camunda-integration</url>
+    <groupId>com.apify.camunda</groupId>
+    <artifactId>apify-camunda-connector</artifactId>
     <packaging>jar</packaging>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <url>https://github.com/apify/apify-camunda-integration</url>
+        <connection>scm:git:https://github.com/apify/apify-camunda-integration.git</connection>
+    </scm>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>

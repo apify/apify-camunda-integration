@@ -23,6 +23,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 
 ## Table of Contents
 
+- [Compatibility](#compatibility)
 - [Authentication](#authentication)
 - [Outbound Connector](#outbound-connector)
   - [Run Actor](#run-actor)
@@ -46,7 +47,22 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
   - [Webhook Payload Structure](#webhook-payload-structure)
   - [Event Types and Statuses](#event-types-and-statuses)
 - [Troubleshooting](#troubleshooting)
+- [Support](#support)
 - [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Compatibility
+
+| Component | Supported versions |
+|---|---|
+| Camunda 8 | 8.8.x (SaaS and Self-Managed) |
+| Camunda Connectors runtime | 8.8.x |
+| Java (runtime) | 21+ |
+| Apify API | Public REST API (v2), API token authentication |
+
+The connector is built against the Camunda Connectors SDK at the version pinned in [pom.xml](pom.xml). Compatibility with newer Camunda 8 minor releases (e.g., 8.9) is validated as part of the recertification cycle and updated here when supported.
 
 ---
 
@@ -406,6 +422,31 @@ When an Apify inbound connector is triggered, it receives a payload with event a
 
 ---
 
+## Support
+
+This connector is maintained by **Apify**. Camunda disclaims any support obligation for it; please contact Apify directly using the channels below.
+
+| Channel | Use for |
+|---|---|
+| [GitHub Issues](https://github.com/apify/apify-camunda-integration/issues) | Bug reports, feature requests, configuration questions |
+| [Apify integration docs](https://docs.apify.com/platform/integrations/camunda) | Tutorials, walkthroughs, payload reference |
+| `<integrations-support@apify.com>` *(placeholder)* | Direct support inquiries that cannot be made public |
+| [Apify Discord](https://discord.com/invite/jyEM2PRvMU) | Community discussion |
+
+For security-related issues, please follow the disclosure process in [SECURITY.md](SECURITY.md) instead of opening a public issue.
+
+**Support targets** (best-effort, per the Camunda Marketplace certification program):
+- Acknowledge support queries escalated by Camunda within **7 business days**.
+- Resolve customer technical issues within **10 business days**.
+
+---
+
 ## Contributing
 
 For development setup, local testing, and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## License
+
+Released under the MIT License. See [LICENSE.md](LICENSE.md).

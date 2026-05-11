@@ -1,0 +1,9 @@
+# GitHub language-stats: keep the bar honest about what's hand-written.
+# Element template JSONs are generated/configured artifacts, not source code we maintain by hand.
+element-templates/*.json linguist-generated=true
+
+# Documentation directories shouldn't dominate the language bar.
+docs/** linguist-documentation=true
+
+# Normalize line endings for text files.
+* text=auto eol=lf
