@@ -456,35 +456,29 @@ Once your process is configured, you need to deploy or play it:
 
 ```
 ├── src/
-│   ├── main/java/io/camunda/connector/apify/
-│   │   ├── common/           # Shared utilities (ApifyClient, etc.)
-│   │   │   └── dto/          # Common DTOs (Authentication, etc.)
-│   │   ├── inbound/          # Inbound connector implementation
-│   │   │   └── dto/          # Inbound DTOs (webhook payload, etc.)
-│   │   └── outbound/         # Outbound connector implementation
-│   │       └── dto/          # Outbound DTOs (request/response objects)
+│   ├── main/
+│   │   ├── java/io/camunda/connector/apify/
+│   │   │   ├── common/       # Shared utilities (ApifyClient, etc.)
+│   │   │   │   └── dto/      # Common DTOs (Authentication, etc.)
+│   │   │   ├── inbound/      # Inbound connector implementation
+│   │   │   │   └── dto/      # Inbound DTOs (webhook payload, etc.)
+│   │   │   └── outbound/     # Outbound connector implementation
+│   │   │       └── dto/      # Outbound DTOs (request/response objects)
+│   │   └── resources/
+│   │       └── icon.svg      # Apify logo embedded in element templates
 │   └── test/
 │       ├── java/             # Unit and integration tests
 │       └── resources/        # Test configuration
-├── element-templates/        # Camunda element templates (JSON)
+├── element-templates/        # Camunda element templates (JSON, hand-curated)
 ├── docs/
 │   ├── modeler/              # Web Modeler screenshots
 │   └── operate/              # Camunda Operate screenshots
 └── pom.xml                   # Maven configuration
 ```
 
-### Regenerating Element Templates
+### Element Templates
 
-The templates in `element-templates/` were generated and then customized for Apify. We use four inbound and one outbound template.
-
-If you want to regenerate the original (base) templates, use the command below:
-
-> **Warning:** Apify-specific customizations may be lost when regenerating.
-
-```bash
-# Use only if necessary
-mvn clean package -Dgenerate.templates=true
-```
+The JSON files in `element-templates/` are hand-curated. You can regenerate them with `mvn clean package -Dgenerate.templates=true`, but the output will need manual editing (names, descriptions, keywords, icon, property ordering) before it's usable.
 
 ### Camunda Architecture
 

@@ -5,7 +5,8 @@
   "version": 1,
   "description": "Interacts with the Apify API to run Actors, tasks, scrape URLs, and more.",
   "metadata": {
-    "keywords": ["apify", "connector", "actor"]
+    "keywords": ["apify", "connector", "actor"],
+    "_note": "This element template has been hand-curated after generation (custom name, description, keywords, property ordering)."
   },
   "category": {
     "id": "connectors",

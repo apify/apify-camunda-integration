@@ -13,7 +13,8 @@
       "inbound",
       "actor",
       "task"
-    ]
+    ],
+    "_note": "This element template has been hand-curated after generation (custom name, description, keywords, property ordering)."
   },
   "category": {
     "id": "connectors",
