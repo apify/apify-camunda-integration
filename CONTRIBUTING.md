@@ -476,9 +476,18 @@ Once your process is configured, you need to deploy or play it:
 └── pom.xml                   # Maven configuration
 ```
 
-### Element Templates
+### Regenerating Element Templates
 
-The JSON files in `element-templates/` are hand-curated. You can regenerate them with `mvn clean package -Dgenerate.templates=true`, but the output will need manual editing (names, descriptions, keywords, icon, property ordering) before it's usable.
+The templates in `element-templates/` were generated and then customized for Apify. We use four inbound and one outbound template.
+
+If you want to regenerate the original (base) templates, use the command below:
+
+> **Warning:** Apify-specific customizations may be lost when regenerating.
+
+```bash
+# Use only if necessary
+mvn clean package -Dgenerate.templates=true
+```
 
 ### Camunda Architecture
 
