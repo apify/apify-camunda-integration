@@ -50,9 +50,28 @@ public final class InboundTestFixtures {
      */
     public static InboundConnectorContext createMockContext(
             String token, ResourceType resourceType, String resourceId, String inboundContext) {
+        return createMockContext(token, resourceType, resourceId, inboundContext, DEFAULT_TEST_WEBHOOK_URL);
+    }
+
+    /**
+     * Test default for the {@code connectorWebhookUrl} template property. Used by
+     * tests that don't care about URL composition specifics — they only need a
+     * non-blank value so the {@code @NotEmpty} constraint and the activation
+     * path are satisfied.
+     */
+    public static final String DEFAULT_TEST_WEBHOOK_URL = "http://example.com";
+
+    /**
+     * Variant of {@link #createMockContext(String, ResourceType, String, String)}
+     * that lets callers explicitly set the {@code connectorWebhookUrl} property —
+     * useful for tests that exercise URL composition.
+     */
+    public static InboundConnectorContext createMockContext(
+            String token, ResourceType resourceType, String resourceId, String inboundContext,
+            String connectorWebhookUrl) {
         InboundConnectorContext context = mock(InboundConnectorContext.class);
         ApifyInboundProperties properties = new ApifyInboundProperties(
-                new Authentication(token), resourceType, resourceId);
+                new Authentication(token), resourceType, resourceId, connectorWebhookUrl);
         when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
         when(context.getProperties()).thenReturn(Map.of(
                 "inbound", Map.of("context", inboundContext)));
