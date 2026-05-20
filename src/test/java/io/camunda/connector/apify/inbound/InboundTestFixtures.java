@@ -55,7 +55,7 @@ public final class InboundTestFixtures {
 
     /**
      * Test default for the {@code connectorWebhookUrl} template property. Used by
-     * tests that don't care about URL composition specifics — they only need a
+     * tests that don't care about URL composition specifics; they only need a
      * non-blank value so the {@code @NotEmpty} constraint and the activation
      * path are satisfied.
      */
@@ -63,7 +63,7 @@ public final class InboundTestFixtures {
 
     /**
      * Variant of {@link #createMockContext(String, ResourceType, String, String)}
-     * that lets callers explicitly set the {@code connectorWebhookUrl} property —
+     * that lets callers explicitly set the {@code connectorWebhookUrl} property,
      * useful for tests that exercise URL composition.
      */
     public static InboundConnectorContext createMockContext(

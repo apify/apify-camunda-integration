@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in the Apify Camunda Connector, please **do not open a public GitHub issue**. Report it privately so we can investigate and ship a fix before details are made public.
 
-- **Email:** `<security@apify.com>` *(placeholder — to be confirmed by Apify Security team)*
+- **Email:** `<security@apify.com>` *(placeholder, to be confirmed by Apify Security team)*
 - Alternatively, use [GitHub's private vulnerability reporting](https://github.com/apify/apify-camunda-integration/security/advisories/new) on this repository.
 
 When reporting, please include:
@@ -26,7 +26,7 @@ This connector is listed on the Camunda Marketplace and follows the [Camunda Mar
 | Critical (9.0–10.0) | 24 hours | 48 hours | 4 weeks |
 | High (7.0–8.9) | 48 hours | 72 hours | 6 weeks |
 | Medium (4.0–6.9) | 5 days | 10 days | 8 weeks |
-| Low (0.1–3.9) | accepted | — | — |
+| Low (0.1–3.9) | accepted | n/a | n/a |
 
 ## Scope
 
@@ -38,8 +38,8 @@ In scope:
 
 Out of scope:
 
-- Issues in Camunda 8 itself — please report those to Camunda directly.
-- Issues in the Apify platform — please report those via the [Apify security policy](https://apify.com/.well-known/security.txt) (or Apify's standard channels).
+- Issues in Camunda 8 itself; please report those to Camunda directly.
+- Issues in the Apify platform; please report those via the [Apify security policy](https://apify.com/.well-known/security.txt) (or Apify's standard channels).
 - Vulnerabilities in third-party dependencies that have already been disclosed and are tracked in our dependency-update process. We still appreciate the heads-up but treat them as standard updates rather than embargoed disclosures.
 
 ## Security operating principles

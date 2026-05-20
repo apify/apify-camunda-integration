@@ -777,7 +777,7 @@ class ApifyInboundExecutableTest {
 
         /**
          * Builds a context whose bound properties include the given connectorWebhookUrl.
-         * The URL is read directly from the BPMN template — there is no env-var
+         * The URL is read directly from the BPMN template; there is no env-var
          * fallback. Same flow on SaaS, Self-Managed, and Hybrid.
          */
         private InboundConnectorContext contextWithBaseUrlProperty(String baseUrlProperty) {

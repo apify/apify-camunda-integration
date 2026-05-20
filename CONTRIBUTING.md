@@ -9,8 +9,8 @@ This guide walks you through setting up the development environment, running and
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Running the Connector](#running-the-connector)
-  - [Environment Variables](#environment-variables)
   - [Start Command](#start-command)
+  - [Local inbound setup with ngrok](#local-inbound-setup-with-ngrok)
 - [Running Tests](#running-tests)
 - [Testing in the Modeler](#testing-in-the-modeler)
   - [Outbound Connector](#outbound-connector)
@@ -77,7 +77,7 @@ mvn test-compile exec:java \
   -Dexec.classpathScope=test
 ```
 
-> **Note:** If you only want to test the **outbound** connector, this is all you need - skip ahead to Step 4. For **inbound connectors** (webhooks), you must set `CONNECTOR_BASE_URL` first. See [Environment Variables](#environment-variables) for details.
+> **Note:** If you only want to test the **outbound** connector, this is all you need; skip ahead to Step 4. For **inbound connectors** (webhooks), you also need a publicly reachable URL pointing at your local runtime so Apify can deliver events. See [Local inbound setup with ngrok](#local-inbound-setup-with-ngrok) below.
 
 ### 4. Open Web Modeler
 
@@ -89,34 +89,6 @@ Go to http://localhost:8070/ (credentials: `demo` / `demo`) and start creating p
 
 This section covers how to run the connector locally. The same command is used for both outbound and inbound connectors.
 
-### Environment Variables
-
-For **inbound connectors** (webhooks), you must set `CONNECTOR_BASE_URL` so Apify knows where to send webhook events.
-
-**Option A: Placeholder URL (for initial setup)**
-
-```bash
-export CONNECTOR_BASE_URL=http://example.com
-```
-
-You can update the webhook URL in Apify later after deploying your process.
-
-**Option B: Using ngrok (recommended for testing)**
-
-This approach allows real-time webhook testing without manually updating URLs.
-
-1. Install ngrok from [https://ngrok.com/download/](https://ngrok.com/download/).
-
-2. Start ngrok:
-   ```bash
-   ngrok http 9898
-   ```
-
-3. Copy the generated URL (e.g., `https://abc123.ngrok-free.app`) and set it:
-   ```bash
-   export CONNECTOR_BASE_URL=https://abc123.ngrok-free.app
-   ```
-
 ### Start Command
 
 ```bash
@@ -125,7 +97,28 @@ mvn test-compile exec:java \
   -Dexec.classpathScope=test
 ```
 
+This starts `LocalConnectorRuntime`, a small Spring Boot app that loads the Apify outbound and inbound connectors and listens for incoming webhook POSTs on **port 9898**. The port is set in [`src/test/resources/application.properties`](src/test/resources/application.properties) via `server.port=9898`; it's an arbitrary choice picked to avoid clashing with Camunda's other local services (Zeebe gRPC `:26500`, Operate REST `:8088`, Keycloak `:18080`).
+
 **Note:** Keep this terminal running while you work with Camunda Modeler.
+
+### Local inbound setup with ngrok
+
+Inbound (webhook) testing requires Apify to be able to reach your machine over the public internet. The connector reads its public base URL from the **Camunda webhook URL** field on the BPMN element template; there is no environment variable to set. For local development, expose port 9898 via ngrok and paste the ngrok URL into that template field.
+
+1. Install ngrok from [https://ngrok.com/download/](https://ngrok.com/download/).
+
+2. Start ngrok pointing at the local runtime port:
+   ```bash
+   ngrok http 9898
+   ```
+
+3. Copy the generated forwarding URL (e.g., `https://abc123.ngrok-free.app`).
+
+4. In Web Modeler, drop one of the Apify inbound element templates onto your BPMN. In the **Camunda webhook URL** field of the template, paste the ngrok URL **as-is**, without trailing slash and without `/inbound/...`. The connector composes the full callback URL itself by appending `/inbound/<webhookId>` and registers that URL with Apify on deploy.
+
+5. Deploy the process. The runtime logs should show `Successfully created Apify webhook with webhook ID: <id>`.
+
+> **End-user note:** The ngrok dance is only for **local development**. On Camunda SaaS, the user puts `https://{region}.connectors.camunda.io/{clusterId}` in the Camunda webhook URL field. On Self-Managed/Hybrid, they put the public URL of their connector runtime. Either way, no ngrok and no env var.
 
 ---
 
@@ -234,6 +227,8 @@ Key fields you'll use in testing:
    - **Boundary Event**: `element-templates/apify-connector-boundary-event.json`
 
 2. **Publish** all templates to the project.
+
+3. Make sure your local runtime is reachable from the public internet. See [Local inbound setup with ngrok](#local-inbound-setup-with-ngrok). When you configure an inbound element below, paste your ngrok URL into the **Camunda webhook URL** field.
 
 <p align="center"><img src="docs/modeler/publish-inbound-template.png" alt="Publishing the connector template" width="75%"></p>
 
@@ -550,7 +545,7 @@ graph TD
 | Connector → Zeebe | gRPC (:26500) | Picks up outbound jobs, reports results | `camunda.client.grpc-address` |
 | Connector → Operate REST | HTTP (:8088) | Imports process definitions for inbound connectors | `camunda.client.rest-address` |
 | Connector → Apify | HTTPS | Outbound API calls (run Actor, get dataset, etc.) | Apify API token |
-| Apify → Connector | HTTPS → :9898 | Inbound webhook events (via ngrok in dev) | `CONNECTOR_BASE_URL` |
+| Apify → Connector | HTTPS → :9898 | Inbound webhook events (via ngrok in dev) | **Camunda webhook URL** field on the inbound element template |
 
 > **Note:** For the full OAuth client table and endpoint details, see [`src/test/resources/application.properties`](src/test/resources/application.properties).
 
@@ -584,10 +579,10 @@ graph TD
 
 | Issue | Solution |
 |-------|----------|
-| Webhook not received | Ensure ngrok is running and `CONNECTOR_BASE_URL` is set to the ngrok URL |
+| Webhook not received | Ensure ngrok is running and the **Camunda webhook URL** field on your BPMN inbound element matches the current ngrok URL (it changes every time you restart ngrok unless you have a paid static domain). Re-deploy the process after changing the field. |
 | Process not visible in Operate | Check the **Finished** filter, completed processes may not show in default view |
 | Process stuck at Intermediate Catch Event | Correlation keys don't match. In Operate, inspect the process variable value and compare it with `connectorData.runId` in the connector runtime logs. |
-| Connector crashes on startup | Ensure `CONNECTOR_BASE_URL` environment variable is set |
+| Connector activation fails with "Camunda webhook URL is not configured" | The **Camunda webhook URL** field on the BPMN inbound element template is empty. Fill it in and re-deploy. |
 | `ProcessDefinitionImporter` errors | Ensure `audience=orchestration-api` in config (not `zeebe-api`). See [`application.properties`](src/test/resources/application.properties). |
 | `Failed to apply credentials` (400) | Check OAuth client credentials match Keycloak config |
 | gRPC connection failed | Ensure `grpc-address` uses `grpc://` protocol (not `http://`) |

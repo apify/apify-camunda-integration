@@ -248,10 +248,10 @@ public class ApifyFunction implements OutboundConnectorFunction {
    * the right runtime/connector exception for the Zeebe job worker.
    *
    * <ul>
-   *   <li>4xx (except 429) are user-input problems — logged at {@code WARN} (no stack
+   *   <li>4xx (except 429) are user-input problems: logged at {@code WARN} (no stack
    *       trace) and surfaced as {@link ConnectorInputException} so Camunda treats
    *       them as input incidents and does not retry.</li>
-   *   <li>5xx, 429, and transport failures (statusCode 0) are operator-actionable —
+   *   <li>5xx, 429, and transport failures (statusCode 0) are operator-actionable:
    *       logged at {@code ERROR} with stack trace and rethrown as a plain
    *       {@link RuntimeException} so the job can be retried.</li>
    * </ul>

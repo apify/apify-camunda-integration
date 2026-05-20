@@ -62,17 +62,40 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 | Java (runtime) | 21+ |
 | Apify API | Public REST API (v2), API token authentication |
 
+### Deployment matrix
+
+| Capability | Camunda SaaS | Self-Managed | Hybrid |
+|---|---|---|---|
+| Outbound (runActor, runTask, getDatasetItems, scrapeSingleUrl, getKeyValueStoreRecord) | Yes | Yes | Yes |
+| Inbound (auto-registers the webhook in Apify on deploy) | Yes | Yes | Yes |
+
+The connector handles the Apify-side webhook lifecycle for you: when the BPMN is deployed, it calls Apify's API to create the webhook; when the inbound is deactivated, the webhook is removed. The only thing **you** must tell the connector is its own public address. See the next section.
+
+### Configuring the **Camunda webhook URL**
+
+Each inbound element template has a required **Camunda webhook URL** field. The connector uses it to register the callback on the Apify side at deploy time. Apify will POST Actor events to this URL. The same flow applies on Camunda SaaS, Self-Managed, and Hybrid.
+
+| Environment | What to put in the field |
+|---|---|
+| **Camunda SaaS** | `https://{region}.connectors.camunda.io/{clusterId}`. Find your region and cluster ID in Camunda Console → your cluster → API tab. Example: `https://bru-2.connectors.camunda.io/abc-123-cluster-id`. |
+| **Self-Managed** | The public URL of your connector runtime, e.g. `https://camunda-connectors.example.com`. |
+| **Hybrid** | The public URL of your self-hosted hybrid runtime (same as Self-Managed). |
+
+You paste just the base. The connector appends `/inbound/{webhookId}` automatically when it registers the webhook with Apify.
+
+> **Convenience tip:** The URL is the same for every BPMN process on a given cluster, so you can store it as a [Camunda Secret](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., `CAMUNDA_WEBHOOK_URL`) and reference it from each inbound template as `{{secrets.CAMUNDA_WEBHOOK_URL}}`. That way you only update one place when your cluster moves or your dev URL rotates. This is *convenience*, not security. The URL is not sensitive.
+
 The connector is built against the Camunda Connectors SDK at the version pinned in [pom.xml](pom.xml). Compatibility with newer Camunda 8 minor releases (e.g., 8.9) is validated as part of the recertification cycle and updated here when supported.
 
 ---
 
 ## Authentication
 
-All Apify Connector operations require an **Apify API Token**.
+All Apify Connector operations require an **Apify Token**.
 
 1. Log in to [Apify Console](https://console.apify.com/).
 2. Navigate to [**Settings → Integrations**](https://console.apify.com/settings/integrations).
-3. Copy your **API Token**.
+3. Copy your **Apify Token**.
 
 > **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`secrets.APIFY_TOKEN`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
 
