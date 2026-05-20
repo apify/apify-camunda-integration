@@ -111,7 +111,7 @@
     {
       "id": "resourceId.actor",
       "label": "Actor",
-      "description": "Actor name or ID (e.g., 'apify/web-scraper' or 'E2jjCZBezvAZnX8Rb').",
+      "description": "Actor name or ID.",
       "type": "String",
       "feel": "optional",
       "group": "resourceConfig",
@@ -132,7 +132,7 @@
     {
       "id": "resourceId.task",
       "label": "Task",
-      "description": "Task name or ID (e.g., 'username/my-task' or 'abc123DEF456').",
+      "description": "Task name or ID.",
       "type": "String",
       "feel": "optional",
       "group": "resourceConfig",

@@ -67,7 +67,7 @@
     {
       "id": "apifyRequestInput.runActorInput.actorId",
       "label": "Actor",
-      "description": "Actor name or ID (e.g., 'apify/web-scraper' or 'E2jjCZBezvAZnX8Rb').",
+      "description": "Actor name or ID.",
       "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
@@ -123,7 +123,7 @@
     {
       "id": "apifyRequestInput.runActorInput.timeout",
       "label": "Timeout (seconds)",
-      "description": "Maximum time in seconds for the Actor run to complete.",
+      "description": "Maximum time in seconds. If empty, uses the Actor's configured timeout.",
       "optional": true,
       "feel": "optional",
       "group": "apifyRequestInput",
@@ -136,7 +136,7 @@
         "equals": "runActor",
         "type": "simple"
       },
-      "placeholder": "60",
+      "placeholder": "e.g. 60",
       "type": "String"
     },
     {
@@ -170,10 +170,10 @@
     {
       "id": "apifyRequestInput.runActorInput.buildTag",
       "label": "Build tag",
-      "description": "Actor build tag (e.g., 'latest', 'beta'). Default: 'latest'.",
+      "description": "Actor build tag (e.g. 'latest', 'beta'). If empty, uses the Actor's configured default build.",
       "optional": true,
       "feel": "optional",
-      "placeholder": "latest",
+      "placeholder": "e.g. latest",
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.runActorInput.buildTag",
@@ -189,7 +189,7 @@
     {
       "id": "apifyRequestInput.runTaskInput.taskId",
       "label": "Task",
-      "description": "Task name or ID (e.g., 'username/my-task' or 'abc123DEF456').",
+      "description": "Task name or ID.",
       "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
@@ -245,7 +245,7 @@
     {
       "id": "apifyRequestInput.runTaskInput.timeout",
       "label": "Timeout (seconds)",
-      "description": "Maximum time in seconds for the task run to complete.",
+      "description": "Maximum time in seconds. If empty, uses the task's configured timeout.",
       "optional": true,
       "feel": "optional",
       "group": "apifyRequestInput",
@@ -258,7 +258,7 @@
         "equals": "runTask",
         "type": "simple"
       },
-      "placeholder": "60",
+      "placeholder": "e.g. 60",
       "type": "String"
     },
     {
@@ -292,10 +292,10 @@
     {
       "id": "apifyRequestInput.runTaskInput.buildTag",
       "label": "Build tag",
-      "description": "Actor build tag (e.g., 'latest', 'beta'). Default: 'latest'.",
+      "description": "Actor build tag (e.g. 'latest', 'beta'). If empty, uses the task's configured default build.",
       "optional": true,
       "feel": "optional",
-      "placeholder": "latest",
+      "placeholder": "e.g. latest",
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.runTaskInput.buildTag",
