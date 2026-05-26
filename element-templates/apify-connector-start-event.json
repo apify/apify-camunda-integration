@@ -4,7 +4,7 @@
   "id": "io.camunda.connector.inbound.Apify.v1:StartEvent",
   "version": 1,
   "description": "Creates an Apify webhook for completed Actor or task runs, receives event updates, and deletes the webhook on deactivation.",
-  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/README.md#start-event",
+  "documentationRef": "https://docs.apify.com/platform/integrations/camunda",
   "metadata": {
     "keywords": [
       "apify",
