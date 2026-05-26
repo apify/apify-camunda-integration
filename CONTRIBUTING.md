@@ -137,9 +137,6 @@ mvn clean verify
 
 # Run specific test class
 mvn test -Dtest=MyFunctionTest
-
-# Run with coverage
-mvn clean verify jacoco:report
 ```
 
 ---
@@ -402,7 +399,7 @@ If the fast Actor finishes while the slow Actor is still running, the boundary e
 4. Choose whether the boundary event is **interrupting** (terminates the activity) or **non-interrupting** (activity continues).
 5. **Test the flow in Play mode:**  
    - You can quickly test your boundary event or intermediate event setup using Play mode in Camunda Web Modeler.
-   - Follow the steps described in the [Deploy vs Play Mode](#deploy-vs-play-mode) section above to run your process and verify its behavior.
+   - Follow the steps described in the [Deploy vs Play Mode](#deploy-vs-play-mode) section below to run your process and verify its behavior.
    - Once completed, review your instance, tokens, and process variables in the instance history panel.
 <p align="center"><img src="docs/modeler/boundary-finished-flow.png" alt="Play mode: finished instance of boundary/intermediate event flow" width="75%"></p>
 
