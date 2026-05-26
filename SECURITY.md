@@ -28,6 +28,8 @@ This connector is listed on the Camunda Marketplace and follows the [Camunda Mar
 | Medium (4.0–6.9) | 5 days | 10 days | 8 weeks |
 | Low (0.1–3.9) | accepted | n/a | n/a |
 
+Per the [Camunda Marketplace Security Guidelines](https://camunda.com/trust-center/marketplace-security/), "failure to meet this timeframe will result in temporary or permanent removal of the Connector from the Marketplace."
+
 ## Scope
 
 In scope:
