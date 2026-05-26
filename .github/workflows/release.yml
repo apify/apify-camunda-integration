@@ -41,8 +41,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-artifacts
-          # Connector JAR (shaded). Pick the shaded jar produced by maven-shade-plugin.
-          jar="$(ls target/apify-camunda-connector-*.jar | grep -v 'original-' | head -n 1)"
+          # Connector JAR (shaded). Filename is deterministic because we ran
+          # `mvn versions:set -DnewVersion=${VERSION}` before packaging, so the
+          # shade-plugin output is exactly apify-camunda-connector-${VERSION}.jar.
+          jar="target/apify-camunda-connector-${{ steps.version.outputs.version }}.jar"
+          test -f "$jar" || { echo "Expected release JAR not found at $jar"; ls -la target; exit 1; }
           cp "$jar" "release-artifacts/$(basename "$jar")"
           # Element templates archive
           (cd element-templates && zip -r "../release-artifacts/apify-camunda-connector-element-templates-${{ steps.version.outputs.version }}.zip" *.json)
