@@ -465,8 +465,8 @@ This connector is maintained by **Apify**. Camunda disclaims any support obligat
 |---|---|
 | [GitHub Issues](https://github.com/apify/apify-camunda-integration/issues) | Bug reports, feature requests, configuration questions |
 | [Apify integration docs](https://docs.apify.com/platform/integrations/camunda) | Tutorials, walkthroughs, payload reference |
-| `<integrations-support@apify.com>` *(placeholder)* | Direct support inquiries that cannot be made public |
 | [Apify Discord](https://discord.com/invite/jyEM2PRvMU) | Community discussion |
+| [SECURITY.md](SECURITY.md) | Private vulnerability disclosure |
 
 For security-related issues, please follow the disclosure process in [SECURITY.md](SECURITY.md) instead of opening a public issue.
 

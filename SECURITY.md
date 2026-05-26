@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in the Apify Camunda Connector, please **do not open a public GitHub issue**. Report it privately so we can investigate and ship a fix before details are made public.
 
-- **Email:** `<security@apify.com>` *(placeholder, to be confirmed by Apify Security team)*
+- **Email:** [security@apify.com](mailto:security@apify.com). This is the canonical Apify security contact published in [Apify's security.txt](https://apify.com/.well-known/security.txt) and used across all Apify products.
 - Alternatively, use [GitHub's private vulnerability reporting](https://github.com/apify/apify-camunda-integration/security/advisories/new) on this repository.
 
 When reporting, please include:
@@ -52,6 +52,22 @@ The connector is built and maintained against the following baseline obligations
 - The connector does **not** collect or store end-user credentials. The only secret it handles is the Apify API token, which is supplied by the process designer (typically via Camunda Secrets).
 - All third-party runtime dependencies are open-source. See [pom.xml](pom.xml) for the full list.
 - No source code obfuscation is used; the published JAR is built from the public source tree in this repository.
+
+## Known limitations
+
+### Inbound webhook source authentication
+
+The inbound connector does not currently verify the source of incoming webhook POSTs. The endpoint at `{Camunda webhook URL}/inbound/{webhookId}` accepts any POST whose body parses as a valid Apify event payload. Apify's webhook delivery does not include an HMAC signature; the platform's recommended authentication is a secret embedded in the destination URL or in a custom header configured via Apify's `headersTemplate` field.
+
+**Threat model:** an attacker who learns the full inbound URL (for example via Camunda runtime HTTP logs, reverse-proxy logs, or the Apify Console webhook list) can post forged events to it. Forged events can trigger spurious process instances or prematurely resume waiting processes with attacker-controlled `connectorData`.
+
+**Planned remediation:** a future release will generate a per-webhook secret on activation, register it with Apify via the `headersTemplate` field as an `Authorization` header, and verify it on each inbound request before processing the payload. Tracked in [#69](https://github.com/apify/apify-camunda-integration/issues/69).
+
+**Mitigations operators can apply today:**
+
+1. Run the connector runtime behind a reverse proxy that does not log full request paths, or that strips path-segment UUIDs from access logs.
+2. Apply downstream input validation to any process variable derived from `connectorData`. For example, do not blindly trust `connectorData.defaultDatasetId` to point at a dataset your account actually owns.
+3. Use the **Activation Condition** FEEL expression on each inbound element template to filter for expected values such as `eventType` and `status`, reducing the attack surface to events that match those filters.
 
 ## Public disclosure
 
