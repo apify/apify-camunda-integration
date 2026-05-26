@@ -4,6 +4,7 @@
   "id": "io.camunda.connector.outbound.Apify.v1",
   "version": 1,
   "description": "Interacts with the Apify API to run Actors, tasks, scrape URLs, and more.",
+  "documentationRef": "https://docs.apify.com/platform/integrations/camunda",
   "metadata": {
     "keywords": ["apify", "connector", "actor"],
     "_note": "Hand-curated. Edit this file directly, don't regenerate."
@@ -14,7 +15,7 @@
   },
   "appliesTo": ["bpmn:Task"],
   "elementType": { "value": "bpmn:ServiceTask" },
-  "engines": { "camunda": "^8.3" },
+  "engines": { "camunda": "^8.8" },
   "groups": [
     { "id": "authentication", "label": "Authentication" },
     { "id": "operation", "label": "Operation" },
