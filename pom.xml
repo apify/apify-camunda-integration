@@ -11,6 +11,11 @@
     <packaging>jar</packaging>
     <version>1.0.0-SNAPSHOT</version>
 
+    <organization>
+        <name>Apify Technologies s.r.o.</name>
+        <url>https://apify.com</url>
+    </organization>
+
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -19,10 +24,25 @@
         </license>
     </licenses>
 
+    <developers>
+        <developer>
+            <id>apify</id>
+            <name>Apify Integrations Team</name>
+            <organization>Apify Technologies s.r.o.</organization>
+            <organizationUrl>https://apify.com</organizationUrl>
+        </developer>
+    </developers>
+
     <scm>
         <url>https://github.com/apify/apify-camunda-integration</url>
         <connection>scm:git:https://github.com/apify/apify-camunda-integration.git</connection>
+        <developerConnection>scm:git:git@github.com:apify/apify-camunda-integration.git</developerConnection>
     </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/apify/apify-camunda-integration/issues</url>
+    </issueManagement>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
