@@ -1,3 +1,19 @@
+================================================================================
+                          CAMUNDA MARKETPLACE NOTICE
+================================================================================
+
+This Connector is developed by Camunda's partners or independent third-party
+developers. To receive assistance or support for the Connector Apify Connector
+for Camunda 8, contact Apify Technologies s.r.o. directly using the contact
+information. Camunda disclaims any support obligation for the Connector.
+
+By installing this connector, you consent to Camunda sharing your contact
+information with the developer of this connector so that you can receive more
+information about it directly from the developer.
+
+================================================================================
+
+
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/

@@ -99,6 +99,18 @@ All Apify Connector operations require an **Apify Token**.
 
 > **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`secrets.APIFY_TOKEN`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
 
+### Security model
+
+The Apify API token is user-supplied through the **Apify API token** field on each element template; the connector does not collect, request, or generate any credentials of its own. Operationally:
+
+- **Storage:** The token lives in the Camunda process where the designer placed it. Using a [Camunda Secret](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) keeps it out of the BPMN XML.
+- **Logging:** The connector never logs the token, neither in plain text nor hashed, at any log level.
+- **Persistence:** The connector does not write the token to disk, to local state, or to any store outside the Camunda process.
+- **Transport:** The token is sent only to `api.apify.com` over HTTPS with TLS 1.2 or higher. It is never sent to any third-party endpoint.
+- **Webhook URL field:** The **Camunda webhook URL** value is treated as configuration, not as a credential, since it is the public address of your own Camunda runtime.
+
+For vulnerability disclosure, see [SECURITY.md](SECURITY.md).
+
 ---
 
 ## Outbound Connector
