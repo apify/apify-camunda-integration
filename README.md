@@ -484,4 +484,4 @@ For development setup, local testing, and contribution guidelines, see [CONTRIBU
 
 ## License
 
-Released under the MIT License. See [LICENSE.md](LICENSE.md).
+Released under the Apache License, Version 2.0. See [LICENSE.md](LICENSE.md).
