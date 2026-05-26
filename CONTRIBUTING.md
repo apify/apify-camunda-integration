@@ -35,7 +35,7 @@ This guide walks you through setting up the development environment, running and
 
 ## Prerequisites
 
-- **Camunda 8.8** _(or later)_: [download the Docker Compose distribution](https://github.com/camunda/camunda-distributions/releases/tag/docker-compose-8.8) (use the **full** variant, which includes Web Modeler)
+- **Camunda 8.8 or 8.9** (tested versions): clone the [camunda-distributions](https://github.com/camunda/camunda-distributions) repo, which contains Docker Compose files for every supported Camunda version. Use the **full** variant (`docker-compose-full.yaml`), which includes Web Modeler.
 - **Java 21** or later
 - **Maven 3.8+**
 - **Docker** and **Docker Compose**
@@ -44,18 +44,25 @@ This guide walks you through setting up the development environment, running and
 
 > **Tip:** For testing throughout this guide, we use the public [`apify/hello-world`](https://apify.com/apify/hello-world) Actor, which completes quickly and requires no special configuration.
 
+> **Tip:** You can also use [Camunda Desktop Modeler](https://docs.camunda.io/docs/components/modeler/desktop-modeler/install-the-modeler/) instead of Web Modeler. It connects directly to the local Zeebe instance and is a lightweight alternative when you only need to edit BPMN files. This guide defaults to the **full** Docker Compose variant because it bundles the complete Self-Managed stack (Web Modeler, Operate, Tasklist, Identity, Keycloak), which better mirrors production environments.
+
 ---
 
 ## Quick Start
 
 ### 1. Start Camunda Stack
 
-Download and start the [Camunda 8.8 Docker Compose distribution](https://github.com/camunda/camunda-distributions/releases/tag/docker-compose-8.8) (the **full** variant, which includes Web Modeler):
+Clone the [camunda-distributions](https://github.com/camunda/camunda-distributions) repo, switch into the folder for the Camunda version you want to run, and start the **full** variant (which includes Web Modeler):
 
 ```bash
-cd docker-compose-8.8
+git clone https://github.com/camunda/camunda-distributions.git
+cd camunda-distributions/docker-compose/versions/camunda-8.9
 docker compose -f docker-compose-full.yaml up -d
 ```
+
+> **Picking a version:** The `docker-compose/versions/` directory contains a folder per Camunda minor version (`camunda-8.3` through `camunda-8.10` at time of writing). The connector is tested against **8.8** and **8.9**. Swap the path segment to match the version you want to verify against.
+
+> **Port note:** All `localhost` URLs in this guide assume **Camunda 8.9** ports. If you are running **8.8**, swap `:8080` → `:8088` for the Orchestration REST endpoint.
 
 The stack takes **2–5 minutes** to start. Wait until http://localhost:8070/ shows the Web Modeler login page before proceeding.
 
@@ -97,7 +104,7 @@ mvn test-compile exec:java \
   -Dexec.classpathScope=test
 ```
 
-This starts `LocalConnectorRuntime`, a small Spring Boot app that loads the Apify outbound and inbound connectors and listens for incoming webhook POSTs on **port 9898**. The port is set in [`src/test/resources/application.properties`](src/test/resources/application.properties) via `server.port=9898`; it's an arbitrary choice picked to avoid clashing with Camunda's other local services (Zeebe gRPC `:26500`, Operate REST `:8088`, Keycloak `:18080`).
+This starts `LocalConnectorRuntime`, a small Spring Boot app that loads the Apify outbound and inbound connectors and listens for incoming webhook POSTs on **port 9898**. The port is set in [`src/test/resources/application.properties`](src/test/resources/application.properties) via `server.port=9898`; it's chosen to avoid conflicts with Camunda's other local services (Zeebe gRPC `:26500`, Orchestration REST `:8080`, Keycloak `:18080`).
 
 **Note:** Keep this terminal running while you work with Camunda Modeler.
 
@@ -114,11 +121,11 @@ Inbound (webhook) testing requires Apify to be able to reach your machine over t
 
 3. Copy the generated forwarding URL (e.g., `https://abc123.ngrok-free.app`).
 
-4. In Web Modeler, drop one of the Apify inbound element templates onto your BPMN. In the **Camunda webhook URL** field of the template, paste the ngrok URL **as-is**, without trailing slash and without `/inbound/...`. The connector composes the full callback URL itself by appending `/inbound/<webhookId>` and registers that URL with Apify on deploy.
+4. In Web Modeler, add one of the Apify inbound element templates to your BPMN diagram. In the **Camunda webhook URL** field of the template, paste the ngrok URL **as-is**, without trailing slash and without `/inbound/...`. The connector composes the full callback URL itself by appending `/inbound/<webhookId>` and registers that URL with Apify on deploy.
 
 5. Deploy the process. The runtime logs should show `Successfully created Apify webhook with webhook ID: <id>`.
 
-> **End-user note:** The ngrok dance is only for **local development**. On Camunda SaaS, the user puts `https://{region}.connectors.camunda.io/{clusterId}` in the Camunda webhook URL field. On Self-Managed/Hybrid, they put the public URL of their connector runtime. Either way, no ngrok and no env var.
+> **End-user note:** ngrok is only needed for **local development**. On Camunda SaaS, the user puts `https://{region}.connectors.camunda.io/{clusterId}` in the Camunda webhook URL field. On Self-Managed/Hybrid, they put the public URL of their connector runtime. Either way, no ngrok and no env var.
 
 ---
 
@@ -176,7 +183,7 @@ mvn clean verify jacoco:report
 
 <p align="center"><img src="docs/modeler/set-inputs-and-run.png" alt="Setting the connector input variables" width="75%"></p>
 
-7. Find the process in **Camunda Operate** (http://localhost:8088/).
+7. Find the process in **Camunda Operate** (http://localhost:8080/).
 
 <p align="center"><img src="docs/operate/select.png" alt="Process in Operate" width="75%"></p>
 
@@ -184,7 +191,7 @@ mvn clean verify jacoco:report
 
 <p align="center"><img src="docs/operate/check-run-result.png" alt="Verifying the result in Camunda Operate" width="75%"></p>
 
-**Understanding the outbound response data:**
+#### Understanding the outbound response data
 
 The **Run Actor** and **Run Task** API responses are wrapped in a `data` envelope. The connector extracts this inner object and stores it as the result variable:
 
@@ -248,6 +255,8 @@ All inbound connectors include an optional **Activation Condition**, a FEEL expr
 
 The simplest inbound connector, each incoming webhook creates a new process instance. No correlation needed.
 
+<div align="center">
+
 ```mermaid
 graph LR
     subgraph Apify
@@ -258,6 +267,8 @@ graph LR
     end
     A --> B
 ```
+
+</div>
 
 1. Create a new **BPMN diagram** and add an **Apify Connector** as the start event.
 
@@ -276,6 +287,8 @@ For full configuration details, see [Start Event](README.md#start-event) in the 
 
 Like the Start Event, but adds Camunda's **message correlation** mechanism to prevent duplicate process instances for the same correlation key and to support starting **embedded subprocesses**. See [Message Start Event](README.md#message-start-event) in the README for when to choose this over a plain Start Event.
 
+<div align="center">
+
 ```mermaid
 graph LR
     subgraph Apify
@@ -288,6 +301,8 @@ graph LR
     end
     W -->|correlation key +<br/>Message ID deduplication| B
 ```
+
+</div>
 
 **Setting it up:**
 
@@ -311,6 +326,8 @@ For full configuration details, see [Message Start Event](README.md#message-star
 
 The Intermediate Catch Event **pauses** the process and waits for a matching webhook from Apify before continuing. It uses **correlation keys** to match the webhook to the correct process instance, the key from the webhook payload must exactly match a process variable.
 
+<div align="center">
+
 ```mermaid
 graph LR
     subgraph Camunda
@@ -325,6 +342,8 @@ graph LR
     B -.->|starts run| AR
     W -.->|correlates with run ID| C
 ```
+
+</div>
 
 1. The outbound step runs an Actor with **Wait for Finish** = `false` and stores the Actor run response in `previousActorRunResult`.
 
@@ -346,6 +365,8 @@ A Boundary Event is **attached to an activity** (e.g., a user task or subprocess
 
 **Example flow (interrupting):**
 
+<div align="center">
+
 ```mermaid
 graph LR
     subgraph Camunda
@@ -364,6 +385,8 @@ graph LR
     B -.->|starts run| AR
     W -.->|correlates with<br/>fastActorRes.data.id| BE
 ```
+
+</div>
 
 If the fast Actor finishes while the slow Actor is still running, the boundary event interrupts the slow Actor and redirects the flow to a cancellation path.
 
@@ -397,11 +420,11 @@ Both the Intermediate Catch Event and Boundary Event connectors require **correl
 | `connectorData.status` | Check whether the run succeeded, failed, or timed out |
 | `connectorData.defaultDatasetId` | Pass to a subsequent Get Dataset Items step |
 
-**Correlation Key (Process)** reads from a process variable (e.g., `=previousActorRunResult.data.id`), and **Correlation Key (Payload)** reads from the webhook (e.g., `=connectorData.runId`). When the webhook arrives, Camunda compares these two values, if they match, the process resumes. If they don't match exactly, the process stays stuck waiting.
+**Correlation Key (Process)** reads from a process variable (e.g., `=previousActorRunResult.data.id`), and **Correlation Key (Payload)** reads from the webhook (e.g., `=connectorData.runId`). When the webhook arrives, Camunda compares these two values, if they match, the process resumes. If they don't match exactly, the process remains waiting.
 
 For the full payload schema and all available fields, see [Webhook Payload Structure](README.md#webhook-payload-structure) in the README.
 
-**Debugging correlation mismatches:** If your process is stuck at a catch or boundary event, open **Camunda Operate** (http://localhost:8088/), inspect the process variable value, and compare it with the `connectorData.runId` in the connector runtime logs. The most common issue is a mismatch between the variable name used in the outbound result mapping and the FEEL expression in the correlation key.
+**Debugging correlation mismatches:** If your process is stuck at a catch or boundary event, open **Camunda Operate** (http://localhost:8080/), inspect the process variable value, and compare it with the `connectorData.runId` in the connector runtime logs. The most common issue is a mismatch between the variable name used in the outbound result mapping and the FEEL expression in the correlation key.
 
 ---
 
@@ -410,7 +433,7 @@ For the full payload schema and all available fields, see [Webhook Payload Struc
 Once your process is configured, you need to deploy or play it:
 
 - **Deploy**: Creates a persistent webhook in Apify. Use this for processes with inbound start events (Start Event, Message Start Event), deploy without running, then trigger from Apify.
-- **Play**: Runs the process immediately in a sandbox with temporary webhooks. Use this for outbound flows or flows with intermediate/boundary inbound events (not inbound start events, Play skips them and webhook variables won't be set).
+- **Play**: Runs the process immediately in a sandbox with temporary webhooks. Use this for outbound flows or flows with intermediate/boundary inbound events (not inbound start events; Play mode skips start events, so webhook variables will not be populated).
 
 <p align="center"><img src="docs/modeler/set-inputs-and-deploy.png" alt="Deploying the process" width="75%"></p>
 
@@ -429,7 +452,7 @@ Once your process is configured, you need to deploy or play it:
 3. View the results directly in the Modeler: the **Instance History** panel shows the path taken, and the **Variables** panel shows all process data.
 4. Optionally click **Save scenario** to store this run. You can rerun saved scenarios later and update them as the process evolves. The coverage indicator shows what percentage of your process flow nodes are covered by saved scenarios (see [Scenario coverage](https://docs.camunda.io/docs/components/modeler/web-modeler/play-your-process/#scenario-coverage)).
 
-<p align="center"><img src="docs/operate/select-finished.png" alt="Play mode: completed instance with variables" width="75%"></p>
+<p align="center"><img src="docs/modeler/select-finished.png" alt="Play mode: completed instance with variables" width="75%"></p>
 
 ---
 
@@ -486,66 +509,38 @@ mvn clean package -Dgenerate.templates=true
 
 ### Camunda Architecture
 
-The `docker-compose-full.yaml` runs the full Camunda 8.8 stack. The diagram below is complex, but it's here just to give you an overview of how everything connects internally and how your **local Connector Runtime** fits in:
+The `docker-compose-full.yaml` runs the full Camunda 8 stack. The diagram below gives you an overview of how everything connects internally and how the **Connectors** component (where your local runtime fits in) integrates with the rest:
 
-```mermaid
-graph TD
-    subgraph docker ["Docker Compose Stack (docker-compose-full.yaml)"]
-        KC["Keycloak :18080<br/>OAuth2 / OIDC"]
-        ID["Identity :8084<br/>User and role management"]
-        OC["Orchestration Cluster<br/>(Zeebe + Operate + Tasklist)<br/>gRPC :26500 | REST :8088"]
-        ES["Elasticsearch :9200"]
-        WM["Web Modeler :8070 :8060<br/>(webapp + restapi + websockets)"]
-        DC["Connectors :8086<br/>(default bundle, replaced locally)"]
-        OP["Optimize :8083"]
-        CO["Console :8087"]
-        MP["Mailpit :8075<br/>(dev email)"]
-        PG["PostgreSQL x2<br/>(Identity/Keycloak + Web Modeler)"]
+<p align="center"><img src="docs/c8-architecture-diagram.png" alt="Camunda 8 architecture diagram" width="90%"></p>
 
-        KC --> PG
-        ID --> KC
-        ID --> PG
-        OC --> ES
-        OC --> KC
-        OC --> ID
-        WM --> PG
-        WM --> KC
-        WM --> ID
-        WM --> MP
-        WM -->|"deploy process"| OC
-        DC --> OC
-        DC --> KC
-        OP --> ES
-        OP --> ID
-        CO --> KC
-        CO --> ID
-    end
+The Docker Compose stack maps these components to the following local ports and backing services (not all are shown in the diagram above):
 
-    CR["Your Connector Runtime :9898<br/>(LocalConnectorRuntime)"]
-    CR -->|"1. OAuth token<br/>client_id=connectors"| KC
-    CR -->|"2. gRPC :26500<br/>job worker (outbound)"| OC
-    CR -->|"3. REST :8088<br/>process definitions (inbound)"| OC
-    CR -->|"4. HTTP calls to<br/>api.apify.com"| AP
+| Docker service | Local port | Maps to diagram component |
+|----------------|-----------|--------------------------|
+| **Orchestration Cluster** (Zeebe + Operate + Tasklist) | gRPC `:26500`, REST `:8080` (8.9) / `:8088` (8.8) | Orchestration Cluster / Orchestration Cluster API |
+| **Web Modeler** (webapp + restapi + websockets) | `:8070`, `:8060` | Web Modeler |
+| **Identity** | `:8084` | Management Identity |
+| **Keycloak** (OAuth2 / OIDC) | `:18080` | Authentication and Authorization |
+| **Connectors** (default bundle) | `:8086` | Connectors |
+| **Optimize** | `:8083` | Optimize |
+| **Console** | `:8087` | Console |
+| **Elasticsearch** | `:9200` | Secondary Storage (history) |
+| **PostgreSQL** ×2 | internal | *(not in diagram; backs Identity/Keycloak and Web Modeler)* |
+| **Mailpit** (dev email) | `:8075` | *(dev-only, not in diagram)* |
 
-    AP["Apify Platform"]
-    AP -->|"5. Webhook POST<br/>to :9898 (via ngrok)"| CR
+> **Port mappings may vary between Camunda versions.** For example, the Orchestration Cluster REST API is exposed on `:8080` in 8.9 but `:8088` in 8.8. Always check the `docker-compose-full.yaml` of the version you are running for the exact port mappings, and adjust `camunda.client.rest-address` and other settings in [`application.properties`](src/test/resources/application.properties) accordingly.
 
-    DEV["Developer"]
-    DEV -->|"design processes"| WM
-    DEV -->|"monitor instances"| OC
-```
-
-> **Note:** The Docker stack includes a default `connectors` service (:8086) with Camunda's built-in connector bundle. When developing locally, your `LocalConnectorRuntime` (:9898) runs **outside** Docker and connects to the same Orchestration Cluster directly. Both can run simultaneously without conflict since they use different ports.
+When developing locally, your `LocalConnectorRuntime` (`:9898`) runs **outside** Docker and connects to the same Orchestration Cluster. The in-stack `Connectors` service (`:8086`) continues to run with Camunda's default bundle; your local runtime picks up Apify jobs in parallel because it has the Apify connector classes loaded.
 
 **Key connections for troubleshooting:**
 
 | Connection | Protocol | What it does | Related config |
 |-----------|----------|-------------|---------------|
-| Connector → Keycloak | HTTP (:18080) | Acquires OAuth token with `audience=orchestration-api` | `camunda.client.auth.*` |
-| Connector → Zeebe | gRPC (:26500) | Picks up outbound jobs, reports results | `camunda.client.grpc-address` |
-| Connector → Operate REST | HTTP (:8088) | Imports process definitions for inbound connectors | `camunda.client.rest-address` |
+| Connector → Keycloak | HTTP (`:18080`) | Acquires OAuth token with `audience=orchestration-api` | `camunda.client.auth.*` |
+| Connector → Zeebe | gRPC (`:26500`) | Picks up outbound jobs, reports results | `camunda.client.grpc-address` |
+| Connector → Orchestration REST | HTTP (`:8080` or `:8088`, see note above) | Imports process definitions for inbound connectors | `camunda.client.rest-address` |
 | Connector → Apify | HTTPS | Outbound API calls (run Actor, get dataset, etc.) | Apify API token |
-| Apify → Connector | HTTPS → :9898 | Inbound webhook events (via ngrok in dev) | **Camunda webhook URL** field on the inbound element template |
+| Apify → Connector | HTTPS → `:9898` | Inbound webhook events (via ngrok in dev) | **Camunda webhook URL** field on the inbound element template |
 
 > **Note:** For the full OAuth client table and endpoint details, see [`src/test/resources/application.properties`](src/test/resources/application.properties).
 
@@ -554,7 +549,7 @@ graph TD
 | Service | URL | Credentials | Purpose |
 |---------|-----|-------------|---------|
 | **Web Modeler** | http://localhost:8070/ | `demo` / `demo` | BPMN diagram editor |
-| **Operate/Tasklist** | http://localhost:8088/ | `demo` / `demo` | Process monitoring |
+| **Operate/Tasklist** | http://localhost:8080/ | `demo` / `demo` | Process monitoring |
 | **Console** | http://localhost:8087/ | `demo` / `demo` | Cluster management |
 | **Optimize** | http://localhost:8083/ | `demo` / `demo` | Process analytics |
 | **Identity** | http://localhost:8084/ | - | User/role management |
@@ -572,7 +567,7 @@ graph TD
 |-------|----------|
 | Docker Compose fails / containers crash | Ensure Docker Desktop has at least **8 GB RAM** allocated (Settings → Resources). Run `docker compose ps` to identify failing containers. |
 | Build fails with "Unsupported class file major version 65" | Java 21 is required. Check with `java -version` and ensure `JAVA_HOME` points to a Java 21 installation. |
-| Port already in use (8070, 8088, 9200, etc.) | Stop the conflicting service, or update the port mapping in `docker-compose-full.yaml`. |
+| Port already in use (8070, 8080, 9200, etc.) | Stop the conflicting service, or update the port mapping in `docker-compose-full.yaml`. |
 | `mvn clean package` fails with dependency errors | Check internet connectivity. Try `mvn clean package -U` to force-update dependencies. |
 
 #### Connector Issues
@@ -589,12 +584,12 @@ graph TD
 
 #### Cleaning Up Stale Webhooks
 
-During testing, you may accumulate webhooks. To start fresh, reset your Camunda Docker Compose stack.
+During testing, you may accumulate stale webhooks. To clean up, reset your Camunda Docker Compose stack.
 
-Navigate to the directory where you extracted the [Camunda Docker Compose distribution](https://github.com/camunda/camunda-distributions/releases/tag/docker-compose-8.8) and run:
+Navigate to the version folder inside your local clone of [camunda-distributions](https://github.com/camunda/camunda-distributions) and run:
 
 ```bash
-cd docker-compose-8.8
+cd camunda-distributions/docker-compose/versions/camunda-8.9
 docker compose -f docker-compose-full.yaml down -v
 docker compose -f docker-compose-full.yaml up -d
 ```
