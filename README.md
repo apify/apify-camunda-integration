@@ -57,8 +57,8 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 
 | Component | Supported versions |
 |---|---|
-| Camunda 8 | 8.8.x (SaaS and Self-Managed) |
-| Camunda Connectors runtime | 8.8.x |
+| Camunda 8 | 8.8.x, 8.9.x (SaaS and Self-Managed) |
+| Camunda Connectors runtime | 8.8.x, 8.9.x |
 | Java (runtime) | 21+ |
 | Apify API | Public REST API (v2), API token authentication |
 
@@ -85,7 +85,7 @@ You paste just the base. The connector appends `/inbound/{webhookId}` automatica
 
 > **Convenience tip:** The URL is the same for every BPMN process on a given cluster, so you can store it as a [Camunda Secret](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., `CAMUNDA_WEBHOOK_URL`) and reference it from each inbound template as `{{secrets.CAMUNDA_WEBHOOK_URL}}`. That way you only update one place when your cluster moves or your dev URL rotates. This is *convenience*, not security. The URL is not sensitive.
 
-The connector is built against the Camunda Connectors SDK at the version pinned in [pom.xml](pom.xml). Compatibility with newer Camunda 8 minor releases (e.g., 8.9) is validated as part of the recertification cycle and updated here when supported.
+The connector is built against the Camunda Connectors SDK at the version pinned in [pom.xml](pom.xml). The compatibility matrix above lists the Camunda 8 minor versions the connector has been verified against; support for newer minors is added once verified and reflected here.
 
 ---
 
