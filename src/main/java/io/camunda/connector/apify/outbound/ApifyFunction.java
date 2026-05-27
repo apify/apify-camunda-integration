@@ -603,9 +603,9 @@ public class ApifyFunction implements OutboundConnectorFunction {
     } catch (ApifyApiException e) {
       throw raiseApiFailure(e, "getKeyValueStoreRecord", "Key-value store record",
           recordInput.storeId() + "/" + recordInput.recordKey());
-    } catch (IOException e) {
+    } catch (Exception e) {
       LOGGER.error("Failed to get key-value store record: {}", e.getMessage(), e);
-      throw new RuntimeException("Failed to get key-value store record: " + e.getMessage(), e);
+      throw new RuntimeException("Error: Failed to get key-value store record - " + e.getMessage(), e);
     }
   }
 
