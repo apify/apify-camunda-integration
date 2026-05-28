@@ -37,13 +37,13 @@
       "label": "Authentication"
     },
     {
-      "id": "resourceType",
-      "label": "Resource type",
-      "tooltip": "Learn more about Actors and webhooks in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
+      "id": "webhook",
+      "label": "Webhook endpoint"
     },
     {
       "id": "resourceConfig",
-      "label": "Resource configuration"
+      "label": "Resource configuration",
+      "tooltip": "Learn more about Actors and webhooks in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
     },
     {
       "id": "activation",
@@ -82,7 +82,7 @@
       "description": "Public URL where your Camunda receives Apify webhooks. Used to register the callback in Apify when this process is deployed. **SaaS:** https://{region}.connectors.camunda.io/{clusterId} (Console -> cluster -> API tab). **Self-Managed / Hybrid:** your connector runtime's public URL, e.g. https://connectors.example.com.",
       "type": "String",
       "feel": "optional",
-      "group": "authentication",
+      "group": "webhook",
       "optional": false,
       "binding": {
         "type": "zeebe:property",
@@ -98,7 +98,7 @@
       "label": "Resource Type",
       "description": "The Apify resource type to monitor (Actor or task).",
       "type": "Dropdown",
-      "group": "resourceType",
+      "group": "resourceConfig",
       "value": "actor",
       "choices": [
         {
