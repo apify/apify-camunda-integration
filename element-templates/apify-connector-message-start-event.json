@@ -114,9 +114,9 @@
       }
     },
     {
-      "id": "resourceId",
-      "label": "Resource Identifier",
-      "description": "The Actor or task identifier to monitor (e.g., 'apify/hello-world' or 'E2jjCZBezvAZnX8Rb').",
+      "id": "resourceId.actor",
+      "label": "Actor",
+      "description": "Actor name or ID.",
       "type": "String",
       "feel": "optional",
       "group": "trigger",
@@ -124,10 +124,36 @@
         "type": "zeebe:property",
         "name": "resourceId"
       },
+      "condition": {
+        "property": "resourceType",
+        "equals": "actor",
+        "type": "simple"
+      },
       "constraints": {
         "notEmpty": true
       },
       "placeholder": "author/actor-name"
+    },
+    {
+      "id": "resourceId.task",
+      "label": "Task",
+      "description": "Task name or ID.",
+      "type": "String",
+      "feel": "optional",
+      "group": "trigger",
+      "binding": {
+        "type": "zeebe:property",
+        "name": "resourceId"
+      },
+      "condition": {
+        "property": "resourceType",
+        "equals": "task",
+        "type": "simple"
+      },
+      "constraints": {
+        "notEmpty": true
+      },
+      "placeholder": "author/task-name"
     },
     {
       "id": "context",
