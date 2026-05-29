@@ -35,7 +35,7 @@ This guide walks you through setting up the development environment, running and
 
 ## Prerequisites
 
-- **Camunda 8.8 or 8.9** (tested versions): clone the [camunda-distributions](https://github.com/camunda/camunda-distributions) repo, which contains Docker Compose files for every supported Camunda version. Use the **full** variant (`docker-compose-full.yaml`), which includes Web Modeler.
+- **Camunda 8.8, 8.9, or 8.10** (tested versions): clone the [camunda-distributions](https://github.com/camunda/camunda-distributions) repo, which contains Docker Compose files for every supported Camunda version. Use the **full** variant (`docker-compose-full.yaml`), which includes Web Modeler.
 - **Java 21** or later
 - **Maven 3.8+**
 - **Docker** and **Docker Compose**
@@ -60,7 +60,7 @@ cd camunda-distributions/docker-compose/versions/camunda-8.9
 docker compose -f docker-compose-full.yaml up -d
 ```
 
-> **Picking a version:** The `docker-compose/versions/` directory contains a folder per Camunda minor version (`camunda-8.3` through `camunda-8.10` at time of writing). The connector is tested against **8.8** and **8.9**. Swap the path segment to match the version you want to verify against.
+> **Picking a version:** The `docker-compose/versions/` directory contains a folder per Camunda minor version (`camunda-8.3` through `camunda-8.10` at time of writing). The connector is tested against **8.8**, **8.9**, and **8.10**. Swap the path segment to match the version you want to verify against.
 
 > **Port note:** All `localhost` URLs in this guide assume **Camunda 8.9** ports. If you are running **8.8**, swap `:8080` → `:8088` for the Orchestration REST endpoint.
 

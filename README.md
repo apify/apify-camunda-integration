@@ -57,8 +57,8 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 
 | Component | Supported versions |
 |---|---|
-| Camunda 8 | 8.8.x, 8.9.x (SaaS and Self-Managed) |
-| Camunda Connectors runtime | 8.8.x, 8.9.x |
+| Camunda 8 | 8.8.x, 8.9.x, 8.10.x (SaaS and Self-Managed) |
+| Camunda Connectors runtime | 8.8.x, 8.9.x, 8.10.x |
 | Java (runtime) | 21+ |
 | Apify API | Public REST API (v2), API token authentication |
 
