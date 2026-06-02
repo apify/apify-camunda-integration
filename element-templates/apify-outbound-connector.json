@@ -37,7 +37,6 @@
       "id": "authentication.token",
       "label": "Apify API token",
       "description": "Your Apify API token for authentication.",
-      "optional": false,
       "constraints": { "notEmpty": true },
       "feel": "optional",
       "group": "authentication",
@@ -49,7 +48,6 @@
       "id": "operation.type",
       "label": "Operation",
       "description": "Operation to perform.",
-      "optional": false,
       "constraints": { "notEmpty": true },
       "group": "operation",
       "binding": { "name": "operation.type", "type": "zeebe:input" },
@@ -69,7 +67,6 @@
       "id": "apifyRequestInput.runActorInput.actorId",
       "label": "Actor",
       "description": "Actor name or ID.",
-      "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
@@ -89,7 +86,6 @@
       "id": "apifyRequestInput.runActorInput.inputJson",
       "label": "Input Body",
       "description": "JSON object. Defaults to Actor's value; check Actor config, may be required.",
-      "optional": true,
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
@@ -125,7 +121,6 @@
       "id": "apifyRequestInput.runActorInput.timeout",
       "label": "Timeout (seconds)",
       "description": "Maximum time in seconds. If empty, uses the Actor's configured timeout.",
-      "optional": true,
       "feel": "optional",
       "group": "apifyRequestInput",
       "binding": {
@@ -144,7 +139,6 @@
       "id": "apifyRequestInput.runActorInput.memory",
       "label": "Memory (MB)",
       "description": "Memory allocation in MB for the Actor run. Optional.",
-      "optional": true,
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.runActorInput.memory",
@@ -172,7 +166,6 @@
       "id": "apifyRequestInput.runActorInput.buildTag",
       "label": "Build tag",
       "description": "Actor build tag (e.g. 'latest', 'beta'). If empty, uses the Actor's configured default build.",
-      "optional": true,
       "feel": "optional",
       "placeholder": "e.g. latest",
       "group": "apifyRequestInput",
@@ -191,7 +184,6 @@
       "id": "apifyRequestInput.runTaskInput.taskId",
       "label": "Task",
       "description": "Task name or ID.",
-      "optional": false,
       "feel": "optional",
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
@@ -211,7 +203,6 @@
       "id": "apifyRequestInput.runTaskInput.inputJson",
       "label": "Input Override",
       "description": "JSON object to override the task's default input. Optional.",
-      "optional": true,
       "feel": "required",
       "group": "apifyRequestInput",
       "binding": {
@@ -247,7 +238,6 @@
       "id": "apifyRequestInput.runTaskInput.timeout",
       "label": "Timeout (seconds)",
       "description": "Maximum time in seconds. If empty, uses the task's configured timeout.",
-      "optional": true,
       "feel": "optional",
       "group": "apifyRequestInput",
       "binding": {
@@ -266,7 +256,6 @@
       "id": "apifyRequestInput.runTaskInput.memory",
       "label": "Memory (MB)",
       "description": "Memory allocation in MB for the task run. Optional.",
-      "optional": true,
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.runTaskInput.memory",
@@ -294,7 +283,6 @@
       "id": "apifyRequestInput.runTaskInput.buildTag",
       "label": "Build tag",
       "description": "Actor build tag (e.g. 'latest', 'beta'). If empty, uses the task's configured default build.",
-      "optional": true,
       "feel": "optional",
       "placeholder": "e.g. latest",
       "group": "apifyRequestInput",
@@ -314,7 +302,6 @@
       "label": "Dataset",
       "description": "The unique identifier of the dataset to retrieve items from.",
       "feel": "optional",
-      "optional": false,
       "constraints": { "notEmpty": true },
       "group": "apifyRequestInput",
       "binding": {
@@ -326,14 +313,13 @@
         "equals": "getDatasetItems",
         "type": "simple"
       },
-      "placeholder": "abc123DEF456",
+      "placeholder": "e.g. abc123DEF456",
       "type": "String"
     },
     {
       "id": "apifyRequestInput.getDatasetItemsInput.offset",
       "label": "Offset",
       "description": "Number of items to skip from the beginning. Default: 0.",
-      "optional": true,
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.getDatasetItemsInput.offset",
@@ -352,7 +338,6 @@
       "id": "apifyRequestInput.getDatasetItemsInput.limit",
       "label": "Limit",
       "description": "Maximum number of items to return. Default: no limit.",
-      "optional": true,
       "group": "apifyRequestInput",
       "binding": {
         "name": "apifyRequestInput.getDatasetItemsInput.limit",
@@ -365,13 +350,12 @@
       },
       "type": "String",
       "feel": "optional",
-      "placeholder": "99"
+      "placeholder": "e.g. 99"
     },
     {
       "id": "apifyRequestInput.scrapeSingleUrlInput.url",
       "label": "URL",
       "description": "The URL to scrape (must start with http:// or https://).",
-      "optional": false,
       "constraints": { "notEmpty": true },
       "feel": "optional",
       "group": "apifyRequestInput",
@@ -384,7 +368,7 @@
         "equals": "scrapeSingleUrl",
         "type": "simple"
       },
-      "placeholder": "https://example.com",
+      "placeholder": "e.g. https://example.com",
       "type": "String"
     },
     {
@@ -414,7 +398,6 @@
       "id": "apifyRequestInput.getKeyValueStoreRecordInput.storeId",
       "label": "Key-Value Store",
       "description": "The unique identifier of the key-value store.",
-      "optional": false,
       "constraints": { "notEmpty": true },
       "feel": "optional",
       "group": "apifyRequestInput",
@@ -427,14 +410,13 @@
         "equals": "getKeyValueStoreRecord",
         "type": "simple"
       },
-      "placeholder": "abc123DEF456",
+      "placeholder": "e.g. abc123DEF456",
       "type": "String"
     },
     {
       "id": "apifyRequestInput.getKeyValueStoreRecordInput.recordKey",
       "label": "Key",
       "description": "The key name to retrieve from the store.",
-      "optional": false,
       "constraints": { "notEmpty": true },
       "feel": "optional",
       "group": "apifyRequestInput",
@@ -447,7 +429,7 @@
         "equals": "getKeyValueStoreRecord",
         "type": "simple"
       },
-      "placeholder": "OUTPUT",
+      "placeholder": "e.g. OUTPUT",
       "type": "String"
     },
     {
@@ -511,7 +493,7 @@
         "key": "retryBackoff",
         "type": "zeebe:taskHeader"
       },
-      "placeholder": "PT5S",
+      "placeholder": "e.g. PT5S",
       "type": "String"
     }
   ],

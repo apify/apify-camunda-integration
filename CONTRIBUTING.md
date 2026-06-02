@@ -84,7 +84,7 @@ mvn test-compile exec:java \
   -Dexec.classpathScope=test
 ```
 
-> **Note:** If you only want to test the **outbound** connector, this is all you need; skip ahead to Step 4. For **inbound connectors** (webhooks), you also need a publicly reachable URL pointing at your local runtime so Apify can deliver events. See [Local inbound setup with ngrok](#local-inbound-setup-with-ngrok) below.
+> **Note:** For **inbound connectors** (webhooks), you also need a publicly reachable URL so Apify can deliver events to your local runtime. See [Local inbound setup with ngrok](#local-inbound-setup-with-ngrok) below.
 
 ### 4. Open Web Modeler
 
@@ -125,7 +125,7 @@ Inbound (webhook) testing requires Apify to be able to reach your machine over t
 
 5. Deploy the process. The runtime logs should show `Successfully created Apify webhook with webhook ID: <id>`.
 
-> **End-user note:** ngrok is only needed for **local development**. On Camunda SaaS, the user puts `https://{region}.connectors.camunda.io/{clusterId}` in the Camunda webhook URL field. On Self-Managed/Hybrid, they put the public URL of their connector runtime. Either way, no ngrok and no env var.
+> **End-user note:** ngrok is only needed for **local development**. On Camunda SaaS, the user puts `https://{clusterId}.{region}.connectors.camunda.io` in the Camunda webhook URL field. On Self-Managed/Hybrid, they put the public URL of their connector runtime. See [Configuring the Camunda webhook URL](README.md#configuring-the-camunda-webhook-url) for details.
 
 ---
 
@@ -205,7 +205,7 @@ The **Run Actor** and **Run Task** API responses are wrapped in a `data` envelop
 }
 ```
 
-The result variable (e.g., `previousActorRunResult`) contains the inner `data` object directly, so you access fields using FEEL expressions like `=previousActorRunResult.data.id`, `=previousActorRunResult.data.defaultDatasetId`, etc. FEEL (Friendly Enough Expression Language) is Camunda's expression language, the `=` prefix tells Camunda to evaluate what follows as an expression rather than a literal string. See [Common FEEL Expressions](README.md#common-feel-expressions) in the README for a quick reference.
+The result variable (e.g., `previousActorRunResult`) contains the inner `data` object directly, so you access fields using FEEL expressions like `=previousActorRunResult.data.id`, `=previousActorRunResult.data.defaultDatasetId`, etc. FEEL (Friendly Enough Expression Language) is Camunda's expression language, the `=` prefix tells Camunda to evaluate what follows as an expression rather than a literal string. See [Common expressions](README.md#common-expressions) in the README for a quick reference, including how FEEL differs from Camunda secret placeholders (`{{secrets.X}}`).
 
 For the full response schema, see:
 - [Run Actor API](https://docs.apify.com/api/v2/act-runs-post): response for `Run Actor`
@@ -514,7 +514,7 @@ The Docker Compose stack maps these components to the following local ports and 
 
 | Docker service | Local port | Maps to diagram component |
 |----------------|-----------|--------------------------|
-| **Orchestration Cluster** (Zeebe + Operate + Tasklist) | gRPC `:26500`, REST `:8080` (8.9) / `:8088` (8.8) | Orchestration Cluster / Orchestration Cluster API |
+| **Orchestration Cluster** (Zeebe + Operate + Tasklist + Identity) | gRPC `:26500`, REST `:8080` (8.9+) / `:8088` (8.8) | Orchestration Cluster / Orchestration Cluster API |
 | **Web Modeler** (webapp + restapi + websockets) | `:8070`, `:8060` | Web Modeler |
 | **Identity** | `:8084` | Management Identity |
 | **Keycloak** (OAuth2 / OIDC) | `:18080` | Authentication and Authorization |

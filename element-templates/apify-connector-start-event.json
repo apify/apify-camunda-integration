@@ -72,7 +72,7 @@
     {
       "id": "connectorWebhookUrl",
       "label": "Camunda webhook URL",
-      "description": "Public URL where your Camunda receives Apify webhooks. Used to register the callback in Apify when this process is deployed. **SaaS:** https://{region}.connectors.camunda.io/{clusterId} (Console -> cluster -> API tab). **Self-Managed / Hybrid:** your connector runtime's public URL, e.g. https://connectors.example.com.",
+      "description": "Public URL where your Camunda receives Apify webhooks. Used to register the callback in Apify when this process is deployed. SaaS: https://{clusterId}.{region}.connectors.camunda.io (Console -> cluster -> API tab). Self-Managed / Hybrid: your connector runtime's public URL, e.g. https://connectors.example.com.",
       "type": "String",
       "feel": "optional",
       "group": "webhook",
@@ -81,7 +81,7 @@
         "type": "zeebe:property",
         "name": "connectorWebhookUrl"
       },
-      "placeholder": "https://bru-2.connectors.camunda.io/your-cluster-id",
+      "placeholder": "https://your-cluster-id.bru-2.connectors.camunda.io",
       "constraints": {
         "notEmpty": true
       }
