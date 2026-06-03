@@ -480,6 +480,7 @@ This connector is maintained by **Apify**. Camunda disclaims any support obligat
 | [GitHub Issues](https://github.com/apify/apify-camunda-integration/issues) | Bug reports, feature requests, configuration questions |
 | [Apify integration docs](https://docs.apify.com/platform/integrations/camunda) | Tutorials, walkthroughs, payload reference |
 | [Apify Discord](https://discord.com/invite/jyEM2PRvMU) | Community discussion |
+| [integrations@apify.com](mailto:integrations@apify.com) | Direct support inquiries |
 | [SECURITY.md](SECURITY.md) | Private vulnerability disclosure |
 
 For security-related issues, please follow the disclosure process in [SECURITY.md](SECURITY.md) instead of opening a public issue.
