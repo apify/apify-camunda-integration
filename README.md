@@ -23,6 +23,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 
 ## Table of Contents
 
+- [Compatibility](#compatibility)
 - [Authentication](#authentication)
 - [Outbound Connector](#outbound-connector)
   - [Run Actor](#run-actor)
@@ -42,23 +43,77 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
   - [Boundary Event for Runtime Reactions](#boundary-event-for-runtime-reactions)
 - [Reference](#reference)
   - [Finding Resource IDs](#finding-resource-ids)
-  - [Common FEEL Expressions](#common-feel-expressions)
+  - [Common expressions](#common-expressions)
   - [Webhook Payload Structure](#webhook-payload-structure)
   - [Event Types and Statuses](#event-types-and-statuses)
 - [Troubleshooting](#troubleshooting)
+- [Support](#support)
 - [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Compatibility
+
+| Component | Supported versions |
+|---|---|
+| Camunda 8 | 8.8.x, 8.9.x, 8.10.x (SaaS and Self-Managed) |
+| Camunda Connectors runtime | 8.8.x, 8.9.x, 8.10.x |
+| Java (runtime) | 21+ |
+| Apify API | Public REST API (v2), API token authentication |
+
+### Deployment matrix
+
+| Capability | Camunda SaaS | Self-Managed | Hybrid |
+|---|---|---|---|
+| Outbound (runActor, runTask, getDatasetItems, scrapeSingleUrl, getKeyValueStoreRecord) | Yes | Yes | Yes |
+| Inbound (auto-registers the webhook in Apify on deploy) | Yes | Yes | Yes |
+
+The connector handles the Apify-side webhook lifecycle for you: when the BPMN is deployed, it calls Apify's API to create the webhook; when the inbound is deactivated, the webhook is removed. The only thing **you** must tell the connector is its own public address. See the next section.
+
+### Configuring the **Camunda webhook URL**
+
+Each inbound element template has a required **Camunda webhook URL** field. The connector uses it to register the callback on the Apify side at deploy time. Apify will POST Actor events to this URL. The same flow applies on Camunda SaaS, Self-Managed, and Hybrid.
+
+| Environment | What to put in the field |
+|---|---|
+| **Camunda SaaS** | `https://{clusterId}.{region}.connectors.camunda.io`. Find your region and cluster ID in Camunda Console → your cluster → API tab. Example: `https://abc-123-cluster-id.bru-2.connectors.camunda.io`. |
+| **Self-Managed** | The public URL of your connector runtime, e.g. `https://camunda-connectors.example.com`. |
+| **Hybrid** | The public URL of your self-hosted hybrid runtime (same as Self-Managed). See [Use connectors in hybrid mode](https://docs.camunda.io/docs/components/connectors/use-connectors-in-hybrid-mode/). |
+
+You paste just the base URL without a trailing slash. The connector appends `/inbound/{webhookId}` automatically when it registers the webhook with Apify.
+
+> **Tip:** After deploying your BPMN diagram in **Web Modeler** (SaaS), click on the inbound event element and open the **Webhooks** tab in the properties panel. It displays the complete, ready-to-use URL for your cluster. See the [HTTP Webhook connector docs](https://docs.camunda.io/docs/components/connectors/protocol/http-webhook/#activate-the-http-webhook-connector-by-deploying-your-diagram) for details.
+
+For a deeper explanation of how inbound webhook URLs are structured in Camunda, see [Use an inbound connector](https://docs.camunda.io/docs/components/connectors/use-connectors/inbound/) and [HTTP Webhook connector](https://docs.camunda.io/docs/components/connectors/protocol/http-webhook/) in the Camunda docs.
+
+> **Convenience tip:** The URL is the same for every BPMN process on a given cluster, so you can store it as a [Camunda Secret](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., `CAMUNDA_WEBHOOK_URL`) and reference it from each inbound template as `{{secrets.CAMUNDA_WEBHOOK_URL}}`. That way you only update one place when your cluster moves or your dev URL rotates. This is *convenience*, not security. The URL is not sensitive.
+
+The connector is built against the Camunda Connectors SDK at the version pinned in [pom.xml](pom.xml). The compatibility matrix above lists the Camunda 8 minor versions the connector has been verified against; support for newer minors is added once verified and reflected here.
 
 ---
 
 ## Authentication
 
-All Apify Connector operations require an **Apify API Token**.
+All Apify Connector operations require an **Apify Token**.
 
 1. Log in to [Apify Console](https://console.apify.com/).
 2. Navigate to [**Settings → Integrations**](https://console.apify.com/settings/integrations).
-3. Copy your **API Token**.
+3. Copy your **Apify Token**.
 
-> **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`secrets.APIFY_TOKEN`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
+> **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`{{secrets.APIFY_TOKEN}}`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
+
+### Security model
+
+The Apify API token is user-supplied through the **Apify API token** field on each element template; the connector does not collect, request, or generate any credentials of its own. Operationally:
+
+- **Storage:** The token lives in the Camunda process where the designer placed it. Using a [Camunda Secret](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) keeps it out of the BPMN XML.
+- **Logging:** The connector never logs the token, neither in plain text nor hashed, at any log level.
+- **Persistence:** The connector does not write the token to disk, to local state, or to any store outside the Camunda process.
+- **Transport:** The token is sent only to `api.apify.com` over HTTPS with TLS 1.2 or higher. It is never sent to any third-party endpoint.
+- **Webhook URL field:** The **Camunda webhook URL** value is treated as configuration, not as a credential, since it is the public address of your own Camunda runtime.
+
+For vulnerability disclosure, see [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -116,7 +171,7 @@ Quickly scrape a webpage using one of Apify's standard crawlers.
 |---------|-------------|
 | **Operation** | Select `Scrape single URL` |
 | **URL** | The full URL to scrape (e.g., `https://example.com`) |
-| **Crawler Type** | `Cheerio` (lightweight), `JSDOM`, `Playwright Adaptive`, or `Playwright Firefox` |
+| **Crawler Type** | `Cheerio (Raw HTTP)`, `Adaptive`, or `Firefox (Headless Browser)` |
 
 ### Get Dataset Items
 
@@ -170,7 +225,7 @@ All inbound connectors share these common fields:
 | **Result Variable** | *(Optional)* Variable name to store the webhook payload |
 | **Result Expression** | *(Optional)* FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
 
-#### Activation Condition
+### Activation Condition
 
 The **Activation Condition** is an optional FEEL expression that acts as a gate for incoming webhook events. When set, the connector evaluates the expression against each incoming event and only triggers the process if the expression evaluates to `true`. Events that do not match are silently ignored, no process instance is created and no correlation occurs.
 
@@ -318,17 +373,27 @@ You can find IDs in the [Apify Console](https://console.apify.com/):
 - **Task ID**: `https://console.apify.com/actors/tasks/<THIS_IS_THE_ID>` or see the API tab
 - **Dataset ID**: Found in the Storage section or run details
 
-### Common FEEL Expressions
+### Common expressions
 
-Camunda uses FEEL (Friendly Enough Expression Language) for dynamic values. The leading `=` in each expression tells Camunda to evaluate what follows as a FEEL expression rather than a literal string.
+The connector templates accept two distinct syntaxes that look similar but are evaluated at different stages by different components: **FEEL expressions** and **secret placeholders**.
 
-| Expression | Use Case |
-|------------|----------|
-| `=secrets.APIFY_TOKEN` | Accessing a secure credential |
-| `=runResult.data.id` | Accessing the run ID from a response |
-| `=runResult.data.defaultDatasetId` | Accessing the default dataset ID |
-| `=connectorData.status` | Reading the status from inbound webhook payload |
-| `=connectorData.runId` | Reading the Run ID from inbound webhook payload |
+**FEEL expressions** (prefix: `=`) are evaluated by the Zeebe engine *before* the connector runs. The leading `=` tells the engine to parse the field as FEEL (Friendly Enough Expression Language) and resolve it to a concrete value. Use FEEL to reference process variables, filter events, or build output mappings.
+
+| FEEL expression | Use case |
+|---|---|
+| `=runResult.data.id` | Access the run ID from a previous response |
+| `=runResult.data.defaultDatasetId` | Access the default dataset ID |
+| `=connectorData.status` | Read the status from an inbound webhook payload |
+| `=connectorData.runId` | Read the run ID from an inbound webhook payload |
+
+**Secret placeholders** (syntax: `{{secrets.NAME}}`) are *not* FEEL. The engine passes them through as literal strings and the **connector runtime** substitutes them at execution time, just before the outbound HTTP call. This keeps the secret value out of process variables, audit logs, and incident messages. Use them anywhere a credential or sensitive URL belongs — directly in plain text fields (no `=` prefix), or inside a FEEL string wrapped in quotes (e.g. `="Bearer " + "{{secrets.APIFY_TOKEN}}"`).
+
+| Placeholder | Use case |
+|---|---|
+| `{{secrets.APIFY_TOKEN}}` | Reference a stored Apify API token |
+| `{{secrets.CAMUNDA_WEBHOOK_URL}}` | Reference a stored Camunda webhook URL |
+
+See [Manage Secrets](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) for how to create and store secrets in your Camunda cluster.
 
 ### Webhook Payload Structure
 
@@ -406,6 +471,32 @@ When an Apify inbound connector is triggered, it receives a payload with event a
 
 ---
 
+## Support
+
+This connector is maintained by **Apify**. Camunda disclaims any support obligation for it; please contact Apify directly using the channels below.
+
+| Channel | Use for |
+|---|---|
+| [GitHub Issues](https://github.com/apify/apify-camunda-integration/issues) | Bug reports, feature requests, configuration questions |
+| [Apify integration docs](https://docs.apify.com/platform/integrations/camunda) | Tutorials, walkthroughs, payload reference |
+| [Apify Discord](https://discord.com/invite/jyEM2PRvMU) | Community discussion |
+| [integrations@apify.com](mailto:integrations@apify.com) | Direct support inquiries |
+| [SECURITY.md](SECURITY.md) | Private vulnerability disclosure |
+
+For security-related issues, please follow the disclosure process in [SECURITY.md](SECURITY.md) instead of opening a public issue.
+
+**Support targets** (best-effort, per the Camunda Marketplace certification program):
+- Acknowledge support queries escalated by Camunda within **7 business days**.
+- Resolve customer technical issues within **10 business days**.
+
+---
+
 ## Contributing
 
 For development setup, local testing, and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## License
+
+Released under the Apache License, Version 2.0. See [LICENSE.md](LICENSE.md).

@@ -61,7 +61,7 @@ public class MyFunctionTest {
       .build();
     assertThatThrownBy(() -> function.execute(context))
       .isInstanceOf(RuntimeException.class)
-      .hasMessageContaining("Error");
+      .hasMessageContaining("Apify API error");
   }
 
   @Test

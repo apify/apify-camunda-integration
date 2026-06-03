@@ -1,0 +1,7 @@
+# GitHub language-stats: keep the bar honest about what's hand-written.
+
+# Documentation directories shouldn't dominate the language bar.
+docs/** linguist-documentation=true
+
+# Normalize line endings for text files.
+* text=auto eol=lf

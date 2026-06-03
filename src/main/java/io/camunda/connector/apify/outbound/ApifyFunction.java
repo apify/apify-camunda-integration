@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.api.annotation.OutboundConnector;
+import io.camunda.connector.apify.common.ApifyApiException;
 import io.camunda.connector.apify.common.ApifyClient;
 import io.camunda.connector.apify.common.RunOptions;
 import io.camunda.connector.apify.common.URLValidator;
@@ -48,8 +49,8 @@ import java.util.Set;
     name = "Apify Connector",
     version = 1,
     description = "Access Apify tools for web scraping, data extraction, and automation.",
-    // TODO: update documentation link
-    documentationRef = "https://docs.camunda.io/docs/components/connectors/out-of-the-box-connectors/available-connectors-overview/",
+    icon = "icon.svg",
+    documentationRef = "https://docs.apify.com/platform/integrations/camunda",
     inputDataClass = ApifyRequest.class)
 public class ApifyFunction implements OutboundConnectorFunction {
 
@@ -174,6 +175,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
       }
       
       return new RunActorResponse(response);
+    } catch (ApifyApiException e) {
+      throw raiseApiFailure(e, "runActor", "Actor", input.actorId());
     } catch (Exception e) {
       LOGGER.error("Failed to run actor: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to run actor - " + e.getMessage(), e);
@@ -232,11 +235,75 @@ public class ApifyFunction implements OutboundConnectorFunction {
       }
       
       return new RunTaskResponse(response);
+    } catch (ApifyApiException e) {
+      throw raiseApiFailure(e, "runTask", "Task", input.taskId());
     } catch (Exception e) {
       LOGGER.error("Failed to run task: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to run task - " + e.getMessage(), e);
     }
   }
+
+  /**
+   * Log the {@link ApifyApiException} at an appropriate level and convert it into
+   * the right runtime/connector exception for the Zeebe job worker.
+   *
+   * <ul>
+   *   <li>4xx (except 429) are user-input problems: logged at {@code WARN} (no stack
+   *       trace) and surfaced as {@link ConnectorInputException} so Camunda treats
+   *       them as input incidents and does not retry.</li>
+   *   <li>5xx, 429, and transport failures (statusCode 0) are operator-actionable:
+   *       logged at {@code ERROR} with stack trace and rethrown as a plain
+   *       {@link RuntimeException} so the job can be retried.</li>
+   * </ul>
+   *
+   * @param operationLabel short label for logs (e.g. {@code "getDatasetItems"}).
+   * @param resourceLabel  user-facing label for messages (e.g. {@code "Actor"},
+   *                       {@code "Task"}, {@code "Dataset"}). Only {@code "Actor"}
+   *                       and {@code "Task"} trigger the "Custom Input JSON" hint.
+   * @param resourceId     the resource identifier (actor id, task id, dataset id, etc.),
+   *                       or {@code null} if not applicable.
+   */
+  private static RuntimeException raiseApiFailure(
+      ApifyApiException e, String operationLabel, String resourceLabel, String resourceId) {
+    String userMessage = formatApiFailureMessage(e, resourceLabel, resourceId);
+    int status = e.getStatusCode();
+    boolean isClientInputError = status >= 400 && status < 500 && status != 429;
+    if (isClientInputError) {
+      LOGGER.warn("Apify {} rejected: {}", operationLabel, e.getMessage());
+      return new ConnectorInputException(userMessage, e);
+    }
+    LOGGER.error("Apify {} failed: {}", operationLabel, e.getMessage(), e);
+    return new RuntimeException(userMessage, e);
+  }
+
+  /**
+   * Build a user-facing message for a failed Apify API call. For Apify's
+   * {@code invalid-input} errors on {@code Actor}/{@code Task} resources, appends
+   * a hint pointing the user at the "Custom Input JSON" field and (for Actors with
+   * a public slug) the input-schema page. For other resource types, returns the
+   * exception's clean message unchanged.
+   */
+  static String formatApiFailureMessage(ApifyApiException e, String resourceLabel, String resourceId) {
+    boolean isRunnable = "Actor".equals(resourceLabel) || "Task".equals(resourceLabel);
+    if (e.isInvalidInput() && isRunnable) {
+      StringBuilder sb = new StringBuilder();
+      sb.append(resourceLabel)
+          .append(" \"")
+          .append(resourceId)
+          .append("\" rejected the input: ")
+          .append(e.getApifyErrorMessage() == null ? "invalid input" : e.getApifyErrorMessage())
+          .append(". Provide the required values in the \"Custom Input JSON\" field.");
+      if ("Actor".equals(resourceLabel) && resourceId != null
+              && (resourceId.contains("~") || resourceId.contains("/"))) {
+        sb.append(" See the Actor's input schema at https://apify.com/")
+            .append(resourceId.replace("~", "/"))
+            .append("/input-schema");
+      }
+      return sb.toString();
+    }
+    return e.getMessage();
+  }
+
 
   private ApifyResult handleGetDatasetItems(Authentication authentication, ApifyRequestInput apifyRequestInput) {
     GetDatasetItemsInput datasetInput = apifyRequestInput.getDatasetItemsInput();
@@ -258,6 +325,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
       
       return new GetDatasetItemsResponse(datasetItems);
       
+    } catch (ApifyApiException e) {
+      throw raiseApiFailure(e, "getDatasetItems", "Dataset", datasetInput.datasetId());
     } catch (Exception e) {
       LOGGER.error("Failed to get dataset items: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to get dataset items - " + e.getMessage(), e);
@@ -325,6 +394,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
       itemNode.remove("text");
       
       return new ScrapeSingleUrlResponse(itemNode.toString());
+    } catch (ApifyApiException e) {
+      throw raiseApiFailure(e, "scrapeSingleUrl", "URL", input.url());
     } catch (Exception e) {
       LOGGER.error("Failed to scrape single URL: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to scrape single URL - " + e.getMessage(), e);
@@ -529,9 +600,12 @@ public class ApifyFunction implements OutboundConnectorFunction {
       
       return parseKeyValueStoreResponse(result);
       
-    } catch (IOException e) {
+    } catch (ApifyApiException e) {
+      throw raiseApiFailure(e, "getKeyValueStoreRecord", "Key-value store record",
+          recordInput.storeId() + "/" + recordInput.recordKey());
+    } catch (Exception e) {
       LOGGER.error("Failed to get key-value store record: {}", e.getMessage(), e);
-      throw new RuntimeException("Failed to get key-value store record: " + e.getMessage(), e);
+      throw new RuntimeException("Error: Failed to get key-value store record - " + e.getMessage(), e);
     }
   }
 

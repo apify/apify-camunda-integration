@@ -3,12 +3,46 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <name>connector-template</name>
-    <description>Camunda Connector Template</description>
-    <groupId>io.camunda.connector</groupId>
-    <artifactId>connector-template</artifactId>
+    <name>Apify Camunda Connector</name>
+    <description>Camunda 8 Connector for the Apify platform - outbound operations (Run Actor, Run Task, Scrape URL, Get Dataset Items, Get Key-Value Store Record) and inbound webhook events (Start, Message Start, Intermediate Catch, Boundary).</description>
+    <url>https://github.com/apify/apify-camunda-integration</url>
+    <groupId>com.apify.camunda</groupId>
+    <artifactId>apify-camunda-connector</artifactId>
     <packaging>jar</packaging>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <organization>
+        <name>Apify Technologies s.r.o.</name>
+        <url>https://apify.com</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>apify</id>
+            <name>Apify Integrations Team</name>
+            <organization>Apify Technologies s.r.o.</organization>
+            <organizationUrl>https://apify.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <url>https://github.com/apify/apify-camunda-integration</url>
+        <connection>scm:git:https://github.com/apify/apify-camunda-integration.git</connection>
+        <developerConnection>scm:git:git@github.com:apify/apify-camunda-integration.git</developerConnection>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/apify/apify-camunda-integration/issues</url>
+    </issueManagement>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
@@ -111,6 +145,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -124,11 +159,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.5</version>
-                <configuration>
-                    <environmentVariables>
-                        <CONNECTOR_BASE_URL>http://example.com</CONNECTOR_BASE_URL>
-                    </environmentVariables>
-                </configuration>
             </plugin>
         </plugins>
     </build>
@@ -211,8 +241,20 @@
                                     <connectorClass>io.camunda.connector.apify.inbound.ApifyInboundExecutable</connectorClass>
                                     <files>
                                         <file>
-                                            <templateId>io.camunda.connector.inbound.Apify.v1</templateId>
-                                            <templateFileName>apify-inbound-connector.json</templateFileName>
+                                            <templateId>io.camunda.connector.inbound.Apify.v1:StartEvent</templateId>
+                                            <templateFileName>apify-connector-start-event.json</templateFileName>
+                                        </file>
+                                        <file>
+                                            <templateId>io.camunda.connector.inbound.Apify.v1:MessageStartEvent</templateId>
+                                            <templateFileName>apify-connector-message-start-event.json</templateFileName>
+                                        </file>
+                                        <file>
+                                            <templateId>io.camunda.connector.inbound.Apify.v1:IntermediateCatchEvent</templateId>
+                                            <templateFileName>apify-connector-intermediate-catch-event.json</templateFileName>
+                                        </file>
+                                        <file>
+                                            <templateId>io.camunda.connector.inbound.Apify.v1:BoundaryEvent</templateId>
+                                            <templateFileName>apify-connector-boundary-event.json</templateFileName>
                                         </file>
                                     </files>
                                 </connector>

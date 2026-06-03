@@ -4,7 +4,7 @@
   "id": "io.camunda.connector.inbound.Apify.v1:StartEvent",
   "version": 1,
   "description": "Creates an Apify webhook for completed Actor or task runs, receives event updates, and deletes the webhook on deactivation.",
-  "documentationRef": "https://github.com/apify/apify-camunda-integration/blob/main/README.md#start-event",
+  "documentationRef": "https://docs.apify.com/platform/integrations/camunda",
   "metadata": {
     "keywords": [
       "apify",
@@ -13,7 +13,8 @@
       "inbound",
       "actor",
       "task"
-    ]
+    ],
+    "_note": "Hand-curated. Edit this file directly, don't regenerate."
   },
   "category": {
     "id": "connectors",
@@ -25,19 +26,22 @@
   "elementType": {
     "value": "bpmn:StartEvent"
   },
+  "engines": {
+    "camunda": "^8.8"
+  },
   "groups": [
     {
       "id": "authentication",
       "label": "Authentication"
     },
     {
-      "id": "resourceType",
-      "label": "Resource type",
-      "tooltip": "Learn more about Actors and webhooks in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
+      "id": "webhook",
+      "label": "Webhook endpoint"
     },
     {
       "id": "resourceConfig",
-      "label": "Resource configuration"
+      "label": "Resource configuration",
+      "tooltip": "Learn more about Actors and webhooks in the <a href=\"https://docs.apify.com/academy/expert-scraping-with-apify/actors-webhooks\">documentation</a>."
     },
     {
       "id": "activation",
@@ -66,11 +70,28 @@
       "placeholder": "apify_api_..."
     },
     {
+      "id": "connectorWebhookUrl",
+      "label": "Camunda webhook URL",
+      "description": "Public URL where your Camunda receives Apify webhooks. Used to register the callback in Apify when this process is deployed. SaaS: https://{clusterId}.{region}.connectors.camunda.io (Console -> cluster -> API tab). Self-Managed / Hybrid: your connector runtime's public URL, e.g. https://connectors.example.com.",
+      "type": "String",
+      "feel": "optional",
+      "group": "webhook",
+      "optional": false,
+      "binding": {
+        "type": "zeebe:property",
+        "name": "connectorWebhookUrl"
+      },
+      "placeholder": "https://your-cluster-id.bru-2.connectors.camunda.io",
+      "constraints": {
+        "notEmpty": true
+      }
+    },
+    {
       "id": "resourceType",
       "label": "Resource Type",
       "description": "The Apify resource type to monitor (Actor or task).",
       "type": "Dropdown",
-      "group": "resourceType",
+      "group": "resourceConfig",
       "value": "actor",
       "choices": [
         {
@@ -93,7 +114,7 @@
     {
       "id": "resourceId.actor",
       "label": "Actor",
-      "description": "Actor name or ID (e.g., 'apify/web-scraper' or 'E2jjCZBezvAZnX8Rb').",
+      "description": "Actor name or ID.",
       "type": "String",
       "feel": "optional",
       "group": "resourceConfig",
@@ -114,7 +135,7 @@
     {
       "id": "resourceId.task",
       "label": "Task",
-      "description": "Task name or ID (e.g., 'username/my-task' or 'abc123DEF456').",
+      "description": "Task name or ID.",
       "type": "String",
       "feel": "optional",
       "group": "resourceConfig",

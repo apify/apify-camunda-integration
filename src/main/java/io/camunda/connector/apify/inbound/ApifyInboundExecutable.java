@@ -37,7 +37,7 @@ import java.util.function.Function;
  * Apify Inbound Connector implementation that listens for Apify webhook events.
  */
 @InboundConnector(name = "Apify Inbound Connector", type = "io.camunda:apify-inbound:1")
-@ElementTemplate(id = "io.camunda.connector.inbound.Apify.v1", name = "Apify Connector", version = 1, description = "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.", documentationRef = "https://docs.camunda.io/docs/8.7/components/connectors/custom-built-connectors/build-connector", inputDataClass = ApifyInboundProperties.class)
+@ElementTemplate(id = "io.camunda.connector.inbound.Apify.v1", name = "Apify Connector", version = 1, description = "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.", icon = "icon.svg", documentationRef = "https://docs.apify.com/platform/integrations/camunda", inputDataClass = ApifyInboundProperties.class)
 public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApifyInboundExecutable.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -183,18 +183,26 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     }
 
     /**
-     * Gets the base URL from the environment variables.
-     * 
-     * @return The base URL.
+     * Returns the public connector runtime URL from the element template property.
+     *
+     * <p>The Camunda Connector SDK does not expose this, so we require users to
+     * configure it explicitly for a unified experience across SaaS and Self-Managed.
+     *
+     * @return The connector base URL with trailing slash removed.
+     * @throws IllegalArgumentException if the property is missing or blank.
      */
     private String getBaseUrl() {
-        String baseUrl = System.getenv("CONNECTOR_BASE_URL");
-        if (baseUrl == null || baseUrl.isBlank()) {
+        String fromProperty = properties != null ? properties.connectorWebhookUrl() : null;
+        if (fromProperty == null || fromProperty.isBlank()) {
             throw new IllegalArgumentException(
-                    "CONNECTOR_BASE_URL environment variable must be set for inbound connectors. \n"
-                            + "This should be the public URL where Camunda connectors receive webhook callbacks.");
+                    "Camunda webhook URL is not configured. Set the 'Camunda webhook URL' field "
+                            + "in the element template. See https://docs.apify.com/platform/integrations/camunda for details.");
         }
-        return baseUrl;
+        return stripTrailingSlash(fromProperty.trim());
+    }
+
+    private static String stripTrailingSlash(String s) {
+        return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
     }
 
     /**
@@ -226,9 +234,6 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         }
 
         String baseUrl = getBaseUrl();
-        if (baseUrl.endsWith("/")) {
-            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-        }
 
         if (contextValue.startsWith("/")) {
             contextValue = contextValue.substring(1);

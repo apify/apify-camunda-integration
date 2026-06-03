@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Resolve version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Set Maven project version
+        run: mvn --batch-mode versions:set -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false
+
+      - name: Build and test
+        run: mvn --batch-mode --update-snapshots clean verify
+
+      - name: Stage release artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          # Connector JAR (shaded). Filename is deterministic because we ran
+          # `mvn versions:set -DnewVersion=${VERSION}` before packaging, so the
+          # shade-plugin output is exactly apify-camunda-connector-${VERSION}.jar.
+          jar="target/apify-camunda-connector-${{ steps.version.outputs.version }}.jar"
+          test -f "$jar" || { echo "Expected release JAR not found at $jar"; ls -la target; exit 1; }
+          cp "$jar" "release-artifacts/$(basename "$jar")"
+          # Element templates archive
+          (cd element-templates && zip -r "../release-artifacts/apify-camunda-connector-element-templates-${{ steps.version.outputs.version }}.zip" *.json)
+          ls -la release-artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release-artifacts/*

@@ -1,5 +1,6 @@
 package io.camunda.connector.apify.inbound;
 
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.DEFAULT_TEST_WEBHOOK_URL;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.OBJECT_MAPPER;
 import static io.camunda.connector.apify.inbound.dto.ResourceType.ACTOR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -129,9 +130,10 @@ class ApifyInboundExecutableIntegrationTest {
         InboundConnectorContext context = mock(InboundConnectorContext.class);
 
         ApifyInboundProperties properties = new ApifyInboundProperties(
-                new Authentication(apifyToken),
-                ACTOR,
-                testActorId);
+                    new Authentication(apifyToken),
+                    ACTOR,
+                    testActorId,
+                    DEFAULT_TEST_WEBHOOK_URL);
 
         when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
         when(context.getProperties()).thenReturn(Map.of(

@@ -1,5 +1,6 @@
 package io.camunda.connector.apify.inbound;
 
+import static io.camunda.connector.apify.inbound.InboundTestFixtures.DEFAULT_TEST_WEBHOOK_URL;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.OBJECT_MAPPER;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.VALID_WEBHOOK_RESPONSE;
 import static io.camunda.connector.apify.inbound.InboundTestFixtures.actorResolutionFailsMock;
@@ -19,6 +20,7 @@ import static io.camunda.connector.apify.inbound.dto.ResourceType.TASK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
@@ -72,7 +74,8 @@ class ApifyInboundExecutableTest {
             ApifyInboundProperties properties = new ApifyInboundProperties(
                     new Authentication("test-token"),
                     ACTOR,
-                    "my-actor-id");
+                    "my-actor-id",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
             assertThat(properties.authentication().token()).isEqualTo("test-token");
             assertThat(properties.resourceType()).isEqualTo(ACTOR);
@@ -86,9 +89,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldNormalizeResourceIdWithSlash() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        new Authentication("test-token"),
-                        ACTOR,
-                        "apify/google-search-scraper");
+                    new Authentication("test-token"),
+                    ACTOR,
+                    "apify/google-search-scraper",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 String normalized = properties.getNormalizedResourceId();
 
@@ -98,9 +102,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldNotChangeResourceIdWithoutSlash() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        new Authentication("test-token"),
-                        ACTOR,
-                        "my-actor-id-123");
+                    new Authentication("test-token"),
+                    ACTOR,
+                    "my-actor-id-123",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 String normalized = properties.getNormalizedResourceId();
 
@@ -110,9 +115,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldHandleMultipleSlashesInResourceId() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        new Authentication("test-token"),
-                        ACTOR,
-                        "username/category/actor-name");
+                    new Authentication("test-token"),
+                    ACTOR,
+                    "username/category/actor-name",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 String normalized = properties.getNormalizedResourceId();
 
@@ -136,9 +142,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectEmptyToken() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        new Authentication(""),
-                        ACTOR,
-                        "my-actor-id");
+                    new Authentication(""),
+                    ACTOR,
+                    "my-actor-id",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 Set<ConstraintViolation<ApifyInboundProperties>> violations = validator.validate(properties);
 
@@ -151,9 +158,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectNullToken() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        new Authentication(null),
-                        ACTOR,
-                        "my-actor-id");
+                    new Authentication(null),
+                    ACTOR,
+                    "my-actor-id",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 Set<ConstraintViolation<ApifyInboundProperties>> violations = validator.validate(properties);
 
@@ -166,9 +174,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectNullAuthentication() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        null,
-                        ACTOR,
-                        "my-actor-id");
+                    null,
+                    ACTOR,
+                    "my-actor-id",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 Set<ConstraintViolation<ApifyInboundProperties>> violations = validator.validate(properties);
 
@@ -181,9 +190,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectNullResourceType() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        new Authentication("test-token"),
-                        null,
-                        "my-actor-id");
+                    new Authentication("test-token"),
+                    null,
+                    "my-actor-id",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 Set<ConstraintViolation<ApifyInboundProperties>> violations = validator.validate(properties);
 
@@ -196,9 +206,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectEmptyResourceId() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        new Authentication("test-token"),
-                        ACTOR,
-                        "");
+                    new Authentication("test-token"),
+                    ACTOR,
+                    "",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 Set<ConstraintViolation<ApifyInboundProperties>> violations = validator.validate(properties);
 
@@ -211,9 +222,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldRejectNullResourceId() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        new Authentication("test-token"),
-                        ACTOR,
-                        null);
+                    new Authentication("test-token"),
+                    ACTOR,
+                    null,
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 Set<ConstraintViolation<ApifyInboundProperties>> violations = validator.validate(properties);
 
@@ -226,9 +238,10 @@ class ApifyInboundExecutableTest {
             @Test
             void shouldAcceptValidProperties() {
                 ApifyInboundProperties properties = new ApifyInboundProperties(
-                        new Authentication("test-token"),
-                        ACTOR,
-                        "my-actor-id");
+                    new Authentication("test-token"),
+                    ACTOR,
+                    "my-actor-id",
+                    DEFAULT_TEST_WEBHOOK_URL);
 
                 Set<ConstraintViolation<ApifyInboundProperties>> violations = validator.validate(properties);
 
@@ -759,6 +772,90 @@ class ApifyInboundExecutableTest {
     }
 
     @Nested
+    @DisplayName("Camunda webhook URL resolution")
+    class ConnectorBaseUrlResolutionTests {
+
+        /**
+         * Builds a context whose bound properties include the given connectorWebhookUrl.
+         * The URL is read directly from the BPMN template; there is no env-var
+         * fallback. Same flow on SaaS, Self-Managed, and Hybrid.
+         */
+        private InboundConnectorContext contextWithBaseUrlProperty(String baseUrlProperty) {
+            InboundConnectorContext context = mock(InboundConnectorContext.class);
+            ApifyInboundProperties properties = new ApifyInboundProperties(
+                    new Authentication("test-token"), ACTOR, "my-actor-id", baseUrlProperty);
+            when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
+            when(context.getProperties()).thenReturn(Map.of("inbound", Map.of("context", "test-context-123")));
+            return context;
+        }
+
+        @Test
+        void shouldComposeCallbackUrlFromTemplateProperty() throws Exception {
+            InboundConnectorContext context = contextWithBaseUrlProperty(
+                    "https://bru-2.connectors.camunda.io/abc-123");
+
+            try (MockedConstruction<ApifyClient> mocked = mockConstruction(ApifyClient.class,
+                    defaultActorClientMock())) {
+                executable.activate(context);
+
+                ApifyClient client = mocked.constructed().get(0);
+                verify(client).createWebhook(anyString(), argThat(json ->
+                        json.contains("https://bru-2.connectors.camunda.io/abc-123/inbound/test-context-123")));
+            }
+        }
+
+        @Test
+        void shouldThrowWhenPropertyIsNull() {
+            InboundConnectorContext context = contextWithBaseUrlProperty(null);
+
+            assertThatThrownBy(() -> executable.activate(context))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Camunda webhook URL is not configured")
+                    .hasMessageContaining("element template");
+        }
+
+        @Test
+        void shouldThrowWhenPropertyIsBlank() {
+            InboundConnectorContext context = contextWithBaseUrlProperty("   ");
+
+            assertThatThrownBy(() -> executable.activate(context))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Camunda webhook URL is not configured");
+        }
+
+        @Test
+        void shouldStripTrailingSlashFromPropertyValue() throws Exception {
+            InboundConnectorContext context = contextWithBaseUrlProperty(
+                    "https://bru-2.connectors.camunda.io/abc-123/");
+
+            try (MockedConstruction<ApifyClient> mocked = mockConstruction(ApifyClient.class,
+                    defaultActorClientMock())) {
+                executable.activate(context);
+
+                ApifyClient client = mocked.constructed().get(0);
+                verify(client).createWebhook(anyString(), argThat(json ->
+                        json.contains("https://bru-2.connectors.camunda.io/abc-123/inbound/test-context-123")
+                                && !json.contains("//inbound/")));
+            }
+        }
+
+        @Test
+        void shouldTrimSurroundingWhitespace() throws Exception {
+            InboundConnectorContext context = contextWithBaseUrlProperty(
+                    "  https://bru-2.connectors.camunda.io/abc-123  ");
+
+            try (MockedConstruction<ApifyClient> mocked = mockConstruction(ApifyClient.class,
+                    defaultActorClientMock())) {
+                executable.activate(context);
+
+                ApifyClient client = mocked.constructed().get(0);
+                verify(client).createWebhook(anyString(), argThat(json ->
+                        json.contains("https://bru-2.connectors.camunda.io/abc-123/inbound/test-context-123")));
+            }
+        }
+    }
+
+    @Nested
     @DisplayName("Callback URL Configuration")
     class CallbackUrlConfigurationTests {
 
@@ -766,7 +863,10 @@ class ApifyInboundExecutableTest {
         void shouldThrowWhenInboundContextIsMissing() {
             InboundConnectorContext context = mock(InboundConnectorContext.class);
             ApifyInboundProperties properties = new ApifyInboundProperties(
-                    new Authentication("test-token"), ACTOR, "my-actor-id");
+                    new Authentication("test-token"),
+                    ACTOR,
+                    "my-actor-id",
+                    DEFAULT_TEST_WEBHOOK_URL);
             when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
             when(context.getProperties()).thenReturn(Map.of()); // No "inbound" key
 
@@ -779,7 +879,10 @@ class ApifyInboundExecutableTest {
         void shouldThrowWhenContextPathIsMissing() {
             InboundConnectorContext context = mock(InboundConnectorContext.class);
             ApifyInboundProperties properties = new ApifyInboundProperties(
-                    new Authentication("test-token"), ACTOR, "my-actor-id");
+                    new Authentication("test-token"),
+                    ACTOR,
+                    "my-actor-id",
+                    DEFAULT_TEST_WEBHOOK_URL);
             when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
             when(context.getProperties()).thenReturn(Map.of("inbound", Map.of())); // Empty inbound, no "context" key
 
@@ -792,7 +895,10 @@ class ApifyInboundExecutableTest {
         void shouldHandleContextWithLeadingSlash() throws Exception {
             InboundConnectorContext context = mock(InboundConnectorContext.class);
             ApifyInboundProperties properties = new ApifyInboundProperties(
-                    new Authentication("test-token"), ACTOR, "my-actor-id");
+                    new Authentication("test-token"),
+                    ACTOR,
+                    "my-actor-id",
+                    DEFAULT_TEST_WEBHOOK_URL);
             when(context.bindProperties(ApifyInboundProperties.class)).thenReturn(properties);
             when(context.getProperties()).thenReturn(Map.of("inbound", Map.of("context", "/leading-slash-context")));
 
