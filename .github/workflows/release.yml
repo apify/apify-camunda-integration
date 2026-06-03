@@ -1,24 +1,74 @@
-name: Release
+name: Create a release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  # Trigger a stable version release via GitHub's UI, with the ability to specify the type of release.
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Release type
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - custom
+          - patch
+          - minor
+          - major
+      custom_version:
+        description: The custom version to bump to (only for "custom" type)
+        required: false
+        type: string
+        default: ""
 
 concurrency:
   group: release
   cancel-in-progress: false
 
-permissions:
-  contents: write
-
 jobs:
-  release:
+  release_metadata:
+    name: Prepare release metadata
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      pull-requests: read  # git-cliff enhances release notes with PR links via GITHUB_TOKEN.
+      issues: read         # git-cliff enhances release notes with issue links via GITHUB_TOKEN.
+    outputs:
+      version_number: ${{ steps.release_metadata.outputs.version_number }}
+      tag_name: ${{ steps.release_metadata.outputs.tag_name }}
+      changelog: ${{ steps.release_metadata.outputs.changelog }}
+      release_notes: ${{ steps.release_metadata.outputs.release_notes }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Verify running on main in the apify org
+        if: github.ref != 'refs/heads/main' || !startsWith(github.repository, 'apify/')
+        run: |
+          echo "::error title=Wrong branch or repository::Releases must run from main in an apify/ repository. ref=${{ github.ref }} repo=${{ github.repository }}"
+          exit 1
+
+      - name: Validate inputs
+        if: inputs.release_type == 'custom' && inputs.custom_version == ''
+        run: |
+          echo "::error title=Missing custom_version::release_type is 'custom' but custom_version is empty. Provide a custom version (e.g. 0.1.0) and re-run the workflow."
+          exit 1
+
+      # NOTE: no explicit `actions/checkout` step here — the
+      # `apify/actions/git-cliff-release` composite action handles its own checkout
+      # so it can read the full commit history for version + changelog computation.
+      - uses: apify/actions/git-cliff-release@v1.1.2
+        name: Prepare release metadata
+        id: release_metadata
+        with:
+          release_type: ${{ inputs.release_type }}
+          custom_version: ${{ inputs.custom_version }}
+          existing_changelog_path: CHANGELOG.md
+
+  build_and_test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -27,34 +77,137 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Resolve version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Set Maven project version
-        run: mvn --batch-mode versions:set -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false
-
       - name: Build and test
         run: mvn --batch-mode --update-snapshots clean verify
 
+  update_changelog_and_version:
+    name: Update changelog and bump pom version
+    needs: [release_metadata, build_and_test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to commit CHANGELOG.md + pom.xml back to main.
+    outputs:
+      changelog_commitish: ${{ steps.commit.outputs.sha }}
+    steps:
+      # Fail fast if the service-account token isn't configured. We need it because
+      # the commit step below pushes to a branch-protected `main`; the default
+      # GITHUB_TOKEN cannot bypass branch protection. Apify provisions
+      # APIFY_SERVICE_ACCOUNT_GITHUB_TOKEN across their release workflows.
+      - name: Verify service account token is set
+        env:
+          SERVICE_ACCOUNT_TOKEN: ${{ secrets.APIFY_SERVICE_ACCOUNT_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT_TOKEN" ]; then
+            echo "::error title=Missing secret::APIFY_SERVICE_ACCOUNT_GITHUB_TOKEN is not set. The release workflow needs it to push the version bump + CHANGELOG commit to a branch-protected main. Add it in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.APIFY_SERVICE_ACCOUNT_GITHUB_TOKEN }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Bump pom.xml version
+        env:
+          VERSION: ${{ needs.release_metadata.outputs.version_number }}
+        run: |
+          mvn --batch-mode versions:set \
+            -DnewVersion="$VERSION" \
+            -DgenerateBackupPoms=false
+
+      - name: Write CHANGELOG.md
+        env:
+          CHANGELOG_CONTENT: ${{ needs.release_metadata.outputs.changelog }}
+        run: |
+          printf '%s' "$CHANGELOG_CONTENT" > CHANGELOG.md
+
+      - name: Commit and push
+        id: commit
+        env:
+          VERSION: ${{ needs.release_metadata.outputs.version_number }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pom.xml CHANGELOG.md
+          git commit -m "chore(release): bump version to ${VERSION}"
+          git push origin main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  create_github_release:
+    name: Create GitHub release
+    needs: [release_metadata, update_changelog_and_version]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to create the tag and the GitHub release.
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Build from the exact post-bump commit so the JAR's version metadata
+          # matches the tag created below.
+          ref: ${{ needs.update_changelog_and_version.outputs.changelog_commitish }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # NOTE: we skip tests here because `build_and_test` already ran them on the
+      # pre-bump source. The only change between pre-bump and post-bump is the
+      # `<version>` element in pom.xml (and CHANGELOG.md, which isn't compiled),
+      # so the binary produced here is functionally identical to the one tested.
+      # If reproducibility ever becomes a concern, drop `-DskipTests` here.
+      - name: Build release artifacts
+        run: mvn --batch-mode clean package -DskipTests
+
       - name: Stage release artifacts
+        env:
+          VERSION: ${{ needs.release_metadata.outputs.version_number }}
         run: |
           set -euo pipefail
           mkdir -p release-artifacts
-          # Connector JAR (shaded). Filename is deterministic because we ran
-          # `mvn versions:set -DnewVersion=${VERSION}` before packaging, so the
-          # shade-plugin output is exactly apify-camunda-connector-${VERSION}.jar.
-          jar="target/apify-camunda-connector-${{ steps.version.outputs.version }}.jar"
+          # Connector JAR (shaded). Filename is deterministic because
+          # `mvn versions:set -DnewVersion=$VERSION` ran in the previous job,
+          # so the shade-plugin output is exactly apify-camunda-connector-${VERSION}.jar.
+          jar="target/apify-camunda-connector-${VERSION}.jar"
           test -f "$jar" || { echo "Expected release JAR not found at $jar"; ls -la target; exit 1; }
           cp "$jar" "release-artifacts/$(basename "$jar")"
           # Element templates archive
-          (cd element-templates && zip -r "../release-artifacts/apify-camunda-connector-element-templates-${{ steps.version.outputs.version }}.zip" *.json)
+          (cd element-templates && zip -r "../release-artifacts/apify-camunda-connector-element-templates-${VERSION}.zip" *.json)
           ls -la release-artifacts
+
+      # Write release notes to a file so multi-line / backtick / quote characters
+      # in the body cannot break YAML parsing in the next step.
+      - name: Write release notes file
+        env:
+          RELEASE_NOTES: ${{ needs.release_metadata.outputs.release_notes }}
+        run: printf '%s' "$RELEASE_NOTES" > release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
-          generate_release_notes: true
+          tag_name: ${{ needs.release_metadata.outputs.tag_name }}
+          name: ${{ needs.release_metadata.outputs.version_number }}
+          body_path: release-notes.md
+          target_commitish: ${{ needs.update_changelog_and_version.outputs.changelog_commitish }}
           files: |
             release-artifacts/*
+
+      # If this job fails AFTER `update_changelog_and_version` succeeded, main
+      # has the version bump commit but there is no corresponding tag or
+      # GitHub release. Manual recovery:
+      #   1. `git revert <commit-sha>` on main to undo the bump, OR
+      #   2. Manually create the tag pointing at the bump commit and run
+      #      `gh release create <tag> --notes-file <notes>` with the staged JAR.
+      # Re-running this workflow without recovery would attempt another bump
+      # on top of the previous one.
