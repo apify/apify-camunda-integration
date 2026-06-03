@@ -386,10 +386,9 @@
         "type": "zeebe:input"
       },
       "choices": [
-        { "name": "Cheerio", "value": "cheerio" },
-        { "name": "JSDOM", "value": "jsdom" },
-        { "name": "Playwright Adaptive", "value": "playwright:adaptive" },
-        { "name": "Playwright Firefox", "value": "playwright:firefox" }
+        { "name": "Cheerio (Raw HTTP)", "value": "cheerio" },
+        { "name": "Adaptive", "value": "playwright:adaptive" },
+        { "name": "Firefox (Headless Browser)", "value": "playwright:firefox" }
       ],
       "value": "cheerio",
       "type": "Dropdown"

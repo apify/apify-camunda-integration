@@ -171,7 +171,7 @@ Quickly scrape a webpage using one of Apify's standard crawlers.
 |---------|-------------|
 | **Operation** | Select `Scrape single URL` |
 | **URL** | The full URL to scrape (e.g., `https://example.com`) |
-| **Crawler Type** | `Cheerio` (lightweight), `JSDOM`, `Playwright Adaptive`, or `Playwright Firefox` |
+| **Crawler Type** | `Cheerio (Raw HTTP)`, `Adaptive`, or `Firefox (Headless Browser)` |
 
 ### Get Dataset Items
 

@@ -9,6 +9,6 @@ public record ScrapeSingleUrlInput(
     String url,
 
     @NotEmpty
-    @Pattern(regexp = "^(cheerio|jsdom|playwright:adaptive|playwright:firefox)$", message = "Crawler type must be one of: cheerio, jsdom, playwright:adaptive, playwright:firefox")
+    @Pattern(regexp = "^(cheerio|playwright:adaptive|playwright:firefox)$", message = "Crawler type must be one of: cheerio, playwright:adaptive, playwright:firefox")
     String crawlerType
 ) {}
