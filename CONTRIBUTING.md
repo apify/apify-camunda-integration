@@ -23,6 +23,7 @@ This guide walks you through setting up the development environment, running and
     - [Webhook Payload and Correlation](#webhook-payload-and-correlation)
     - [Deploy vs Play Mode](#deploy-vs-play-mode)
 - [Contributing Workflow](#contributing-workflow)
+- [Releasing](#releasing)
 - [Reference](#reference)
   - [Project Structure](#project-structure)
   - [Regenerating Element Templates](#regenerating-element-templates)
@@ -190,7 +191,7 @@ mvn test -Dtest=MyFunctionTest
 
 #### Understanding the outbound response data
 
-The **Run Actor** and **Run Task** API responses are wrapped in a `data` envelope. The connector extracts this inner object and stores it as the result variable:
+The **Run Actor** and **Run Task** API responses are wrapped in a `data` envelope. The connector unwraps the Apify envelope, then re-exposes the inner run object under its own `data` field on the result variable. The end shape is identical to the raw API response, so FEEL access still goes through `.data.*`:
 
 ```json
 {
@@ -205,7 +206,7 @@ The **Run Actor** and **Run Task** API responses are wrapped in a `data` envelop
 }
 ```
 
-The result variable (e.g., `previousActorRunResult`) contains the inner `data` object directly, so you access fields using FEEL expressions like `=previousActorRunResult.data.id`, `=previousActorRunResult.data.defaultDatasetId`, etc. FEEL (Friendly Enough Expression Language) is Camunda's expression language, the `=` prefix tells Camunda to evaluate what follows as an expression rather than a literal string. See [Common expressions](README.md#common-expressions) in the README for a quick reference, including how FEEL differs from Camunda secret placeholders (`{{secrets.X}}`).
+So if your result variable is named `previousActorRunResult`, you reference fields with FEEL expressions like `=previousActorRunResult.data.id`, `=previousActorRunResult.data.defaultDatasetId`, etc. FEEL (Friendly Enough Expression Language) is Camunda's expression language, the `=` prefix tells Camunda to evaluate what follows as an expression rather than a literal string. See [Common expressions](README.md#common-expressions) in the README for a quick reference, including how FEEL differs from Camunda secret placeholders (`{{secrets.X}}`).
 
 For the full response schema, see:
 - [Run Actor API](https://docs.apify.com/api/v2/act-runs-post): response for `Run Actor`
@@ -462,6 +463,59 @@ Once your process is configured, you need to deploy or play it:
 5. A maintainer will review your PR, address any feedback and keep the branch up to date with `main`.
 
 > **Tip:** Check the [GitHub Issues](https://github.com/apify/apify-camunda-integration/issues) for open tasks. Issues labeled `good first issue` are a great starting point.
+
+### Commit messages
+
+The project uses [Conventional Commits](https://www.conventionalcommits.org/) - every commit subject starts with a type prefix:
+
+| Prefix | Use for | Affects version |
+|---|---|---|
+| `feat:` | A new feature | minor bump (e.g. `1.2.0` → `1.3.0`) |
+| `fix:` | A bug fix | patch bump (e.g. `1.2.0` → `1.2.1`) |
+| `feat!:` / `fix!:` / a `BREAKING CHANGE:` footer | Backwards-incompatible change | major bump (e.g. `1.2.0` → `2.0.0`) |
+| `docs:`, `chore:`, `ci:`, `refactor:`, `test:`, `style:` | Non-release-affecting changes | none |
+
+The release workflow uses [git-cliff](https://git-cliff.org/) to infer the next version and assemble the CHANGELOG from these prefixes, so consistent usage matters.
+
+---
+
+## Releasing
+
+Releases are produced by the [`Create a release`](.github/workflows/release.yml) GitHub Actions workflow. Only maintainers with `Actions: write` on the repository can run it.
+
+### Running a release
+
+1. Go to **Actions → Create a release → Run workflow** on GitHub.
+2. Select the **Release type**:
+   - `auto` (default) — git-cliff computes the next version from Conventional Commits landed since the previous tag.
+   - `patch` / `minor` / `major` — force a specific bump regardless of commits.
+   - `custom` — pin an exact version. Requires filling the **Custom version** field (e.g. `1.4.2`). Useful for re-cutting a pre-release or backfilling a hotfix line.
+3. Click **Run workflow** and wait for it to finish (a few minutes).
+
+### What the workflow does
+
+1. **Compute version + release notes** with [git-cliff](https://git-cliff.org/) from the Conventional Commits since the last tag.
+2. **Build and test** (`mvn clean verify`) — fails fast if the working tree doesn't build cleanly on `main`.
+3. **Bump `pom.xml`** to the new version and **write `CHANGELOG.md`**.
+4. **Commit and push** `pom.xml` + `CHANGELOG.md` back to `main` as `chore(release): bump version to X.Y.Z`.
+5. **Build the shaded JAR** from the post-bump commit so its embedded version metadata matches the tag.
+6. **Create a GitHub Release** with the tag (e.g. `v1.4.2`), release notes, and two attached artifacts:
+   - `apify-camunda-connector-<version>.jar` — the shaded runtime JAR
+   - `apify-camunda-connector-element-templates-<version>.zip` — all five element-template JSONs
+
+### Prerequisites
+
+- The workflow refuses to run anywhere except `main` in an `apify/` repository.
+- The repository must define an `APIFY_SERVICE_ACCOUNT_GITHUB_TOKEN` secret. The default `GITHUB_TOKEN` cannot bypass branch protection on `main`, so the version-bump commit needs a service account token. If the secret is missing, the workflow fails fast with a clear error.
+
+### If something fails mid-release
+
+The `Create GitHub Release` job runs *after* the version bump has already been pushed to `main`. If it fails (e.g. the JAR build breaks, the runner is terminated), `main` will have the bump commit but no tag or GitHub Release. Pick one of:
+
+1. **Revert the bump** - `git revert <bump-commit-sha>` on `main`, then re-run the workflow once the underlying issue is fixed.
+2. **Finish the release manually** - create the tag pointing at the bump commit, then attach the JAR and ZIP via `gh release create <tag> --notes-file <notes>`. This avoids stacking another bump on top.
+
+Do not simply re-run the workflow without recovery - the second run would bump version on top of the previous bump.
 
 ---
 

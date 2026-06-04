@@ -24,6 +24,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 ## Table of Contents
 
 - [Compatibility](#compatibility)
+- [Installation](#installation)
 - [Authentication](#authentication)
 - [Outbound Connector](#outbound-connector)
   - [Run Actor](#run-actor)
@@ -69,7 +70,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 | Outbound (runActor, runTask, getDatasetItems, scrapeSingleUrl, getKeyValueStoreRecord) | Yes | Yes | Yes |
 | Inbound (auto-registers the webhook in Apify on deploy) | Yes | Yes | Yes |
 
-The connector handles the Apify-side webhook lifecycle for you: when the BPMN is deployed, it calls Apify's API to create the webhook; when the inbound is deactivated, the webhook is removed. The only thing **you** must tell the connector is its own public address. See the next section.
+The connector handles the Apify-side webhook lifecycle for you: when the BPMN is deployed, it calls Apify's API to create the webhook; when the inbound is deactivated, the webhook is removed. The only thing **you** must tell the connector is its own public address — see [Configuring the Camunda webhook URL](#configuring-the-camunda-webhook-url) below.
 
 ### Configuring the **Camunda webhook URL**
 
@@ -90,6 +91,19 @@ For a deeper explanation of how inbound webhook URLs are structured in Camunda, 
 > **Convenience tip:** The URL is the same for every BPMN process on a given cluster, so you can store it as a [Camunda Secret](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., `CAMUNDA_WEBHOOK_URL`) and reference it from each inbound template as `{{secrets.CAMUNDA_WEBHOOK_URL}}`. That way you only update one place when your cluster moves or your dev URL rotates. This is *convenience*, not security. The URL is not sensitive.
 
 The connector is built against the Camunda Connectors SDK at the version pinned in [pom.xml](pom.xml). The compatibility matrix above lists the Camunda 8 minor versions the connector has been verified against; support for newer minors is added once verified and reflected here.
+
+---
+
+## Installation
+
+Each release publishes two artifacts on the [GitHub Releases page](https://github.com/apify/apify-camunda-integration/releases):
+
+| Artifact | What it is | Where it goes |
+|---|---|---|
+| `apify-camunda-connector-<version>.jar` | The shaded connector runtime JAR (includes all dependencies) | **Self-Managed / Hybrid only:** drop it into your Camunda connectors runtime classpath. See [Host custom connectors](https://docs.camunda.io/docs/guides/host-custom-connectors/). On Camunda SaaS the connector runs on the managed runtime — no JAR step. |
+| `apify-camunda-connector-element-templates-<version>.zip` | All five element template JSONs (one outbound + four inbound) | Upload to your Camunda **Web Modeler** project, or place into the `resources/element-templates/` directory of **Desktop Modeler**. After publishing, the connectors appear in the BPMN palette. |
+
+Pick the latest release whose version matches the [Compatibility](#compatibility) row for your Camunda 8 minor.
 
 ---
 
