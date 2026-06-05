@@ -191,7 +191,7 @@ mvn test -Dtest=MyFunctionTest
 
 #### Understanding the outbound response data
 
-The **Run Actor** and **Run Task** API responses are wrapped in a `data` envelope. The connector unwraps the Apify envelope, then re-exposes the inner run object under its own `data` field on the result variable. The end shape is identical to the raw API response, so FEEL access still goes through `.data.*`:
+The **Run Actor** and **Run Task** API responses return the run object nested inside a `data` wrapper. The connector preserves this structure on the result variable, so FEEL access goes through `.data.*`:
 
 ```json
 {
@@ -487,21 +487,21 @@ Releases are produced by the [`Create a release`](.github/workflows/release.yml)
 
 1. Go to **Actions → Create a release → Run workflow** on GitHub.
 2. Select the **Release type**:
-   - `auto` (default) — git-cliff computes the next version from Conventional Commits landed since the previous tag.
-   - `patch` / `minor` / `major` — force a specific bump regardless of commits.
-   - `custom` — pin an exact version. Requires filling the **Custom version** field (e.g. `1.4.2`). Useful for re-cutting a pre-release or backfilling a hotfix line.
+   - `auto` (default) - git-cliff computes the next version from Conventional Commits landed since the previous tag.
+   - `patch` / `minor` / `major` - force a specific bump regardless of commits.
+   - `custom` - pin an exact version. Requires filling the **Custom version** field (e.g. `1.4.2`). Useful for re-cutting a pre-release or backfilling a hotfix line.
 3. Click **Run workflow** and wait for it to finish (a few minutes).
 
 ### What the workflow does
 
 1. **Compute version + release notes** with [git-cliff](https://git-cliff.org/) from the Conventional Commits since the last tag.
-2. **Build and test** (`mvn clean verify`) — fails fast if the working tree doesn't build cleanly on `main`.
+2. **Build and test** (`mvn clean verify`) - fails fast if the working tree doesn't build cleanly on `main`.
 3. **Bump `pom.xml`** to the new version and **write `CHANGELOG.md`**.
 4. **Commit and push** `pom.xml` + `CHANGELOG.md` back to `main` as `chore(release): bump version to X.Y.Z`.
 5. **Build the shaded JAR** from the post-bump commit so its embedded version metadata matches the tag.
 6. **Create a GitHub Release** with the tag (e.g. `v1.4.2`), release notes, and two attached artifacts:
-   - `apify-camunda-connector-<version>.jar` — the shaded runtime JAR
-   - `apify-camunda-connector-element-templates-<version>.zip` — all five element-template JSONs
+   - `apify-camunda-connector-<version>.jar` - the shaded runtime JAR
+   - `apify-camunda-connector-element-templates-<version>.zip` - all five element-template JSONs
 
 ### Prerequisites
 

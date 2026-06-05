@@ -70,7 +70,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 | Outbound (runActor, runTask, getDatasetItems, scrapeSingleUrl, getKeyValueStoreRecord) | Yes | Yes | Yes |
 | Inbound (auto-registers the webhook in Apify on deploy) | Yes | Yes | Yes |
 
-The connector handles the Apify-side webhook lifecycle for you: when the BPMN is deployed, it calls Apify's API to create the webhook; when the inbound is deactivated, the webhook is removed. The only thing **you** must tell the connector is its own public address — see [Configuring the Camunda webhook URL](#configuring-the-camunda-webhook-url) below.
+The connector handles the Apify-side webhook lifecycle for you: when the BPMN is deployed, it calls Apify's API to create the webhook; when the inbound is deactivated, the webhook is removed. The only thing **you** must tell the connector is its own public address - see [Configuring the Camunda webhook URL](#configuring-the-camunda-webhook-url) below.
 
 ### Configuring the **Camunda webhook URL**
 
@@ -100,7 +100,7 @@ Each release publishes two artifacts on the [GitHub Releases page](https://githu
 
 | Artifact | What it is | Where it goes |
 |---|---|---|
-| `apify-camunda-connector-<version>.jar` | The shaded connector runtime JAR (includes all dependencies) | **Self-Managed / Hybrid only:** drop it into your Camunda connectors runtime classpath. See [Host custom connectors](https://docs.camunda.io/docs/guides/host-custom-connectors/). On Camunda SaaS the connector runs on the managed runtime — no JAR step. |
+| `apify-camunda-connector-<version>.jar` | The shaded connector runtime JAR (includes all dependencies) | **Self-Managed / Hybrid only:** drop it into your Camunda connectors runtime classpath. See [Host custom connectors](https://docs.camunda.io/docs/guides/host-custom-connectors/). On Camunda SaaS the connector runs on the managed runtime - no JAR step. |
 | `apify-camunda-connector-element-templates-<version>.zip` | All five element template JSONs (one outbound + four inbound) | Upload to your Camunda **Web Modeler** project, or place into the `resources/element-templates/` directory of **Desktop Modeler**. After publishing, the connectors appear in the BPMN palette. |
 
 Pick the latest release whose version matches the [Compatibility](#compatibility) row for your Camunda 8 minor.
@@ -241,7 +241,7 @@ All inbound connectors share these common fields:
 
 ### Activation Condition
 
-The **Activation Condition** is an optional FEEL expression that acts as a gate for incoming webhook events. When set, the connector evaluates the expression against each incoming event and only triggers the process if the expression evaluates to `true`. Events that do not match are silently ignored, no process instance is created and no correlation occurs.
+The **Activation Condition** is an optional FEEL expression that acts as a gate for incoming webhook events. When set, the connector evaluates the expression against each incoming event and only triggers the process if the expression evaluates to `true`. Events that do not match are silently ignored: no process instance is created and no correlation occurs.
 
 This is useful when you subscribe to all event types from an Actor or Task but only want to react to specific outcomes. For example, you might want to start a process only when a run succeeds and ignore failures, timeouts, and aborts.
 
@@ -258,7 +258,7 @@ This is useful when you subscribe to all event types from an Actor or Task but o
 
 ### Start Event
 
-Use the **Apify Start Event Connector** to begin a *new* process instance when a specific event occurs in Apify (e.g., "Run Succeeded"). This is the simplest inbound connector, each incoming webhook event creates a new top-level process instance.
+Use the **Apify Start Event Connector** to begin a *new* process instance when a specific event occurs in Apify (e.g., "Run Succeeded"). This is the simplest inbound connector: each incoming webhook event creates a new top-level process instance.
 
 **When to use:**
 - Trigger a workflow based on an external event (e.g., "Every time this daily scrape finishes, start a review process")
@@ -400,7 +400,7 @@ The connector templates accept two distinct syntaxes that look similar but are e
 | `=connectorData.status` | Read the status from an inbound webhook payload |
 | `=connectorData.runId` | Read the run ID from an inbound webhook payload |
 
-**Secret placeholders** (syntax: `{{secrets.NAME}}`) are *not* FEEL. The engine passes them through as literal strings and the **connector runtime** substitutes them at execution time, just before the outbound HTTP call. This keeps the secret value out of process variables, audit logs, and incident messages. Use them anywhere a credential or sensitive URL belongs — directly in plain text fields (no `=` prefix), or inside a FEEL string wrapped in quotes (e.g. `="Bearer " + "{{secrets.APIFY_TOKEN}}"`).
+**Secret placeholders** (syntax: `{{secrets.NAME}}`) are *not* FEEL. The engine passes them through as literal strings and the **connector runtime** substitutes them at execution time, just before the outbound HTTP call. This keeps the secret value out of process variables, audit logs, and incident messages. Use them anywhere a credential or sensitive URL belongs - directly in plain text fields (no `=` prefix), or inside a FEEL string wrapped in quotes (e.g. `="Bearer " + "{{secrets.APIFY_TOKEN}}"`).
 
 | Placeholder | Use case |
 |---|---|
