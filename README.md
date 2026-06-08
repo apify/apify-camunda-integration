@@ -17,7 +17,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 - **Intermediate Catch Event**: Pause and wait for an Apify event before continuing
 - **Boundary Event**: React to Apify events while an activity is running
 
-> **Documentation:** For in-depth tutorials and detailed documentation, visit the [Apify Camunda Integration Guide](https://docs.apify.com/platform/integrations/camunda).
+> **Full setup walkthrough on Apify docs:** This README is the technical reference. For a step-by-step setup tutorial with screenshots, end-to-end examples, and platform-specific guidance, see the **[Apify Camunda Integration Guide](https://docs.apify.com/platform/integrations/camunda)** at `docs.apify.com`.
 
 ---
 
@@ -25,13 +25,17 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 
 - [Compatibility](#compatibility)
 - [Installation](#installation)
+  - [Deployment scenarios](#deployment-scenarios)
+  - [Setting up the connectors runtime](#setting-up-the-connectors-runtime)
+  - [Configuring the Camunda webhook URL](#configuring-the-camunda-webhook-url)
 - [Authentication](#authentication)
+- [Try it out](#try-it-out)
 - [Outbound Connector](#outbound-connector)
   - [Run Actor](#run-actor)
-  - [Run Task](#run-task)
-  - [Scrape Single URL](#scrape-single-url)
-  - [Get Dataset Items](#get-dataset-items)
-  - [Get Key-Value Store Record](#get-key-value-store-record)
+  - [Run task](#run-task)
+  - [Scrape single URL](#scrape-single-url)
+  - [Get dataset items](#get-dataset-items)
+  - [Get key-value store record](#get-key-value-store-record)
   - [Error Handling and Retries](#error-handling-and-retries)
 - [Inbound Connectors](#inbound-connectors)
   - [Activation Condition](#activation-condition)
@@ -58,52 +62,104 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 
 | Component | Supported versions |
 |---|---|
-| Camunda 8 | 8.8.x, 8.9.x, 8.10.x (SaaS and Self-Managed) |
-| Camunda Connectors runtime | 8.8.x, 8.9.x, 8.10.x |
+| Camunda 8 platform | 8.8.x, 8.9.x |
+| Camunda Connectors runtime | 8.8.x, 8.9.x |
 | Java (runtime) | 21+ |
 | Apify API | Public REST API (v2), API token authentication |
 
-### Deployment matrix
+These versions apply to Self-Managed and Hybrid deployments. Pure Camunda SaaS is not currently supported - see [Deployment scenarios](#deployment-scenarios) for details.
 
-| Capability | Camunda SaaS | Self-Managed | Hybrid |
-|---|---|---|---|
-| Outbound (runActor, runTask, getDatasetItems, scrapeSingleUrl, getKeyValueStoreRecord) | Yes | Yes | Yes |
-| Inbound (auto-registers the webhook in Apify on deploy) | Yes | Yes | Yes |
-
-The connector handles the Apify-side webhook lifecycle for you: when the BPMN is deployed, it calls Apify's API to create the webhook; when the inbound is deactivated, the webhook is removed. The only thing **you** must tell the connector is its own public address - see [Configuring the Camunda webhook URL](#configuring-the-camunda-webhook-url) below.
-
-### Configuring the **Camunda webhook URL**
-
-Each inbound element template has a required **Camunda webhook URL** field. The connector uses it to register the callback on the Apify side at deploy time. Apify will POST Actor events to this URL. The same flow applies on Camunda SaaS, Self-Managed, and Hybrid.
-
-| Environment | What to put in the field |
-|---|---|
-| **Camunda SaaS** | `https://{clusterId}.{region}.connectors.camunda.io`. Find your region and cluster ID in Camunda Console → your cluster → API tab. Example: `https://abc-123-cluster-id.bru-2.connectors.camunda.io`. |
-| **Self-Managed** | The public URL of your connector runtime, e.g. `https://camunda-connectors.example.com`. |
-| **Hybrid** | The public URL of your self-hosted hybrid runtime (same as Self-Managed). See [Use connectors in hybrid mode](https://docs.camunda.io/docs/components/connectors/use-connectors-in-hybrid-mode/). |
-
-You paste just the base URL without a trailing slash. The connector appends `/inbound/{webhookId}` automatically when it registers the webhook with Apify.
-
-> **Tip:** After deploying your BPMN diagram in **Web Modeler** (SaaS), click on the inbound event element and open the **Webhooks** tab in the properties panel. It displays the complete, ready-to-use URL for your cluster. See the [HTTP Webhook connector docs](https://docs.camunda.io/docs/components/connectors/protocol/http-webhook/#activate-the-http-webhook-connector-by-deploying-your-diagram) for details.
-
-For a deeper explanation of how inbound webhook URLs are structured in Camunda, see [Use an inbound connector](https://docs.camunda.io/docs/components/connectors/use-connectors/inbound/) and [HTTP Webhook connector](https://docs.camunda.io/docs/components/connectors/protocol/http-webhook/) in the Camunda docs.
-
-> **Convenience tip:** The URL is the same for every BPMN process on a given cluster, so you can store it as a [Camunda Secret](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., `CAMUNDA_WEBHOOK_URL`) and reference it from each inbound template as `{{secrets.CAMUNDA_WEBHOOK_URL}}`. That way you only update one place when your cluster moves or your dev URL rotates. This is *convenience*, not security. The URL is not sensitive.
-
-The connector is built against the Camunda Connectors SDK at the version pinned in [pom.xml](pom.xml). The compatibility matrix above lists the Camunda 8 minor versions the connector has been verified against; support for newer minors is added once verified and reflected here.
+> **Forward compatibility:** Smoke-tested against Camunda 8.10 pre-release. The compatibility matrix will be updated once 8.10 reaches GA.
 
 ---
 
 ## Installation
 
+> **Looking for a step-by-step setup tutorial?** The walkthrough at **[docs.apify.com/platform/integrations/camunda](https://docs.apify.com/platform/integrations/camunda)** goes deeper than this section, with screenshots and end-to-end examples. This README is the technical reference.
+
+> **Arrived from the Camunda Marketplace?** If you clicked **"For SaaS"** on the listing, the element templates are already imported into Camunda Web Modeler. You still need to install the connector JAR on a connectors runtime - continue below.
+
 Each release publishes two artifacts on the [GitHub Releases page](https://github.com/apify/apify-camunda-integration/releases):
 
 | Artifact | What it is | Where it goes |
 |---|---|---|
-| `apify-camunda-connector-<version>.jar` | The shaded connector runtime JAR (includes all dependencies) | **Self-Managed / Hybrid only:** drop it into your Camunda connectors runtime classpath. See [Host custom connectors](https://docs.camunda.io/docs/guides/host-custom-connectors/). On Camunda SaaS the connector runs on the managed runtime - no JAR step. |
+| `apify-camunda-connector-<version>.jar` | The shaded connector runtime JAR (includes all dependencies) | Drop it on the Camunda Connectors runtime classpath. See [Setting up the connectors runtime](#setting-up-the-connectors-runtime) below. |
 | `apify-camunda-connector-element-templates-<version>.zip` | All five element template JSONs (one outbound + four inbound) | Upload to your Camunda **Web Modeler** project, or place into the `resources/element-templates/` directory of **Desktop Modeler**. After publishing, the connectors appear in the BPMN palette. |
 
 Pick the latest release whose version matches the [Compatibility](#compatibility) row for your Camunda 8 minor.
+
+### Deployment scenarios
+
+The connector ships custom Java code that runs on the Camunda Connectors runtime. Where that runtime lives determines which deployment path applies:
+
+| Scenario | Supported? | Notes |
+|---|---|---|
+| **Self-Managed** | Yes | Full functionality - you control the connectors runtime on your own infrastructure. |
+| **Hybrid** | Yes | Full functionality - Zeebe runs on Camunda SaaS, but you host the connectors runtime yourself. |
+| **Pure SaaS** | No | Custom connectors require hosting the JAR on your own runtime. Consider [Hybrid mode](https://docs.camunda.io/docs/components/connectors/use-connectors-in-hybrid-mode/) as an alternative. |
+
+### Setting up the connectors runtime
+
+The simplest path is Camunda's official `camunda/connectors-bundle` Docker image with our JAR mounted into it. From [Host custom connectors](https://docs.camunda.io/docs/guides/host-custom-connectors/):
+
+```bash
+docker run --rm \
+  -v $PWD/apify-camunda-connector-<version>.jar:/opt/app/connector.jar \
+  camunda/connectors-bundle:8.9.0
+```
+
+> Substitute `<version>` with the release tag of the JAR you downloaded (e.g., `1.0.0`). The `camunda/connectors-bundle` tag should match your Camunda 8 minor — `8.9.0` for an 8.9 cluster, `8.8.0` for 8.8, and so on.
+
+**Hybrid mode** (your connectors runtime + Camunda SaaS Zeebe): pass your cluster credentials as environment variables alongside the JAR mount. Find the cluster ID, region, and client credentials in Camunda Console under your cluster → **API** tab.
+
+```bash
+docker run --rm \
+  -v $PWD/apify-camunda-connector-<version>.jar:/opt/app/connector.jar \
+  -e CAMUNDA_CLIENT_MODE=saas \
+  -e CAMUNDA_CLIENT_CLOUD_CLUSTERID='<YOUR_CLUSTER_ID>' \
+  -e CAMUNDA_CLIENT_CLOUD_REGION='<YOUR_REGION>' \
+  -e CAMUNDA_CLIENT_AUTH_CLIENTID='<YOUR_CLIENT_ID>' \
+  -e CAMUNDA_CLIENT_AUTH_CLIENTSECRET='<YOUR_CLIENT_SECRET>' \
+  camunda/connectors-bundle:8.9.0
+```
+
+The client credentials need the **Orchestration Cluster REST API** scope at minimum. For the full reference (including scopes, alternate auth modes, and the `CONNECTOR_HTTP_REST_TYPE` override for local debugging), see [Use connectors in hybrid mode](https://docs.camunda.io/docs/components/connectors/use-connectors-in-hybrid-mode/).
+
+For production, bake the JAR into a custom image instead of mounting it:
+
+```dockerfile
+FROM camunda/connectors-bundle:8.9.0
+COPY apify-camunda-connector-<version>.jar /opt/app/connector.jar
+```
+
+> **Reachability requirement:** The connectors-runtime container must be reachable on the public internet so Apify can deliver webhook events to it. For production, expose it via your ingress / reverse proxy / load balancer with a stable HTTPS URL.
+>
+> **Testing locally?** Use a tunneling tool like [ngrok](https://ngrok.com/) to expose your local connectors-runtime container to the internet:
+>
+> ```bash
+> ngrok http <runtime-port>
+> ```
+>
+> Paste the ngrok URL into the **Camunda webhook URL** field on each inbound element template. The connector takes care of registering and tearing down the Apify-side webhook automatically on BPMN deploy/undeploy.
+
+### Configuring the Camunda webhook URL
+
+The connector handles the Apify-side webhook lifecycle for you: when the BPMN is deployed, it calls Apify's API to create the webhook; when the inbound is deactivated, the webhook is removed. The only thing **you** must tell the connector is its own public address.
+
+Each inbound element template has a required **Camunda webhook URL** field. The connector uses it to register the callback on the Apify side at deploy time. Apify will POST Actor events to this URL.
+
+| Environment | What to put in the field |
+|---|---|
+| **Self-Managed** | The public URL of your connector runtime, e.g. `https://camunda-connectors.example.com`. |
+| **Hybrid** | The public URL of your self-hosted connector runtime. Find your cluster details in Camunda Console → your cluster → API tab. See [Use connectors in hybrid mode](https://docs.camunda.io/docs/components/connectors/use-connectors-in-hybrid-mode/). |
+
+You paste just the base URL without a trailing slash. The connector appends `/inbound/{webhookId}` automatically when it registers the webhook with Apify.
+
+> **Tip:** After deploying your BPMN diagram in **Web Modeler**, click on the inbound event element and open the **Webhooks** tab in the properties panel. It displays the complete, ready-to-use URL for your cluster. See the [HTTP Webhook connector docs](https://docs.camunda.io/docs/components/connectors/protocol/http-webhook/#activate-the-http-webhook-connector-by-deploying-your-diagram) for details.
+
+For a deeper explanation of how inbound webhook URLs are structured in Camunda, see [Use an inbound connector](https://docs.camunda.io/docs/components/connectors/use-connectors/inbound/) and [HTTP Webhook connector](https://docs.camunda.io/docs/components/connectors/protocol/http-webhook/) in the Camunda docs.
+
+> **Convenience tip:** The URL is the same for every BPMN process on a given cluster, so you can store it as a [Camunda Secret](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., `CAMUNDA_WEBHOOK_URL`) and reference it from each inbound template as `{{secrets.CAMUNDA_WEBHOOK_URL}}`. That way you only update one place when your cluster moves or your dev URL rotates. This is *convenience*, not security. The URL is not sensitive.
 
 ---
 
@@ -128,6 +184,29 @@ The Apify API token is user-supplied through the **Apify API token** field on ea
 - **Webhook URL field:** The **Camunda webhook URL** value is treated as configuration, not as a credential, since it is the public address of your own Camunda runtime.
 
 For vulnerability disclosure, see [SECURITY.md](SECURITY.md).
+
+---
+
+## Try it out
+
+A 30-second smoke test that confirms the connector is wired up end-to-end. Uses the public [`apify/hello-world`](https://apify.com/apify/hello-world) Actor, which completes in under a minute and needs no special configuration.
+
+1. In your Camunda Modeler project, upload the outbound element template (`apify-outbound-connector.json`) and **publish** it to the project.
+2. Create a new BPMN diagram with a single **Service Task** between Start and End events.
+3. Apply the **Apify Outbound Connector** template to the service task and set:
+
+   | Field | Value |
+   |---|---|
+   | **Apify API Token** | Your token (or `{{secrets.APIFY_TOKEN}}` if you have a Camunda secret) |
+   | **Operation** | `Run Actor` |
+   | **Actor** | `apify/hello-world` |
+   | **Wait for Finish** | `true` |
+   | **Result Variable** | `runResult` |
+
+4. **Deploy and run** the process.
+5. Open Camunda Operate and confirm the process reached the End event. The full Actor run response is available under the `runResult` process variable.
+
+If anything goes wrong, see [Troubleshooting](#troubleshooting) - the most common first-time issue is that the connector template is not visible in the Modeler palette. For a longer walkthrough with screenshots, see the [Apify Camunda Integration Guide](https://docs.apify.com/platform/integrations/camunda).
 
 ---
 
@@ -159,7 +238,7 @@ Start a new execution of an Actor.
 - `true` (Synchronous): The process waits until the Actor run completes. Use for short-running tasks.
 - `false` (Asynchronous): The process starts the run and immediately moves to the next step. Use for long-running scrapes or with [Intermediate Catch Events](#intermediate-catch-event).
 
-### Run Task
+### Run task
 
 Execute a saved Actor task.
 
@@ -175,7 +254,7 @@ Execute a saved Actor task.
 | **Memory (MB)** | Memory allocation (optional). Dropdown: 128, 256, 512, 1024, 2048, 4096, 8192, 16384, or 32768 MB |
 | **Build** | Build tag to use (optional, defaults to `latest`) |
 
-### Scrape Single URL
+### Scrape single URL
 
 Quickly scrape a webpage using one of Apify's standard crawlers.
 
@@ -187,7 +266,7 @@ Quickly scrape a webpage using one of Apify's standard crawlers.
 | **URL** | The full URL to scrape (e.g., `https://example.com`) |
 | **Crawler Type** | `Cheerio (Raw HTTP)`, `Adaptive`, or `Firefox (Headless Browser)` |
 
-### Get Dataset Items
+### Get dataset items
 
 Retrieve the results of an Actor run. Typically used after a `Run Actor` task has completed.
 
@@ -200,7 +279,7 @@ Retrieve the results of an Actor run. Typically used after a `Run Actor` task ha
 | **Offset** | *(Optional)* Number of items to skip from the beginning. Default: `0` |
 | **Limit** | *(Optional)* Maximum number of items to return. Default: no limit |
 
-### Get Key-Value Store Record
+### Get key-value store record
 
 Fetch a specific record from a key-value store.
 
@@ -351,7 +430,7 @@ This is the recommended pattern for handling long-running scrapes reliably. It p
 
 4. **Parallel Gateway (Join)**: Merge the branches. The process continues only when the webhook is received.
 
-5. **Get Dataset Items**:
+5. **Get dataset items**:
    - Set **Dataset** to `=runResult.data.defaultDatasetId`
 
 ### Boundary Event for Runtime Reactions
@@ -400,7 +479,7 @@ The connector templates accept two distinct syntaxes that look similar but are e
 | `=connectorData.status` | Read the status from an inbound webhook payload |
 | `=connectorData.runId` | Read the run ID from an inbound webhook payload |
 
-**Secret placeholders** (syntax: `{{secrets.NAME}}`) are *not* FEEL. The engine passes them through as literal strings and the **connector runtime** substitutes them at execution time, just before the outbound HTTP call. This keeps the secret value out of process variables, audit logs, and incident messages. Use them anywhere a credential or sensitive URL belongs - directly in plain text fields (no `=` prefix), or inside a FEEL string wrapped in quotes (e.g. `="Bearer " + "{{secrets.APIFY_TOKEN}}"`).
+**Secret placeholders** (syntax: `{{secrets.NAME}}`) are *not* FEEL. The engine passes them through as literal strings and the **connector runtime** substitutes them at execution time, just before the outbound HTTP call. This keeps the secret value out of process variables, audit logs, and incident messages. Paste a placeholder directly into the corresponding template field - no `=` prefix, no surrounding quotes. The connector reads `{{secrets.APIFY_TOKEN}}` from the **Apify API token** field and resolves it at runtime.
 
 | Placeholder | Use case |
 |---|---|
@@ -479,6 +558,7 @@ When an Apify inbound connector is triggered, it receives a payload with event a
 
 | Issue | Solution |
 |-------|----------|
+| Apify connector not visible in the Modeler palette | Confirm the element template was both **uploaded and published** to your Modeler project (publishing is a separate step from upload). Make sure you are looking at the correct project. If the templates are present but the service task fails on deploy, the JAR is not loaded on your connectors runtime - see [Setting up the connectors runtime](#setting-up-the-connectors-runtime). |
 | Webhook not triggering | Ensure you have deployed the process. For Start Events, deploying automatically creates the webhook in Apify. Check the **Integrations** tab of your Actor in Apify Console to verify the webhook exists. |
 | Process stuck at Intermediate Event | Check your **Correlation Keys**. The value in the process variable must *exactly* match the value in the webhook payload. Use Camunda Operate to inspect variable values. |
 | `401 Unauthorized` | Check your API Token. Regenerate it in Apify Console (Settings → Integrations) if necessary. |
@@ -498,10 +578,6 @@ This connector is maintained by **Apify**. Camunda disclaims any support obligat
 | [SECURITY.md](SECURITY.md) | Private vulnerability disclosure |
 
 For security-related issues, please follow the disclosure process in [SECURITY.md](SECURITY.md) instead of opening a public issue.
-
-**Support targets** (best-effort, per the Camunda Marketplace certification program):
-- Acknowledge support queries escalated by Camunda within **7 business days**.
-- Resolve customer technical issues within **10 business days**.
 
 ---
 

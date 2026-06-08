@@ -24,6 +24,9 @@ This guide walks you through setting up the development environment, running and
     - [Deploy vs Play Mode](#deploy-vs-play-mode)
 - [Contributing Workflow](#contributing-workflow)
 - [Releasing](#releasing)
+  - [Element template version policy](#element-template-version-policy)
+  - [Submitted template URLs](#submitted-template-urls)
+  - [Distribution channels](#distribution-channels)
 - [Reference](#reference)
   - [Project Structure](#project-structure)
   - [Regenerating Element Templates](#regenerating-element-templates)
@@ -36,7 +39,7 @@ This guide walks you through setting up the development environment, running and
 
 ## Prerequisites
 
-- **Camunda 8.8, 8.9, or 8.10** (tested versions): clone the [camunda-distributions](https://github.com/camunda/camunda-distributions) repo, which contains Docker Compose files for every supported Camunda version. Use the **full** variant (`docker-compose-full.yaml`), which includes Web Modeler.
+- **Camunda 8.8 or 8.9**: clone the [camunda-distributions](https://github.com/camunda/camunda-distributions) repo, which contains Docker Compose files for every supported Camunda version. Use the **full** variant (`docker-compose-full.yaml`), which includes Web Modeler.
 - **Java 21** or later
 - **Maven 3.8+**
 - **Docker** and **Docker Compose**
@@ -61,7 +64,7 @@ cd camunda-distributions/docker-compose/versions/camunda-8.9
 docker compose -f docker-compose-full.yaml up -d
 ```
 
-> **Picking a version:** The `docker-compose/versions/` directory contains a folder per Camunda minor version (`camunda-8.3` through `camunda-8.10` at time of writing). The connector is tested against **8.8**, **8.9**, and **8.10**. Swap the path segment to match the version you want to verify against.
+> **Picking a version:** The `docker-compose/versions/` directory contains a folder per Camunda minor version. The connector officially supports **8.8** and **8.9**. Swap the path segment to match the version you want to verify against.
 
 > **Port note:** All `localhost` URLs in this guide assume **Camunda 8.9** ports. If you are running **8.8**, swap `:8080` → `:8088` for the Orchestration REST endpoint.
 
@@ -126,7 +129,7 @@ Inbound (webhook) testing requires Apify to be able to reach your machine over t
 
 5. Deploy the process. The runtime logs should show `Successfully created Apify webhook with webhook ID: <id>`.
 
-> **End-user note:** ngrok is only needed for **local development**. On Camunda SaaS, the user puts `https://{clusterId}.{region}.connectors.camunda.io` in the Camunda webhook URL field. On Self-Managed/Hybrid, they put the public URL of their connector runtime. See [Configuring the Camunda webhook URL](README.md#configuring-the-camunda-webhook-url) for details.
+> **Note:** This ngrok setup is for local development with `LocalConnectorRuntime`. For end-user installation and production deployment, see the README's [Setting up the connectors runtime](README.md#setting-up-the-connectors-runtime) section.
 
 ---
 
@@ -191,7 +194,7 @@ mvn test -Dtest=MyFunctionTest
 
 #### Understanding the outbound response data
 
-The **Run Actor** and **Run Task** API responses return the run object nested inside a `data` wrapper. The connector preserves this structure on the result variable, so FEEL access goes through `.data.*`:
+The **Run Actor** and **Run task** API responses wrap the run object inside a `data` envelope, so FEEL access goes through `.data.*` (e.g., `=previousActorRunResult.data.id`). For the full response structure, FEEL expression examples, and how FEEL differs from Camunda secret placeholders, see [Outbound Connector](README.md#outbound-connector) and [Common expressions](README.md#common-expressions) in the README.
 
 ```json
 {
@@ -206,20 +209,20 @@ The **Run Actor** and **Run Task** API responses return the run object nested in
 }
 ```
 
-So if your result variable is named `previousActorRunResult`, you reference fields with FEEL expressions like `=previousActorRunResult.data.id`, `=previousActorRunResult.data.defaultDatasetId`, etc. FEEL (Friendly Enough Expression Language) is Camunda's expression language, the `=` prefix tells Camunda to evaluate what follows as an expression rather than a literal string. See [Common expressions](README.md#common-expressions) in the README for a quick reference, including how FEEL differs from Camunda secret placeholders (`{{secrets.X}}`).
+If your result variable is named `previousActorRunResult`, you can access fields in FEEL using expressions like `=previousActorRunResult.data.id` or `=previousActorRunResult.data.status`. FEEL (Friendly Enough Expression Language) is Camunda's way to reference variables; the `=` prefix marks an expression.
 
-For the full response schema, see:
-- [Run Actor API](https://docs.apify.com/api/v2/act-runs-post): response for `Run Actor`
-- [Run Task API](https://docs.apify.com/api/v2/actor-task-runs-post): response for `Run Task`
+More details:
+- [Run Actor API response](https://docs.apify.com/api/v2/act-runs-post)
+- [Run task API response](https://docs.apify.com/api/v2/actor-task-runs-post)
 
-Key fields you'll use in testing:
+Key fields:
 
 | Field | Example FEEL expression | What it contains |
 |-------|------------------------|-----------------|
 | `id` | `=previousActorRunResult.data.id` | The run ID (used for correlation) |
 | `status` | `=previousActorRunResult.data.status` | Run status (`RUNNING`, `SUCCEEDED`, `FAILED`, etc.) |
-| `defaultDatasetId` | `=previousActorRunResult.data.defaultDatasetId` | Dataset ID (pass to Get Dataset Items) |
-| `defaultKeyValueStoreId` | `=previousActorRunResult.data.defaultKeyValueStoreId` | Key-value store ID (pass to Get Key-Value Store Record) |
+| `defaultDatasetId` | `=previousActorRunResult.data.defaultDatasetId` | Dataset ID (pass to Get dataset items) |
+| `defaultKeyValueStoreId` | `=previousActorRunResult.data.defaultKeyValueStoreId` | Key-value store ID (pass to Get key-value store record) |
 
 ### Inbound Connectors
 
@@ -331,7 +334,7 @@ graph LR
     subgraph Camunda
         A([Start]) --> B[Run Actor async]
         B --> C([Intermediate Catch Event])
-        C --> D[Get Dataset Items]
+        C --> D[Get dataset items]
         D --> E([End])
     end
     subgraph Apify
@@ -416,7 +419,7 @@ Both the Intermediate Catch Event and Boundary Event connectors require **correl
 |---------------|-------------|
 | `connectorData.runId` | Correlation Key (Payload):  match against the run ID from a previous outbound step |
 | `connectorData.status` | Check whether the run succeeded, failed, or timed out |
-| `connectorData.defaultDatasetId` | Pass to a subsequent Get Dataset Items step |
+| `connectorData.defaultDatasetId` | Pass to a subsequent Get dataset items step |
 
 **Correlation Key (Process)** reads from a process variable (e.g., `=previousActorRunResult.data.id`), and **Correlation Key (Payload)** reads from the webhook (e.g., `=connectorData.runId`). When the webhook arrives, Camunda compares these two values, if they match, the process resumes. If they don't match exactly, the process remains waiting.
 
@@ -516,6 +519,56 @@ The `Create GitHub Release` job runs *after* the version bump has already been p
 2. **Finish the release manually** - create the tag pointing at the bump commit, then attach the JAR and ZIP via `gh release create <tag> --notes-file <notes>`. This avoids stacking another bump on top.
 
 Do not simply re-run the workflow without recovery - the second run would bump version on top of the previous bump.
+
+### When a new Camunda minor GAs
+
+Camunda ships one minor release in April and one in October ([release policy](https://docs.camunda.io/docs/reference/announcements-release-notes/release-policy/)). When the next minor reaches GA:
+
+1. Re-test the connector against the GA build using the corresponding `camunda-distributions/docker-compose/versions/camunda-8.X` stack.
+2. Bump the compatibility matrix in [README.md](README.md) and the prerequisites in this file to add the new minor.
+3. If the template JSON had to change, bump the affected templates' `version` integer (see [Element template version policy](#element-template-version-policy)). The `engines.camunda` field uses `^8.8`, which already covers all 8.x minors - no change needed for new minors within the 8.x line.
+4. Cut a new release via the workflow.
+
+> **Note:** The Marketplace listing shows compatibility as `8.8+`, `8.9+`, etc. (meaning all versions from that minor onward). If a new Camunda minor requires a higher minimum version, update the listing. Otherwise, only our own README matrix needs to reflect the newly verified versions.
+>
+> When Camunda ships a new **major** version (e.g., 9.0), the `^8.8` range will no longer cover it. At that point the templates need updating and the connector needs a full compatibility pass.
+
+### Element template version policy
+
+- **Bump the `version` integer** when the template JSON changes and users should be prompted to upgrade (e.g., property, validation, or group changes).
+- **Don't bump for code/JAR-only changes** — the template version tracks UI changes, not code.
+- **Change the `.v1` suffix in the `id`** only for breaking redesigns (old and new templates will both be available).
+- Template versioning is independent of JAR semver.
+
+**What can land on `main` between releases.** Because the Marketplace listing pulls templates from `main` on every "For SaaS" click (see [Submitted template URLs](#submitted-template-urls)), template changes reach users immediately. Two cases:
+
+- **Backwards-compatible** (new optional property, extra dropdown option, label tweak, link change): land anytime; bump the `version` integer. Users on the older JAR keep working; users on the newer JAR pick up the new field.
+- **Breaking** (renamed/removed binding, new required field, change in JAR-side behavior): wait for the JAR release that supports it, *or* bump the `id` suffix (e.g. `:v1` → `:v2`) so old workflows keep using the old template against old JARs while new workflows use the new template requiring the new JAR.
+
+### Submitted template URLs
+
+The Camunda Marketplace listing references each element template by its raw GitHub URL pointing at `main`:
+
+```
+https://raw.githubusercontent.com/apify/apify-camunda-integration/main/element-templates/apify-outbound-connector.json
+```
+
+This way the listing always serves the latest templates without requiring URL updates on every release.
+
+### Distribution channels
+
+The connector reaches users through two distribution channels, each serving a different consumer:
+
+| Channel | What it serves | Consumer |
+|---|---|---|
+| **GitHub Releases** | Shaded JAR + element-templates ZIP, attached to each `vX.Y.Z` tag | Self-Managed and Hybrid users installing the JAR. The ZIP bundles templates that were tested against that specific JAR version. |
+| **Camunda Marketplace "For SaaS"** | Raw GitHub URLs pointing at `main` for each element template (see [Submitted template URLs](#submitted-template-urls) above) | Users importing templates into Camunda Web Modeler via the Marketplace deep link. Always serves the latest templates - no per-release listing update needed. |
+
+The JAR is the only artifact users explicitly pin. Templates are versioned in-file via the `version` integer (which Modeler uses for its upgrade-prompt flow) and via the `id` suffix for breaking changes - see [Element template version policy](#element-template-version-policy) for the rules.
+
+The GitHub Releases channel satisfies the [Camunda runtime spec](https://docs.camunda.io/docs/components/connectors/custom-built-connectors/host-custom-connectors/) for every documented installation surface (Docker volume mount, Helm initContainer, `c8run/custom_connectors/`).
+
+If user demand justifies it, additional channels can be added in the future (e.g., Maven Central publication or a pre-built Docker image on top of `camunda/connectors-bundle`).
 
 ---
 
