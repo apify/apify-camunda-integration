@@ -64,6 +64,7 @@ jobs:
 
   build_and_test:
     name: Build and test
+    needs: release_metadata
     runs-on: ubuntu-latest
     permissions:
       contents: read
