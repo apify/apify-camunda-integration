@@ -68,6 +68,10 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 | Java (runtime) | 21+ |
 | Apify API | Public REST API (v2), API token authentication |
 
+> **Important:** The connector ships separate JARs per Camunda minor version (`-c8.8` and `-c8.9`).
+> You must use the JAR matching your runtime's minor. See [COMPATIBILITY.md](COMPATIBILITY.md)
+> for the full version matrix, configuration differences between versions, and selection guidance.
+
 These versions apply to Self-Managed and Hybrid deployments. Pure Camunda SaaS is not currently supported - see [Deployment scenarios](#deployment-scenarios) for details.
 
 > **Forward compatibility:** Smoke-tested against Camunda 8.10 pre-release. The compatibility matrix will be updated once 8.10 reaches GA.
