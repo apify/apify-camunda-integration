@@ -177,6 +177,8 @@ All Apify Connector operations require an **Apify Token**.
 3. Copy your **Apify Token**.
 
 > **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`{{secrets.APIFY_TOKEN}}`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
+>
+> **Camunda 8.9+ secret prefix:** The environment-based secret provider now requires a `SECRET_` prefix by default. Set your token as `SECRET_APIFY_TOKEN=<value>` (not `APIFY_TOKEN`). The `{{secrets.APIFY_TOKEN}}` reference in element templates stays the same. To customize or disable the prefix, see [COMPATIBILITY.md](COMPATIBILITY.md#connector-secrets).
 
 ### Security model
 
