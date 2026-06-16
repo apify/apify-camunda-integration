@@ -112,6 +112,27 @@ This starts `LocalConnectorRuntime`, a small Spring Boot app that loads the Apif
 
 **Note:** Keep this terminal running while you work with Camunda Modeler.
 
+### Testing against different Camunda versions
+
+To test the connector against a specific Camunda SDK version, pass `-Dversion.connectors` to override the pom default. If your docker-compose stack exposes the Orchestration REST API on a non-default port, override that too with `-Dcamunda.client.rest-address`:
+
+```bash
+# Against Camunda 8.8
+mvn test-compile exec:java \
+  -Dexec.mainClass="io.camunda.connector.apify.LocalConnectorRuntime" \
+  -Dexec.classpathScope=test \
+  -Dversion.connectors=8.8.8 \
+  -Dcamunda.client.rest-address=http://localhost:8088
+
+# Against Camunda 8.9 (default port 8080)
+mvn test-compile exec:java \
+  -Dexec.mainClass="io.camunda.connector.apify.LocalConnectorRuntime" \
+  -Dexec.classpathScope=test \
+  -Dversion.connectors=8.9.0
+```
+
+> **Tip:** Check your actual port with `docker ps --format "table {{.Names}}\t{{.Ports}}" | grep orchestration`. The official `camunda-distributions` docker-compose files use `:8080` for both 8.8 and 8.9, but custom or older setups may differ.
+
 ### Local inbound setup with ngrok
 
 Inbound (webhook) testing requires Apify to be able to reach your machine over the public internet. The connector reads its public base URL from the **Camunda webhook URL** field on the BPMN element template; there is no environment variable to set. For local development, expose port 9898 via ngrok and paste the ngrok URL into that template field.
