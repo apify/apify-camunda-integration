@@ -2,10 +2,6 @@ package io.camunda.connector.apify;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.actuate.autoconfigure.endpoint.jmx.JmxEndpointAutoConfiguration;
-import org.springframework.boot.actuate.autoconfigure.ssl.SslObservabilityAutoConfiguration;
-import org.springframework.boot.autoconfigure.http.client.HttpClientAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration;
 
 /**
  * Local connector runtime for testing both inbound and outbound Apify connectors.
@@ -18,11 +14,11 @@ import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfigura
  *
  * <p>Connectors are discovered via SPI (Service Provider Interface) from META-INF/services.
  */
-@SpringBootApplication(exclude = {
-    JmxEndpointAutoConfiguration.class,
-    SslObservabilityAutoConfiguration.class,
-    HttpClientAutoConfiguration.class,
-    RestClientAutoConfiguration.class
+@SpringBootApplication(excludeName = {
+    "org.springframework.boot.actuate.autoconfigure.endpoint.jmx.JmxEndpointAutoConfiguration",
+    "org.springframework.boot.actuate.autoconfigure.ssl.SslObservabilityAutoConfiguration",
+    "org.springframework.boot.autoconfigure.http.client.HttpClientAutoConfiguration",
+    "org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration"
 })
 public class LocalConnectorRuntime {
 

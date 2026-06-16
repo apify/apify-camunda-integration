@@ -66,11 +66,12 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Element template generator annotations (compile-time only) -->
+        <!-- Element template generator annotations (compile-time only, not needed at runtime) -->
         <dependency>
             <groupId>io.camunda.connector</groupId>
             <artifactId>element-template-generator-core</artifactId>
             <version>${version.connectors}</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- HTTP Client for Apify API calls -->
@@ -146,6 +147,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.6.0</version>
+                <configuration>
+                    <shadedArtifactAttached>false</shadedArtifactAttached>
+                </configuration>
                 <executions>
                     <execution>
                         <phase>package</phase>
