@@ -53,6 +53,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
   - [Event Types and Statuses](#event-types-and-statuses)
 - [Troubleshooting](#troubleshooting)
 - [Support](#support)
+- [Marketplace listing assets](#marketplace-listing-assets)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -562,6 +563,7 @@ When an Apify inbound connector is triggered, it receives a payload with event a
 | Webhook not triggering | Ensure you have deployed the process. For Start Events, deploying automatically creates the webhook in Apify. Check the **Integrations** tab of your Actor in Apify Console to verify the webhook exists. |
 | Process stuck at Intermediate Event | Check your **Correlation Keys**. The value in the process variable must *exactly* match the value in the webhook payload. Use Camunda Operate to inspect variable values. |
 | `401 Unauthorized` | Check your API Token. Regenerate it in Apify Console (Settings → Integrations) if necessary. |
+| `Connection refused` on `localhost:8080` | The connector runtime expects the Camunda orchestration API on port `8080`. If you run Camunda via Docker Compose, ensure the orchestration service maps to host port `8080`. Only run **one Camunda version at a time** — run `docker compose down` before switching between versions. |
 
 ---
 
@@ -578,6 +580,20 @@ This connector is maintained by **Apify**. Camunda disclaims any support obligat
 | [SECURITY.md](SECURITY.md) | Private vulnerability disclosure |
 
 For security-related issues, please follow the disclosure process in [SECURITY.md](SECURITY.md) instead of opening a public issue.
+
+---
+
+## Marketplace listing assets
+
+Logos and screenshots for the Camunda Marketplace submission live in `docs/assets/`:
+
+| File | Purpose |
+|---|---|
+| `logo/apify-camunda-listing.png` | Marketplace "App Listing" logo |
+| `logo/apify-camunda-profile.png` | Marketplace "App Profile" logo |
+| `logo/apify-symbol-source.svg` | Source SVG ([apify.com/resources/brand](https://apify.com/resources/brand)) |
+| `screenshots/01-bpmn-actor-finished-dataset-items-loop-ai-extract-crm-upsert.png` | Actor finishes → loop dataset items → AI extract → CRM upsert |
+| `screenshots/02-bpmn-parallel-actors-lead-enrichment-ai-summarize-crm-update.png` | Parallel Actors scrape → AI summarize lead → CRM update |
 
 ---
 
