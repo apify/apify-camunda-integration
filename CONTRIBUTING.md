@@ -501,10 +501,11 @@ Releases are produced by the [`Create a release`](.github/workflows/release.yml)
 2. **Build and test** (`mvn clean verify`) - fails fast if the working tree doesn't build cleanly on `main`.
 3. **Bump `pom.xml`** to the new version and **write `CHANGELOG.md`**.
 4. **Commit and push** `pom.xml` + `CHANGELOG.md` back to `main` as `chore(release): bump version to X.Y.Z`.
-5. **Build the shaded JAR** from the post-bump commit so its embedded version metadata matches the tag.
-6. **Create a GitHub Release** with the tag (e.g. `v1.4.2`), release notes, and two attached artifacts:
-   - `apify-camunda-connector-<version>.jar` - the shaded runtime JAR
-   - `apify-camunda-connector-element-templates-<version>.zip` - all five element-template JSONs
+5. **Build multi-version shaded JARs** from the post-bump commit. The workflow iterates over a matrix of supported Camunda SDK versions, building the connector JAR once per minor and naming each with a suffix (e.g. `-c8.8`, `-c8.9`).
+6. **Create a GitHub Release** with the tag (e.g. `v1.4.2`), release notes, and the following attached artifacts:
+   - `apify-camunda-connector-<version>-c8.8.jar` - shaded JAR for Camunda 8.8.x runtimes
+   - `apify-camunda-connector-<version>-c8.9.jar` - shaded JAR for Camunda 8.9.x runtimes
+   - `apify-camunda-connector-element-templates-<version>.zip` - all five element-template JSONs (version-independent)
 
 ### Prerequisites
 
@@ -525,18 +526,19 @@ Do not simply re-run the workflow without recovery - the second run would bump v
 Camunda ships one minor release in April and one in October ([release policy](https://docs.camunda.io/docs/reference/announcements-release-notes/release-policy/)). When the next minor reaches GA:
 
 1. Re-test the connector against the GA build using the corresponding `camunda-distributions/docker-compose/versions/camunda-8.X` stack.
-2. Bump the compatibility matrix in [README.md](README.md) and the prerequisites in this file to add the new minor.
-3. If the template JSON had to change, bump the affected templates' `version` integer (see [Element template version policy](#element-template-version-policy)). The `engines.camunda` field uses `^8.8`, which already covers all 8.x minors - no change needed for new minors within the 8.x line.
-4. Cut a new release via the workflow.
+2. Verify the source compiles: `mvn clean compile test-compile -Dversion.connectors=<new-sdk-version>`.
+3. Add the new minor to the `SDK_VERSIONS` map in [`.github/workflows/release.yml`](.github/workflows/release.yml).
+4. Update [COMPATIBILITY.md](COMPATIBILITY.md) with the new SDK, Spring Boot version, and any configuration differences.
+5. Add the new minor to the compatibility matrices in [README.md](README.md) and the prerequisites in this file.
+6. If the template JSON changed, bump the affected templates' `version` integer (see [Element template version policy](#element-template-version-policy)). The `engines.camunda` field (`^8.8`) already covers all 8.x minors.
+7. Cut a new release via the workflow.
 
-> **Note:** The Marketplace listing shows compatibility as `8.8+`, `8.9+`, etc. (meaning all versions from that minor onward). If a new Camunda minor requires a higher minimum version, update the listing. Otherwise, only our own README matrix needs to reflect the newly verified versions.
->
-> When Camunda ships a new **major** version (e.g., 9.0), the `^8.8` range will no longer cover it. At that point the templates need updating and the connector needs a full compatibility pass.
+> **Note:** The Marketplace listing shows compatibility as `8.8+`, `8.9+`, etc. Update it only if a new minor raises the minimum supported version; otherwise only the README matrix needs updating. When Camunda ships a new **major** (e.g. 9.0), `^8.8` will no longer apply and the templates will need a full compatibility pass.
 
 ### Element template version policy
 
 - **Bump the `version` integer** when the template JSON changes and users should be prompted to upgrade (e.g., property, validation, or group changes).
-- **Don't bump for code/JAR-only changes** — the template version tracks UI changes, not code.
+- **Don't bump for code/JAR-only changes** - the template version tracks UI changes, not code.
 - **Change the `.v1` suffix in the `id`** only for breaking redesigns (old and new templates will both be available).
 - Template versioning is independent of JAR semver.
 
