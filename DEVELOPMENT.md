@@ -119,6 +119,36 @@ docker logs apify-connectors 2>&1 | grep -iE "Started Connector|apify-outbound|a
 curl -fsS http://localhost:8086/actuator/health/readiness && echo " READY"
 ```
 
+## Build a custom connector image
+
+Use this when you need a reproducible image for a registry or Kubernetes/Helm deployment.
+
+1. Build the connector JAR for your target minor:
+   - 8.8: `mvn clean package -DskipTests -Dversion.connectors=8.8.8`
+   - 8.9: `mvn clean package -DskipTests -Dversion.connectors=8.9.0`
+2. Build a derived image that copies the JAR into `/opt/custom/` (for example `/opt/custom/connector.jar`):
+
+```dockerfile
+FROM camunda/connectors-bundle:8.9.4
+COPY apify-camunda-connector-<version>-c8.9.jar /opt/custom/connector.jar
+```
+
+3. Ensure compatibility: the connector artifact and `FROM` image should target the same Camunda minor.
+4. Build and tag the image (include connector version + minor, e.g. `1.0.0-c8.9`):
+
+```bash
+# On Apple Silicon targeting amd64 clusters:
+docker build --platform linux/amd64 -t <your-registry>/apify-connectors:<version>-c8.9 .
+```
+
+5. Verify quickly before publishing:
+   - File check: `docker run --rm --entrypoint sh <your-registry>/apify-connectors:<version>-c8.9 -c 'ls -l /opt/custom/connector.jar'`
+   - Runtime check: start the image with your `CAMUNDA_CLIENT_*` env vars and, in this local setup, confirm readiness at `http://localhost:8086/actuator/health/readiness`.
+6. Push and deploy:
+   - Push to your registry.
+   - Use that image in docker-compose or Kubernetes/Helm.
+   - Keep tokens/secrets/cluster URLs as runtime env/Secrets (not baked into the image).
+
 ## Outbound Modeler smoke test
 
 1. Open Web Modeler (`http://localhost:8070/`).

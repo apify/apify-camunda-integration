@@ -93,6 +93,8 @@ Each release publishes two artifacts on the [GitHub Releases page](https://githu
 
 Pick the latest release whose version matches the [Compatibility](#compatibility) row for your Camunda 8 minor.
 
+> **Both artifacts are required.** The element templates add the connector to your Modeler palette, but the JAR is what actually runs it. Importing the templates alone lets you model and deploy a process; the Apify task will fail at runtime until a self-hosted connectors runtime has the JAR loaded. (Unlike Camunda's built-in connectors, which need only a template because their code already ships in every `connectors-bundle`.)
+
 ### Deployment scenarios
 
 The connector ships custom Java code that runs on the Camunda Connectors runtime. Where that runtime lives determines which deployment path applies:
@@ -105,24 +107,34 @@ The connector ships custom Java code that runs on the Camunda Connectors runtime
 
 ### Setting up the connectors runtime
 
-The simplest path is Camunda's official `camunda/connectors-bundle` Docker image with our JAR mounted into it. From [Host custom connectors](https://docs.camunda.io/docs/guides/host-custom-connectors/):
+The connector runs on Camunda's official `camunda/connectors-bundle` Docker image with our JAR mounted into it (from [Host custom connectors](https://docs.camunda.io/docs/guides/host-custom-connectors/)). Three things apply to every command below:
+
+- **JAR and image must match your Camunda minor.** Use the `-c8.8` JAR with an `8.8.x` bundle and the `-c8.9` JAR with an `8.9.x` bundle. Substitute `<version>` with the release tag you downloaded (e.g., `1.0.0`) and use a recent patch of your minor for the image tag (e.g., `8.9.4` for 8.9, `8.8.12` for 8.8); any patch of the matching minor works.
+- **Mount into `/opt/custom/`, not `/opt/app/`.** The bundle launches with `-Dloader.path=/opt/custom/`, the directory Spring Boot adds to the runtime classloader (the one that can see the bundled Connector SDK). A JAR in `/opt/app/` lands on the plain system classpath, cannot link against the SDK, and fails at startup with `NoClassDefFoundError: io/camunda/connector/api/outbound/OutboundConnectorFunction`.
+- **The runtime listens on container port `8080`.** Publish it with `-p` (the examples map it to host `8086`) for health checks (`http://localhost:8086/actuator/health/readiness`) and for the ngrok tunnel below.
+
+You also tell the runtime where your cluster is and how to authenticate, which depends on your [deployment scenario](#deployment-scenarios):
+
+**Self-Managed** (you run Zeebe and the connectors runtime): point the runtime at your own Zeebe gateway (gRPC), orchestration REST API, and identity provider. The example below uses OIDC - substitute your hosts and credentials:
 
 ```bash
 docker run --rm \
   -p 8086:8080 \
   -v $PWD/apify-camunda-connector-<version>-c8.9.jar:/opt/custom/connector.jar \
+  -e CAMUNDA_CLIENT_MODE=self-managed \
+  -e CAMUNDA_CLIENT_GRPCADDRESS=http://<zeebe-host>:26500 \
+  -e CAMUNDA_CLIENT_RESTADDRESS=http://<orchestration-host>:8080 \
+  -e CAMUNDA_CLIENT_AUTH_METHOD=oidc \
+  -e CAMUNDA_CLIENT_AUTH_TOKENURL=http://<keycloak-host>:18080/auth/realms/camunda-platform/protocol/openid-connect/token \
+  -e CAMUNDA_CLIENT_AUTH_CLIENTID=<client-id> \
+  -e CAMUNDA_CLIENT_AUTH_CLIENTSECRET=<client-secret> \
+  -e CAMUNDA_CLIENT_AUTH_AUDIENCE=orchestration-api \
   camunda/connectors-bundle:8.9.4
 ```
 
-> Substitute `<version>` with the release tag of the JAR you downloaded (e.g., `1.0.0`), and use the JAR suffix matching your Camunda minor (`-c8.9` shown here, `-c8.8` for 8.8). The `camunda/connectors-bundle` tag must match your Camunda 8 **minor**; use a recent patch of that minor (e.g. `8.9.4` for 8.9, `8.8.12` for 8.8) — any patch of the matching minor works.
-
-> **Mount path:** Custom connectors must be mounted into `/opt/custom/`, not `/opt/app/`. The bundle launches with `-Dloader.path=/opt/custom/`, which is the directory Spring Boot adds to the runtime classloader (the one that can see the bundled Connector SDK). A JAR placed in `/opt/app/` lands on the plain system classpath instead, where it cannot link against the SDK and fails at startup with `NoClassDefFoundError: io/camunda/connector/api/outbound/OutboundConnectorFunction`.
-
-> **Container port:** The runtime (and its inbound webhook endpoints) listens on port `8080` inside the container. Publish it to a host port with `-p` (above maps it to `8086`); use that host port for health checks (`http://localhost:8086/actuator/health/readiness`) and for the ngrok tunnel below.
-
 > **Building from source / testing against a local Self-Managed stack?** See [DEVELOPMENT.md](DEVELOPMENT.md#test-shaded-jar-in-connectors-bundle) for a step-by-step guide on building the JAR and running it in the connectors-bundle wired to your local docker-compose stack.
 
-**Hybrid mode** (your connectors runtime + Camunda SaaS Zeebe): pass your cluster credentials as environment variables alongside the JAR mount. Find the cluster ID, region, and client credentials in Camunda Console under your cluster → **API** tab.
+**Hybrid** (your connectors runtime + Camunda SaaS Zeebe): pass your cluster credentials as environment variables alongside the JAR mount. Find the cluster ID, region, and client credentials in Camunda Console under your cluster → **API** tab.
 
 ```bash
 docker run --rm \
@@ -144,6 +156,8 @@ For production, bake the JAR into a custom image instead of mounting it:
 FROM camunda/connectors-bundle:8.9.4
 COPY apify-camunda-connector-<version>-c8.9.jar /opt/custom/connector.jar
 ```
+
+Run it with the same connection environment variables as the examples above, minus the `-v` mount (the JAR is already inside). For the full build/tag/push/deploy walkthrough — including cross-architecture builds — see [DEVELOPMENT.md](DEVELOPMENT.md#build-a-custom-connectors-image-bake-the-jar).
 
 > **Reachability requirement:** The connectors-runtime container must be reachable on the public internet so Apify can deliver webhook events to it. For production, expose it via your ingress / reverse proxy / load balancer with a stable HTTPS URL.
 >
@@ -253,7 +267,7 @@ Start a new execution of an Actor.
 | Setting | Description |
 |---------|-------------|
 | **Operation** | Select `Run Actor` |
-| **Actor** | The Actor name or ID (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`) |
+| **Actor** | The Actor name, e.g., `apify/web-scraper` (IDs also work - see [Finding Resource IDs](#finding-resource-ids)) |
 | **Input Body** | *(Optional)* JSON input configuration for the run (e.g., `={ "message": "Hello from Camunda!" }`) |
 | **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
 | **Timeout (seconds)** | Maximum duration for the run (optional) |
@@ -339,7 +353,7 @@ All inbound connectors share these common fields:
 |---------|-------------|
 | **Apify API Token** | Your Apify API token (see [Authentication](#authentication)) |
 | **Resource Type** | `Actor` or `Task` |
-| **Actor** / **Task** | The Actor or task name or ID to monitor (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`). The field label changes based on the selected Resource Type. |
+| **Actor** / **Task** | The Actor or task name to monitor, e.g., `apify/web-scraper` (IDs also work). The field label changes based on the selected Resource Type. |
 | **Activation Condition** | *(Optional)* FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). Leave empty to process all events. |
 | **Result Variable** | *(Optional)* Variable name to store the webhook payload |
 | **Result Expression** | *(Optional)* FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
@@ -485,6 +499,8 @@ If the async Actor run fails while the large scrape is still running, the bounda
 ## Reference
 
 ### Finding Resource IDs
+
+For the **Actor** and **Task** fields, the recommended identifier is the name in slash notation (e.g., `apify/web-scraper`), copied from the Actor's page or its URL path. Raw IDs are also accepted (and are what you typically get from a run result or webhook payload in dynamic workflows).
 
 You can find IDs in the [Apify Console](https://console.apify.com/):
 
