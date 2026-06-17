@@ -157,7 +157,7 @@ FROM camunda/connectors-bundle:8.9.4
 COPY apify-camunda-connector-<version>-c8.9.jar /opt/custom/connector.jar
 ```
 
-Run it with the same connection environment variables as the examples above, minus the `-v` mount (the JAR is already inside). For the full build/tag/push/deploy walkthrough — including cross-architecture builds — see [DEVELOPMENT.md](DEVELOPMENT.md#build-a-custom-connectors-image-bake-the-jar).
+Run it with the same connection environment variables as the examples above, minus the `-v` mount (the JAR is already inside). For the full build/tag/push/deploy walkthrough - including cross-architecture builds — see [DEVELOPMENT.md](DEVELOPMENT.md#build-a-custom-connector-image).
 
 > **Reachability requirement:** The connectors-runtime container must be reachable on the public internet so Apify can deliver webhook events to it. For production, expose it via your ingress / reverse proxy / load balancer with a stable HTTPS URL.
 >
