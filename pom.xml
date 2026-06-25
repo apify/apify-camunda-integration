@@ -48,6 +48,11 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- Connector SDK version we COMPILE against (provided at runtime by the bundle).
+             Only the MINOR must match the target runtime; patches are interchangeable.
+             Keep this <= the lowest runtime patch you support - never above (provided deps
+             resolve at runtime, so a newer compile-time API can break on an older runtime).
+             8.8.8 / 8.9.0 = latest 8.8.x / 8.9.x SDK on Camunda's public Artifactory. -->
         <version.connectors>8.8.8</version.connectors>
         <version.assertj>3.27.7</version.assertj>
         <version.junit-jupiter>5.14.3</version.junit-jupiter>
@@ -66,31 +71,38 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Element template generator annotations (compile-time only) -->
+        <!-- Element template generator annotations (compile-time only, not needed at runtime) -->
         <dependency>
             <groupId>io.camunda.connector</groupId>
             <artifactId>element-template-generator-core</artifactId>
             <version>${version.connectors}</version>
+            <scope>provided</scope>
         </dependency>
 
-        <!-- HTTP Client for Apify API calls -->
+        <!-- HTTP Client for Apify API calls.
+     Provided by the camunda/connectors-bundle runtime. Marked 'provided' to
+     avoid shading into the fat JAR, which would shadow the runtime's httpclient5
+     and break DefaultHostnameVerifier (NoClassDefFoundError on LoggerFactory). -->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
             <version>${version.httpclient}</version>
+            <scope>provided</scope>
         </dependency>
-        
+
         <!-- Additional HTTP Client dependencies for SSL/TLS support -->
         <dependency>
             <groupId>org.apache.httpcomponents.core5</groupId>
             <artifactId>httpcore5</artifactId>
             <version>5.4.2</version>
+            <scope>provided</scope>
         </dependency>
-        
+
         <dependency>
             <groupId>org.apache.httpcomponents.core5</groupId>
             <artifactId>httpcore5-h2</artifactId>
             <version>5.4.2</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- test dependencies -->
@@ -146,6 +158,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.6.0</version>
+                <configuration>
+                    <shadedArtifactAttached>false</shadedArtifactAttached>
+                </configuration>
                 <executions>
                     <execution>
                         <phase>package</phase>

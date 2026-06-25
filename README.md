@@ -53,6 +53,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
   - [Event Types and Statuses](#event-types-and-statuses)
 - [Troubleshooting](#troubleshooting)
 - [Support](#support)
+- [Marketplace listing assets](#marketplace-listing-assets)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -66,6 +67,10 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 | Camunda Connectors runtime | 8.8.x, 8.9.x |
 | Java (runtime) | 21+ |
 | Apify API | Public REST API (v2), API token authentication |
+
+> **Important:** The connector ships separate JARs per Camunda minor version (`-c8.8` and `-c8.9`).
+> You must use the JAR matching your runtime's minor. See [COMPATIBILITY.md](COMPATIBILITY.md)
+> for the full version matrix, configuration differences between versions, and selection guidance.
 
 These versions apply to Self-Managed and Hybrid deployments. Pure Camunda SaaS is not currently supported - see [Deployment scenarios](#deployment-scenarios) for details.
 
@@ -83,10 +88,12 @@ Each release publishes two artifacts on the [GitHub Releases page](https://githu
 
 | Artifact | What it is | Where it goes |
 |---|---|---|
-| `apify-camunda-connector-<version>.jar` | The shaded connector runtime JAR (includes all dependencies) | Drop it on the Camunda Connectors runtime classpath. See [Setting up the connectors runtime](#setting-up-the-connectors-runtime) below. |
+| `apify-camunda-connector-<version>-c8.8.jar` / `-c8.9.jar` | The shaded connector runtime JAR (includes all dependencies), one per Camunda minor | Download the suffix matching your runtime's minor (`-c8.8` or `-c8.9`) and drop it on the Camunda Connectors runtime classpath. See [Setting up the connectors runtime](#setting-up-the-connectors-runtime) below. |
 | `apify-camunda-connector-element-templates-<version>.zip` | All five element template JSONs (one outbound + four inbound) | Upload to your Camunda **Web Modeler** project, or place into the `resources/element-templates/` directory of **Desktop Modeler**. After publishing, the connectors appear in the BPMN palette. |
 
 Pick the latest release whose version matches the [Compatibility](#compatibility) row for your Camunda 8 minor.
+
+> **Both artifacts are required.** The element templates add the connector to your Modeler palette, but the JAR is what actually runs it. Importing the templates alone lets you model and deploy a process; the Apify task will fail at runtime until a self-hosted connectors runtime has the JAR loaded. (Unlike Camunda's built-in connectors, which need only a template because their code already ships in every `connectors-bundle`.)
 
 ### Deployment scenarios
 
@@ -100,27 +107,45 @@ The connector ships custom Java code that runs on the Camunda Connectors runtime
 
 ### Setting up the connectors runtime
 
-The simplest path is Camunda's official `camunda/connectors-bundle` Docker image with our JAR mounted into it. From [Host custom connectors](https://docs.camunda.io/docs/guides/host-custom-connectors/):
+The connector runs on Camunda's official `camunda/connectors-bundle` Docker image with our JAR mounted into it (from [Host custom connectors](https://docs.camunda.io/docs/guides/host-custom-connectors/)). Three things apply to every command below:
+
+- **JAR and image must match your Camunda minor.** Use the `-c8.8` JAR with an `8.8.x` bundle and the `-c8.9` JAR with an `8.9.x` bundle. Substitute `<version>` with the release tag you downloaded (e.g., `1.0.0`) and use a recent patch of your minor for the image tag (e.g., `8.9.4` for 8.9, `8.8.12` for 8.8); any patch of the matching minor works.
+- **Mount into `/opt/custom/`, not `/opt/app/`.** The bundle launches with `-Dloader.path=/opt/custom/`, the directory Spring Boot adds to the runtime classloader (the one that can see the bundled Connector SDK). A JAR in `/opt/app/` lands on the plain system classpath, cannot link against the SDK, and fails at startup with `NoClassDefFoundError: io/camunda/connector/api/outbound/OutboundConnectorFunction`.
+- **The runtime listens on container port `8080`.** Publish it with `-p` (the examples map it to host `8086`) for health checks (`http://localhost:8086/actuator/health/readiness`) and for the ngrok tunnel below.
+
+You also tell the runtime where your cluster is and how to authenticate, which depends on your [deployment scenario](#deployment-scenarios):
+
+**Self-Managed** (you run Zeebe and the connectors runtime): point the runtime at your own Zeebe gateway (gRPC), orchestration REST API, and identity provider. The example below uses OIDC - substitute your hosts and credentials:
 
 ```bash
 docker run --rm \
-  -v $PWD/apify-camunda-connector-<version>.jar:/opt/app/connector.jar \
-  camunda/connectors-bundle:8.9.0
+  -p 8086:8080 \
+  -v $PWD/apify-camunda-connector-<version>-c8.9.jar:/opt/custom/connector.jar \
+  -e CAMUNDA_CLIENT_MODE=self-managed \
+  -e CAMUNDA_CLIENT_GRPCADDRESS=http://<zeebe-host>:26500 \
+  -e CAMUNDA_CLIENT_RESTADDRESS=http://<orchestration-host>:8080 \
+  -e CAMUNDA_CLIENT_AUTH_METHOD=oidc \
+  -e CAMUNDA_CLIENT_AUTH_TOKENURL=http://<keycloak-host>:18080/auth/realms/camunda-platform/protocol/openid-connect/token \
+  -e CAMUNDA_CLIENT_AUTH_CLIENTID=<client-id> \
+  -e CAMUNDA_CLIENT_AUTH_CLIENTSECRET=<client-secret> \
+  -e CAMUNDA_CLIENT_AUTH_AUDIENCE=orchestration-api \
+  camunda/connectors-bundle:8.9.4
 ```
 
-> Substitute `<version>` with the release tag of the JAR you downloaded (e.g., `1.0.0`). The `camunda/connectors-bundle` tag should match your Camunda 8 minor — `8.9.0` for an 8.9 cluster, `8.8.0` for 8.8, and so on.
+> **Building from source / testing against a local Self-Managed stack?** See [DEVELOPMENT.md](DEVELOPMENT.md#test-shaded-jar-in-connectors-bundle) for a step-by-step guide on building the JAR and running it in the connectors-bundle wired to your local docker-compose stack.
 
-**Hybrid mode** (your connectors runtime + Camunda SaaS Zeebe): pass your cluster credentials as environment variables alongside the JAR mount. Find the cluster ID, region, and client credentials in Camunda Console under your cluster → **API** tab.
+**Hybrid** (your connectors runtime + Camunda SaaS Zeebe): pass your cluster credentials as environment variables alongside the JAR mount. Find the cluster ID, region, and client credentials in Camunda Console under your cluster → **API** tab.
 
 ```bash
 docker run --rm \
-  -v $PWD/apify-camunda-connector-<version>.jar:/opt/app/connector.jar \
+  -p 8086:8080 \
+  -v $PWD/apify-camunda-connector-<version>-c8.9.jar:/opt/custom/connector.jar \
   -e CAMUNDA_CLIENT_MODE=saas \
   -e CAMUNDA_CLIENT_CLOUD_CLUSTERID='<YOUR_CLUSTER_ID>' \
   -e CAMUNDA_CLIENT_CLOUD_REGION='<YOUR_REGION>' \
   -e CAMUNDA_CLIENT_AUTH_CLIENTID='<YOUR_CLIENT_ID>' \
   -e CAMUNDA_CLIENT_AUTH_CLIENTSECRET='<YOUR_CLIENT_SECRET>' \
-  camunda/connectors-bundle:8.9.0
+  camunda/connectors-bundle:8.9.4
 ```
 
 The client credentials need the **Orchestration Cluster REST API** scope at minimum. For the full reference (including scopes, alternate auth modes, and the `CONNECTOR_HTTP_REST_TYPE` override for local debugging), see [Use connectors in hybrid mode](https://docs.camunda.io/docs/components/connectors/use-connectors-in-hybrid-mode/).
@@ -128,16 +153,18 @@ The client credentials need the **Orchestration Cluster REST API** scope at mini
 For production, bake the JAR into a custom image instead of mounting it:
 
 ```dockerfile
-FROM camunda/connectors-bundle:8.9.0
-COPY apify-camunda-connector-<version>.jar /opt/app/connector.jar
+FROM camunda/connectors-bundle:8.9.4
+COPY apify-camunda-connector-<version>-c8.9.jar /opt/custom/connector.jar
 ```
+
+Run it with the same connection environment variables as the examples above, minus the `-v` mount (the JAR is already inside). For the full build/tag/push/deploy walkthrough - including cross-architecture builds — see [DEVELOPMENT.md](DEVELOPMENT.md#build-a-custom-connector-image).
 
 > **Reachability requirement:** The connectors-runtime container must be reachable on the public internet so Apify can deliver webhook events to it. For production, expose it via your ingress / reverse proxy / load balancer with a stable HTTPS URL.
 >
-> **Testing locally?** Use a tunneling tool like [ngrok](https://ngrok.com/) to expose your local connectors-runtime container to the internet:
+> **Testing locally?** Use a tunneling tool like [ngrok](https://ngrok.com/) to expose your local connectors-runtime container to the internet. Point it at the **host port you published** (the `-p` mapping above, `8086`), not the container's internal `8080`:
 >
 > ```bash
-> ngrok http <runtime-port>
+> ngrok http 8086
 > ```
 >
 > Paste the ngrok URL into the **Camunda webhook URL** field on each inbound element template. The connector takes care of registering and tearing down the Apify-side webhook automatically on BPMN deploy/undeploy.
@@ -172,6 +199,19 @@ All Apify Connector operations require an **Apify Token**.
 3. Copy your **Apify Token**.
 
 > **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`{{secrets.APIFY_TOKEN}}`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
+>
+> **Camunda 8.9+ secret prefix:** The environment-based secret provider now requires a `SECRET_` prefix by default. Set your token as `SECRET_APIFY_TOKEN=<value>` (not `APIFY_TOKEN`). The `{{secrets.APIFY_TOKEN}}` reference in element templates stays the same. To customize or disable the prefix, see [COMPATIBILITY.md](COMPATIBILITY.md#connector-secrets).
+
+### How the token is resolved at runtime
+
+The **Apify API token** field on every template is the single entry point for the token. What you put in it decides whether any secret machinery is involved:
+
+- **Typed inline** (the literal token) → used as-is. No secret provider or environment variable is involved. Convenient for a quick test, but the token is stored in the BPMN XML.
+- **`{{secrets.APIFY_TOKEN}}`** → the connector runtime resolves it at execution time (and, for inbound, at deploy time) via a **secret provider**:
+  - **Self-Managed / Hybrid:** the environment secret provider reads an environment variable on the connectors-runtime container. The name is version-dependent — `APIFY_TOKEN` on 8.8, `SECRET_APIFY_TOKEN` on 8.9 (see [COMPATIBILITY.md](COMPATIBILITY.md#connector-secrets)). If that variable is unset or wrong, Apify returns `401 user-or-token-not-found`.
+  - **SaaS:** secrets are managed in Camunda Console, not via runtime environment variables.
+
+> **Syntax:** In the token field use the Mustache form `{{secrets.APIFY_TOKEN}}` (it is a plain-text field). The FEEL form `=secrets.APIFY_TOKEN` is only for expression fields. See [Common expressions](#common-expressions) for the distinction.
 
 ### Security model
 
@@ -227,7 +267,7 @@ Start a new execution of an Actor.
 | Setting | Description |
 |---------|-------------|
 | **Operation** | Select `Run Actor` |
-| **Actor** | The Actor name or ID (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`) |
+| **Actor** | The Actor name, e.g., `apify/web-scraper` (IDs also work - see [Finding Resource IDs](#finding-resource-ids)) |
 | **Input Body** | *(Optional)* JSON input configuration for the run (e.g., `={ "message": "Hello from Camunda!" }`) |
 | **Wait for Finish** | `true` (Synchronous) or `false` (Asynchronous) |
 | **Timeout (seconds)** | Maximum duration for the run (optional) |
@@ -313,7 +353,7 @@ All inbound connectors share these common fields:
 |---------|-------------|
 | **Apify API Token** | Your Apify API token (see [Authentication](#authentication)) |
 | **Resource Type** | `Actor` or `Task` |
-| **Actor** / **Task** | The Actor or task name or ID to monitor (e.g., `apify/web-scraper` or `E2jjCZBezvAZnX8Rb`). The field label changes based on the selected Resource Type. |
+| **Actor** / **Task** | The Actor or task name to monitor, e.g., `apify/web-scraper` (IDs also work). The field label changes based on the selected Resource Type. |
 | **Activation Condition** | *(Optional)* FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). Leave empty to process all events. |
 | **Result Variable** | *(Optional)* Variable name to store the webhook payload |
 | **Result Expression** | *(Optional)* FEEL expression to transform the data (e.g., `={ result: connectorData }`) |
@@ -460,6 +500,8 @@ If the async Actor run fails while the large scrape is still running, the bounda
 
 ### Finding Resource IDs
 
+For the **Actor** and **Task** fields, the recommended identifier is the name in slash notation (e.g., `apify/web-scraper`), copied from the Actor's page or its URL path. Raw IDs are also accepted (and are what you typically get from a run result or webhook payload in dynamic workflows).
+
 You can find IDs in the [Apify Console](https://console.apify.com/):
 
 - **Actor ID**: `https://console.apify.com/actors/<THIS_IS_THE_ID>` or see the API tab
@@ -562,6 +604,7 @@ When an Apify inbound connector is triggered, it receives a payload with event a
 | Webhook not triggering | Ensure you have deployed the process. For Start Events, deploying automatically creates the webhook in Apify. Check the **Integrations** tab of your Actor in Apify Console to verify the webhook exists. |
 | Process stuck at Intermediate Event | Check your **Correlation Keys**. The value in the process variable must *exactly* match the value in the webhook payload. Use Camunda Operate to inspect variable values. |
 | `401 Unauthorized` | Check your API Token. Regenerate it in Apify Console (Settings → Integrations) if necessary. |
+| `Connection refused` on the orchestration REST port | A runtime running **outside** Docker (e.g. `LocalConnectorRuntime`) reaches the cluster on the host-mapped REST port, which differs by version: `8088` on 8.8, `8080` on 8.9 (the container always listens on `8080`). Point `CAMUNDA_CLIENT_RESTADDRESS` / `-Dcamunda.client.rest-address` at the right one. Only run **one Camunda version at a time** — run `docker compose down` before switching. |
 
 ---
 
@@ -578,6 +621,20 @@ This connector is maintained by **Apify**. Camunda disclaims any support obligat
 | [SECURITY.md](SECURITY.md) | Private vulnerability disclosure |
 
 For security-related issues, please follow the disclosure process in [SECURITY.md](SECURITY.md) instead of opening a public issue.
+
+---
+
+## Marketplace listing assets
+
+Logos and screenshots for the Camunda Marketplace submission live in `docs/assets/`:
+
+| File | Purpose |
+|---|---|
+| `logo/apify-camunda-listing.png` | Marketplace "App Listing" logo |
+| `logo/apify-camunda-profile.png` | Marketplace "App Profile" logo |
+| `logo/apify-symbol-source.svg` | Source SVG ([apify.com/resources/brand](https://apify.com/resources/brand)) |
+| `screenshots/01-bpmn-actor-finished-dataset-items-loop-ai-extract-crm-upsert.png` | Actor finishes → loop dataset items → AI extract → CRM upsert |
+| `screenshots/02-bpmn-parallel-actors-lead-enrichment-ai-summarize-crm-update.png` | Parallel Actors scrape → AI summarize lead → CRM update |
 
 ---
 

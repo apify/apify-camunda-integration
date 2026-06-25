@@ -163,28 +163,36 @@ jobs:
           java-version: '21'
           cache: maven
 
-      # NOTE: we skip tests here because `build_and_test` already ran them on the
-      # pre-bump source. The only change between pre-bump and post-bump is the
-      # `<version>` element in pom.xml (and CHANGELOG.md, which isn't compiled),
-      # so the binary produced here is functionally identical to the one tested.
-      # If reproducibility ever becomes a concern, drop `-DskipTests` here.
-      - name: Build release artifacts
-        run: mvn --batch-mode clean package -DskipTests
-
-      - name: Stage release artifacts
+      # Build a JAR per supported Camunda minor. Tests already passed in
+      # `build_and_test`; here we only package. Each iteration overrides the
+      # SDK version via -Dversion.connectors and renames the shaded JAR with
+      # a Camunda-minor suffix (e.g. -c8.8, -c8.9).
+      - name: Build multi-version release artifacts
         env:
           VERSION: ${{ needs.release_metadata.outputs.version_number }}
         run: |
           set -euo pipefail
           mkdir -p release-artifacts
-          # Connector JAR (shaded). Filename is deterministic because
-          # `mvn versions:set -DnewVersion=$VERSION` ran in the previous job,
-          # so the shade-plugin output is exactly apify-camunda-connector-${VERSION}.jar.
-          jar="target/apify-camunda-connector-${VERSION}.jar"
-          test -f "$jar" || { echo "Expected release JAR not found at $jar"; ls -la target; exit 1; }
-          cp "$jar" "release-artifacts/$(basename "$jar")"
-          # Element templates archive
+
+          # Matrix of supported Camunda minors and their SDK versions
+          declare -A SDK_VERSIONS=(
+            ["c8.8"]="8.8.8"
+            ["c8.9"]="8.9.0"
+          )
+
+          for suffix in "${!SDK_VERSIONS[@]}"; do
+            sdk="${SDK_VERSIONS[$suffix]}"
+            echo "::group::Building for Camunda ${suffix} (SDK ${sdk})"
+            mvn --batch-mode clean package -DskipTests -Dversion.connectors="${sdk}"
+            jar="target/apify-camunda-connector-${VERSION}.jar"
+            test -f "$jar" || { echo "Expected JAR not found at $jar"; ls -la target; exit 1; }
+            cp "$jar" "release-artifacts/apify-camunda-connector-${VERSION}-${suffix}.jar"
+            echo "::endgroup::"
+          done
+
+          # Element templates (version-independent, single archive)
           (cd element-templates && zip -r "../release-artifacts/apify-camunda-connector-element-templates-${VERSION}.zip" *.json)
+          echo "Release artifacts:"
           ls -la release-artifacts
 
       # Write release notes to a file so multi-line / backtick / quote characters
