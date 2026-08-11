@@ -194,8 +194,8 @@ For a deeper explanation of how inbound webhook URLs are structured in Camunda, 
 
 All Apify Connector operations require an **Apify Token**.
 
-1. Log in to [Apify Console](https://console.apify.com/).
-2. Navigate to [**Settings → Integrations**](https://console.apify.com/settings/integrations).
+1. Log in to [Apify Console](https://console.apify.com/?utm_source=camunda&utm_medium=integrations).
+2. Navigate to [**Settings → Integrations**](https://console.apify.com/settings/integrations?utm_source=camunda&utm_medium=integrations).
 3. Copy your **Apify Token**.
 
 > **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`{{secrets.APIFY_TOKEN}}`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
@@ -502,7 +502,7 @@ If the async Actor run fails while the large scrape is still running, the bounda
 
 For the **Actor** and **Task** fields, the recommended identifier is the name in slash notation (e.g., `apify/web-scraper`), copied from the Actor's page or its URL path. Raw IDs are also accepted (and are what you typically get from a run result or webhook payload in dynamic workflows).
 
-You can find IDs in the [Apify Console](https://console.apify.com/):
+You can find IDs in the [Apify Console](https://console.apify.com/?utm_source=camunda&utm_medium=integrations):
 
 - **Actor ID**: `https://console.apify.com/actors/<THIS_IS_THE_ID>` or see the API tab
 - **Task ID**: `https://console.apify.com/actors/tasks/<THIS_IS_THE_ID>` or see the API tab
