@@ -57,7 +57,7 @@
       "id": "authentication.token",
       "label": "Apify API token",
       "description": "Your Apify API token. Find it in <a href=\"https://console.apify.com/settings/integrations?utm_source=camunda&amp;utm_medium=integrations\">Apify Console → Settings → Integrations</a>.",
-      "tooltip": "Prefer <code>{{secrets.APIFY_TOKEN}}</code> (in plain-text mode) or <code>=secrets.APIFY_TOKEN</code> (in FEEL mode) over pasting the token directly. Learn more about <a href=\"https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/\">Camunda Secrets</a>.",
+      "tooltip": "Prefer <code>{{secrets.APIFY_TOKEN}}</code> over pasting the token directly. Learn more about <a href=\"https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/\">Camunda Secrets</a>.",
       "type": "String",
       "feel": "optional",
       "group": "authentication",
