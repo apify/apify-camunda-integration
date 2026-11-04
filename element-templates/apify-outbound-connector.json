@@ -357,7 +357,7 @@
     {
       "id": "apifyRequestInput.scrapeSingleUrlInput.url",
       "label": "URL",
-      "description": "<b>Deprecated:</b> use the <b>Web Fetch</b> operation instead. This operation will be removed in a future release. The URL to scrape (must start with http:// or https://).",
+      "description": "Deprecated: use the Web Fetch operation instead. This operation will be removed in a future release. The URL to scrape (must start with http:// or https://).",
       "constraints": { "notEmpty": true },
       "feel": "optional",
       "group": "apifyRequestInput",
@@ -398,7 +398,7 @@
     {
       "id": "apifyRequestInput.webFetchInput.url",
       "label": "URL",
-      "description": "The page, PDF or file to fetch, including http:// or https://. Web Fetch reads one URL in a single request and gets past bot protection. To crawl several pages, use <b>Run Actor</b> with <a href=\"https://apify.com/apify/website-content-crawler\">Website Content Crawler</a>.",
+      "description": "The page, PDF or file to fetch, including http:// or https://. Web Fetch reads one URL in a single request and gets past bot protection. To crawl several pages, use Run Actor with <a href=\"https://apify.com/apify/website-content-crawler\">Website Content Crawler</a>.",
       "constraints": { "notEmpty": true },
       "feel": "optional",
       "group": "apifyRequestInput",
@@ -494,7 +494,8 @@
     {
       "id": "resultVariable",
       "label": "Result Variable",
-      "description": "Variable name to store the response in.",
+      "description": "Variable name to store the full response in.",
+      "tooltip": "Stores the whole response, even when Result Expression is also set. For large responses, such as Web Fetch or Get dataset items, leave this empty and use Result Expression to keep only the fields you need.",
       "group": "output",
       "binding": {
         "key": "resultVariable",
@@ -507,6 +508,7 @@
       "id": "resultExpression",
       "label": "Result Expression",
       "description": "A FEEL expression to map the response into process variables.",
+      "tooltip": "Each key becomes a process variable, for example <code>={content: response.data.markdown}</code>. Keep only the fields you need: Camunda recommends <a href=\"https://docs.camunda.io/docs/components/concepts/variables/\">1 MB or less</a> of variables.",
       "feel": "required",
       "group": "output",
       "binding": {
