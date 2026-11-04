@@ -7,9 +7,10 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 **Outbound Connector** (call Apify from your process):
 - **Run Actor**: Start an Apify Actor with custom input
 - **Run task**: Execute a saved Actor task with optional input override
+- **Web Fetch**: Fetch a single web page, PDF or file as Markdown, HTML, text, links or raw content
 - **Get dataset items**: Retrieve data from Apify datasets
 - **Get key-value store record**: Fetch stored data by key
-- **Scrape single URL**: Quick web scraping for a single page
+- **Scrape single URL** *(deprecated, use Web Fetch)*: Quick web scraping for a single page
 
 **Inbound Connectors** (trigger processes from Apify):
 - **Start Event**: Start a new process when an Apify event occurs
@@ -17,7 +18,7 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 - **Intermediate Catch Event**: Pause and wait for an Apify event before continuing
 - **Boundary Event**: React to Apify events while an activity is running
 
-> **Full setup walkthrough on Apify docs:** This README is the technical reference. For a step-by-step setup tutorial with screenshots, end-to-end examples, and platform-specific guidance, see the **[Apify Camunda Integration Guide](https://docs.apify.com/platform/integrations/camunda)** at `docs.apify.com`.
+> **Full setup walkthrough on Apify docs:** This README is the technical reference. For a step-by-step setup tutorial with screenshots, end-to-end examples, and platform-specific guidance, see the **[Apify Camunda Integration Guide](https://docs.apify.com/integrations/camunda)** at `docs.apify.com`.
 
 ---
 
@@ -33,9 +34,10 @@ Integrate [Apify](https://apify.com/) web scraping and automation capabilities i
 - [Outbound Connector](#outbound-connector)
   - [Run Actor](#run-actor)
   - [Run task](#run-task)
-  - [Scrape single URL](#scrape-single-url)
+  - [Web Fetch](#web-fetch)
   - [Get dataset items](#get-dataset-items)
   - [Get key-value store record](#get-key-value-store-record)
+  - [Scrape single URL (deprecated)](#scrape-single-url-deprecated)
   - [Error Handling and Retries](#error-handling-and-retries)
 - [Inbound Connectors](#inbound-connectors)
   - [Activation Condition](#activation-condition)
@@ -80,7 +82,7 @@ These versions apply to Self-Managed and Hybrid deployments. Pure Camunda SaaS i
 
 ## Installation
 
-> **Looking for a step-by-step setup tutorial?** The walkthrough at **[docs.apify.com/platform/integrations/camunda](https://docs.apify.com/platform/integrations/camunda)** goes deeper than this section, with screenshots and end-to-end examples. This README is the technical reference.
+> **Looking for a step-by-step setup tutorial?** The walkthrough at **[docs.apify.com/integrations/camunda](https://docs.apify.com/integrations/camunda)** goes deeper than this section, with screenshots and end-to-end examples. This README is the technical reference.
 
 > **Arrived from the Camunda Marketplace?** If you clicked **"For SaaS"** on the listing, the element templates are already imported into Camunda Web Modeler. You still need to install the connector JAR on a connectors runtime - continue below.
 
@@ -192,11 +194,11 @@ For a deeper explanation of how inbound webhook URLs are structured in Camunda, 
 
 ## Authentication
 
-All Apify Connector operations require an **Apify Token**.
+All Apify Connector operations require an **Apify API token**.
 
 1. Log in to [Apify Console](https://console.apify.com/?utm_source=camunda&utm_medium=integrations).
-2. Navigate to [**Settings → Integrations**](https://console.apify.com/settings/integrations?utm_source=camunda&utm_medium=integrations).
-3. Copy your **Apify Token**.
+2. Navigate to [**Settings > API & Integrations**](https://console.apify.com/settings/integrations?utm_source=camunda&utm_medium=integrations).
+3. Copy your **Apify API token**.
 
 > **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`{{secrets.APIFY_TOKEN}}`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
 >
@@ -237,7 +239,7 @@ A 30-second smoke test that confirms the connector is wired up end-to-end. Uses 
 
    | Field | Value |
    |---|---|
-   | **Apify API Token** | Your token (or `{{secrets.APIFY_TOKEN}}` if you have a Camunda secret) |
+   | **Apify API token** | Your token (or `{{secrets.APIFY_TOKEN}}` if you have a Camunda secret) |
    | **Operation** | `Run Actor` |
    | **Actor** | `apify/hello-world` |
    | **Wait for Finish** | `true` |
@@ -246,7 +248,7 @@ A 30-second smoke test that confirms the connector is wired up end-to-end. Uses 
 4. **Deploy and run** the process.
 5. Open Camunda Operate and confirm the process reached the End event. The full Actor run response is available under the `runResult` process variable.
 
-If anything goes wrong, see [Troubleshooting](#troubleshooting) - the most common first-time issue is that the connector template is not visible in the Modeler palette. For a longer walkthrough with screenshots, see the [Apify Camunda Integration Guide](https://docs.apify.com/platform/integrations/camunda).
+If anything goes wrong, see [Troubleshooting](#troubleshooting) - the most common first-time issue is that the connector template is not visible in the Modeler palette. For a longer walkthrough with screenshots, see the [Apify Camunda Integration Guide](https://docs.apify.com/integrations/camunda).
 
 ---
 
@@ -294,17 +296,43 @@ Execute a saved Actor task.
 | **Memory (MB)** | Memory allocation (optional). Dropdown: 128, 256, 512, 1024, 2048, 4096, 8192, 16384, or 32768 MB |
 | **Build** | Build tag to use (optional, defaults to `latest`) |
 
-### Scrape single URL
+### Web Fetch
 
-Quickly scrape a webpage using one of Apify's standard crawlers.
+Fetch a single web page, PDF or file in one request and get its content in the formats you choose. The operation calls the [Web Fetch](https://apify.com/apify/web-fetch) Actor, which gets past bot protection and answers directly, without starting a run you have to wait for. To crawl several pages or a whole website, use [Run Actor](#run-actor) with [Website Content Crawler](https://apify.com/apify/website-content-crawler) instead.
 
 **Configuration:**
 
 | Setting | Description |
 |---------|-------------|
-| **Operation** | Select `Scrape single URL` |
-| **URL** | The full URL to scrape (e.g., `https://example.com`) |
-| **Crawler Type** | `Cheerio (Raw HTTP)`, `Adaptive`, or `Firefox (Headless Browser)` |
+| **Operation** | Select `Web Fetch` |
+| **URL** | The full URL to fetch, including `http://` or `https://` (e.g., `https://example.com`) |
+| **Formats** | *(Optional)* Comma-separated list of output formats: `markdown`, `html`, `text`, `links`, `raw`. Default: `markdown`. Use `raw` for images and other files (base64-encoded). Clear the field to let Web Fetch pick a format from the content type |
+| **Custom headers** | *(Optional)* HTTP headers that Web Fetch sends to the target site, as a JSON object (e.g., `={"Accept-Language": "fr-FR"}`). They are not used to sign in to Apify |
+
+**Output:** The result's `data` field holds the Web Fetch response: the requested `url`, a `fetch` object (`loadedUrl`, `loadedTime`, `httpStatusCode`, `contentLengthBytes`, `contentType`), page `metadata` (`title`, `description`, `canonicalUrl`, `languageCode`, `openGraph`, `jsonLd`, `headers`, and more), and one field per requested format. For example, with the result variable `fetchResult`:
+
+```json
+{
+  "data": {
+    "url": "https://example.com",
+    "fetch": {
+      "loadedUrl": "https://example.com/",
+      "httpStatusCode": 200,
+      "contentType": "text/html; charset=UTF-8"
+    },
+    "metadata": { "title": "Example Domain", "languageCode": "en" },
+    "markdown": "# Example Domain\n\nThis domain is for use in documentation examples."
+  }
+}
+```
+
+Read the content with `=fetchResult.data.markdown`.
+
+**Behavior:**
+- **Error pages are content.** A page that answers with a status such as 404 is still returned; check `fetch.httpStatusCode`. The task fails only when Web Fetch itself cannot fetch the page.
+- **One request per attempt.** The connector sends a single request and never replays it, because each fetch is billed. Camunda's job **Retries** setting still applies on top: set **Retries** to `0` if a failed fetch should not be repeated (see [Error Handling and Retries](#error-handling-and-retries)).
+- **JavaScript-loaded content** that the page adds after it opens is not included.
+- **Known issue:** the Web Fetch Actor currently fails on `http://` URLs with a `502` error, even for HTTP-only sites. Until Apify fixes this, use the deprecated [Scrape single URL](#scrape-single-url-deprecated) operation for `http://` pages.
 
 ### Get dataset items
 
@@ -331,6 +359,20 @@ Fetch a specific record from a key-value store.
 | **Key-Value Store** | The store ID (e.g., `=runResult.data.defaultKeyValueStoreId`) |
 | **Key** | The record key to retrieve (e.g., `OUTPUT`) |
 
+### Scrape single URL (deprecated)
+
+> **Deprecated:** use [Web Fetch](#web-fetch) instead. This operation will be removed in a future release. Existing processes keep working.
+
+Scrape a webpage using one of Apify's standard crawlers.
+
+**Configuration:**
+
+| Setting | Description |
+|---------|-------------|
+| **Operation** | Select `Scrape single URL (deprecated)` |
+| **URL** | The full URL to scrape (e.g., `https://example.com`) |
+| **Crawler Type** | `Cheerio (Raw HTTP)`, `Adaptive`, or `Firefox (Headless Browser)` |
+
 ### Error Handling and Retries
 
 All outbound operations support error handling and automatic retries. These fields appear in the Modeler under the **Error handling** and **Retries** groups.
@@ -338,7 +380,7 @@ All outbound operations support error handling and automatic retries. These fiel
 | Setting | Description |
 |---------|-------------|
 | **Error Expression** | *(Optional)* A FEEL expression to handle errors (e.g., `if error.code = "ACTOR_NOT_FOUND" then null else error`) |
-| **Retries** | Number of retry attempts. Default: `3` |
+| **Retries** | Number of retry attempts. Default: `3`. Input errors (most `4xx` responses) fail without a retry. For [Web Fetch](#web-fetch), each retry fetches and bills the page again, so consider `0` |
 | **Retry Backoff** | ISO-8601 duration to wait between retries. Default: `PT0S` (no delay). Example: `PT5S` for 5 seconds |
 
 ---
@@ -351,7 +393,7 @@ All inbound connectors share these common fields:
 
 | Setting | Description |
 |---------|-------------|
-| **Apify API Token** | Your Apify API token (see [Authentication](#authentication)) |
+| **Apify API token** | Your Apify API token (see [Authentication](#authentication)) |
 | **Resource Type** | `Actor` or `Task` |
 | **Actor** / **Task** | The Actor or task name to monitor, e.g., `apify/web-scraper` (IDs also work). The field label changes based on the selected Resource Type. |
 | **Activation Condition** | *(Optional)* FEEL expression to filter events (e.g., `=connectorData.status = "SUCCEEDED"`). Leave empty to process all events. |
@@ -603,7 +645,7 @@ When an Apify inbound connector is triggered, it receives a payload with event a
 | Apify connector not visible in the Modeler palette | Confirm the element template was both **uploaded and published** to your Modeler project (publishing is a separate step from upload). Make sure you are looking at the correct project. If the templates are present but the service task fails on deploy, the JAR is not loaded on your connectors runtime - see [Setting up the connectors runtime](#setting-up-the-connectors-runtime). |
 | Webhook not triggering | Ensure you have deployed the process. For Start Events, deploying automatically creates the webhook in Apify. Check the **Integrations** tab of your Actor in Apify Console to verify the webhook exists. |
 | Process stuck at Intermediate Event | Check your **Correlation Keys**. The value in the process variable must *exactly* match the value in the webhook payload. Use Camunda Operate to inspect variable values. |
-| `401 Unauthorized` | Check your API Token. Regenerate it in Apify Console (Settings → Integrations) if necessary. |
+| `401 Unauthorized` | Check your Apify API token. Regenerate it in Apify Console (**Settings > API & Integrations**) if necessary. |
 | `Connection refused` on the orchestration REST port | A runtime running **outside** Docker (e.g. `LocalConnectorRuntime`) reaches the cluster on the host-mapped REST port, which differs by version: `8088` on 8.8, `8080` on 8.9 (the container always listens on `8080`). Point `CAMUNDA_CLIENT_RESTADDRESS` / `-Dcamunda.client.rest-address` at the right one. Only run **one Camunda version at a time** — run `docker compose down` before switching. |
 
 ---
@@ -615,7 +657,7 @@ This connector is maintained by **Apify**. Camunda disclaims any support obligat
 | Channel | Use for |
 |---|---|
 | [GitHub Issues](https://github.com/apify/apify-camunda-integration/issues) | Bug reports, feature requests, configuration questions |
-| [Apify integration docs](https://docs.apify.com/platform/integrations/camunda) | Tutorials, walkthroughs, payload reference |
+| [Apify integration docs](https://docs.apify.com/integrations/camunda) | Tutorials, walkthroughs, payload reference |
 | [Apify Discord](https://discord.com/invite/jyEM2PRvMU) | Community discussion |
 | [integrations@apify.com](mailto:integrations@apify.com) | Direct support inquiries |
 | [SECURITY.md](SECURITY.md) | Private vulnerability disclosure |

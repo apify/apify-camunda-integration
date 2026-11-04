@@ -2,6 +2,7 @@ package io.camunda.connector.apify.outbound;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.camunda.connector.api.annotation.OutboundConnector;
 import io.camunda.connector.apify.common.ApifyApiException;
@@ -17,6 +18,8 @@ import io.camunda.connector.apify.outbound.dto.RunTaskResponse;
 import io.camunda.connector.apify.outbound.dto.ScrapeSingleUrlResponse;
 import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordInput;
 import io.camunda.connector.apify.outbound.dto.GetKeyValueStoreRecordResponse;
+import io.camunda.connector.apify.outbound.dto.WebFetchInput;
+import io.camunda.connector.apify.outbound.dto.WebFetchResponse;
 import io.camunda.connector.api.error.ConnectorInputException;
 import io.camunda.connector.api.outbound.OutboundConnectorContext;
 import io.camunda.connector.api.outbound.OutboundConnectorFunction;
@@ -28,6 +31,9 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -41,7 +47,8 @@ import java.util.Set;
         "apifyRequestInput.runTaskInput",
         "apifyRequestInput.getDatasetItemsInput",
         "apifyRequestInput.scrapeSingleUrlInput",
-        "apifyRequestInput.getKeyValueStoreRecordInput"
+        "apifyRequestInput.getKeyValueStoreRecordInput",
+        "apifyRequestInput.webFetchInput"
     },
     type = "io.camunda:apify-outbound:1")
 @ElementTemplate(
@@ -50,7 +57,7 @@ import java.util.Set;
     version = 1,
     description = "Access Apify tools for web scraping, data extraction, and automation.",
     icon = "icon.svg",
-    documentationRef = "https://docs.apify.com/platform/integrations/camunda",
+    documentationRef = "https://docs.apify.com/integrations/camunda",
     inputDataClass = ApifyRequest.class)
 public class ApifyFunction implements OutboundConnectorFunction {
 
@@ -58,6 +65,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final Set<String> TERMINAL_STATUSES = Set.of("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT");
   private static final String WEB_CONTENT_SCRAPER_ACTOR_ID = "aYG0l9s7dbB7j3gbS";
+  private static final List<String> WEB_FETCH_FORMATS = List.of("markdown", "html", "text", "links", "raw");
 
   @Override
   public Object execute(OutboundConnectorContext context) {
@@ -87,6 +95,8 @@ public class ApifyFunction implements OutboundConnectorFunction {
         return handleScrapeSingleUrl(authentication, apifyRequestInput);
       case "getKeyValueStoreRecord":
         return handleGetKeyValueStoreRecord(authentication, apifyRequestInput);
+      case "webFetch":
+        return handleWebFetch(authentication, apifyRequestInput);
       default:
         throw new ConnectorInputException("Unsupported operation type: " + operationType);
     }
@@ -338,6 +348,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
       throw new ConnectorInputException("Error: scrapeSingleUrlInput is null");
     }
     validateAuthentication(authentication);
+    LOGGER.warn("The Scrape single URL operation is deprecated and will be removed in a future release. Use Web Fetch instead.");
 
     var input = apifyRequestInput.scrapeSingleUrlInput();
     URLValidator.validateUrl(input.url());
@@ -400,6 +411,100 @@ public class ApifyFunction implements OutboundConnectorFunction {
       LOGGER.error("Failed to scrape single URL: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to scrape single URL - " + e.getMessage(), e);
     }
+  }
+
+  private ApifyResult handleWebFetch(Authentication authentication, ApifyRequestInput apifyRequestInput) {
+    if (apifyRequestInput == null || apifyRequestInput.webFetchInput() == null) {
+      throw new ConnectorInputException("Error: webFetchInput is null");
+    }
+    validateAuthentication(authentication);
+
+    var input = apifyRequestInput.webFetchInput();
+    JsonNode requestBody = buildWebFetchRequestBody(input);
+
+    try (ApifyClient apifyClient = new ApifyClient()) {
+      String responseBody = apifyClient.webFetch(authentication.token(), requestBody.toString()).getResponseBody();
+      return new WebFetchResponse(responseBody);
+    } catch (ApifyApiException e) {
+      throw raiseApiFailure(e, "webFetch", "URL", input.url());
+    } catch (Exception e) {
+      LOGGER.error("Failed to fetch URL with Web Fetch: {}", e.getMessage(), e);
+      throw new RuntimeException("Error: Failed to fetch URL with Web Fetch - " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Builds the Web Fetch request body: the trimmed URL, the normalized formats (omitted when blank,
+   * so Web Fetch picks one from the content type) and the custom headers as text values.
+   */
+  static JsonNode buildWebFetchRequestBody(WebFetchInput input) {
+    String url = input.url() == null ? null : input.url().trim();
+    try {
+      URLValidator.validateUrl(url);
+    } catch (IllegalArgumentException e) {
+      throw new ConnectorInputException("Invalid URL: " + e.getMessage(), e);
+    }
+
+    ObjectNode body = objectMapper.createObjectNode();
+    body.put("url", url);
+
+    if (input.formats() != null && !input.formats().isBlank()) {
+      Set<String> formats = new LinkedHashSet<>();
+      for (String format : input.formats().split(",")) {
+        String normalized = format.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+          continue;
+        }
+        if (!WEB_FETCH_FORMATS.contains(normalized)) {
+          throw new ConnectorInputException(
+              "Unsupported format '" + normalized + "'. Use one or more of: " + String.join(", ", WEB_FETCH_FORMATS));
+        }
+        formats.add(normalized);
+      }
+      if (!formats.isEmpty()) {
+        ArrayNode formatsNode = body.putArray("formats");
+        formats.forEach(formatsNode::add);
+      }
+    }
+
+    ObjectNode headers = parseWebFetchHeaders(input.headers());
+    if (headers != null && !headers.isEmpty()) {
+      body.set("headers", headers);
+    }
+    return body;
+  }
+
+  // Web Fetch only accepts text header values and fails the whole fetch on anything else.
+  private static ObjectNode parseWebFetchHeaders(JsonNode headers) {
+    if (headers == null || headers.isNull()) {
+      return null;
+    }
+    JsonNode parsed = headers;
+    if (headers.isTextual()) {
+      if (headers.asText().isBlank()) {
+        return null;
+      }
+      try {
+        parsed = objectMapper.readTree(headers.asText());
+      } catch (IOException e) {
+        parsed = null;
+      }
+    }
+    if (parsed == null || !parsed.isObject()) {
+      throw new ConnectorInputException(
+          "Custom headers must be a JSON object, for example {\"Accept-Language\": \"fr-FR\"}.");
+    }
+
+    ObjectNode result = objectMapper.createObjectNode();
+    parsed.fields().forEachRemaining(entry -> {
+      JsonNode value = entry.getValue();
+      if (!value.isValueNode() || value.isNull()) {
+        throw new ConnectorInputException(
+            "Custom header '" + entry.getKey() + "' must be text, a number or true/false.");
+      }
+      result.put(entry.getKey(), value.asText());
+    });
+    return result;
   }
 
   private String pollRunStatus(ApifyClient apifyClient, String runResponse, String authToken) throws IOException {

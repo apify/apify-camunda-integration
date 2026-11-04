@@ -155,7 +155,7 @@ docker build --platform linux/amd64 -t <your-registry>/apify-connectors:<version
 2. Upload and publish `element-templates/apify-outbound-connector.json`.
 3. Create BPMN with a service task using Apify template.
 4. Set:
-   - API Token: your Apify token
+   - Apify API token: your Apify API token
    - Operation: `Run Actor`
    - Actor: `apify/hello-world`
    - Wait for Finish: `true`

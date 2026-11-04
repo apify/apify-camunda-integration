@@ -12,8 +12,8 @@ two artifacts that users need together:
 - **A shaded JAR** that runs inside a self-hosted `camunda/connectors-bundle` runtime. It contains
   two connectors, both registered through `src/main/resources/META-INF/services/`:
   - **Outbound** `ApifyFunction` (task type `io.camunda:apify-outbound:1`): a service task with
-    five operations (Run Actor, Run Task, Scrape Single URL, Get Dataset Items, Get Key-Value
-    Store Record).
+    six operations (Run Actor, Run task, Web Fetch, Get dataset items, Get key-value store record,
+    and the deprecated Scrape single URL).
   - **Inbound** `ApifyInboundExecutable` (type `io.camunda:apify-inbound:1`): a webhook connector
     that creates an Apify webhook for an Actor or task when the process is deployed, receives
     `ACTOR.RUN.*` events, and deletes the webhook on deactivation.
@@ -82,6 +82,10 @@ Behaviour that isn't obvious from the field names:
    Underneath, `HttpClients.createDefault()` keeps Apache HttpClient's default retry strategy,
    which re-sends a 429 or 503 response once (POSTs included), so one attempt can be two requests. Any other non-2xx response throws `ApifyApiException` straight
    away. That exception parses Apify's `{"error":{"type","message"}}` envelope.
+   **Exception:** `webFetch` (Web Fetch Standby, `https://web-fetch.apify.actor/`) sends exactly one
+   request on its own client with automatic retries disabled, because every fetch is billed.
+   `ApifyApiException.fromWebFetchResponse` also parses the Actor's own `{"error": str, "code": str}`
+   shape. `ApifyClientWebFetchTest` pins the single-request behavior for 429, 502 and 503.
 2. `ApifyFunction.raiseApiFailure` maps 4xx (except 429) to `ConnectorInputException`, which
    becomes an incident with no retry. 5xx, 429 and transport failures (status 0) become a plain
    `RuntimeException`, which Zeebe retries (the template defaults to 3 retries, `PT0S`). On an
