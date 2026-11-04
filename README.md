@@ -328,6 +328,14 @@ Fetch a single web page, PDF or file in one request and get its content in the f
 
 Read the content with `=fetchResult.data.markdown`.
 
+> **Keep only what you need.** Camunda limits a process instance's payload to 4 MB, and that includes engine-internal data, so less is available for variables. For a job result like this one, Camunda treats about 1.5 MB as safe and recommends 1 MB or less ([Variable size limitation](https://docs.camunda.io/docs/components/concepts/variables/)). Web Fetch accepts target pages up to 10 MB, so a successful fetch can still exceed that. The large fields are `raw` (the original response body, base64 for binary files), `html` (cleaned HTML) and a long `markdown`; `metadata.headers` adds a few KB more. Instead of storing the full response in a **Result Variable**, leave that field empty and use a **Result Expression** that keeps only the fields your process uses. Each key becomes its own process variable:
+>
+> ```
+> ={content: response.data.markdown, title: response.data.metadata.title, status: response.data.fetch.httpStatusCode}
+> ```
+>
+> Operate's variable list and the variable search API show a shortened preview of long values. The stored variable is complete, and later expressions such as `=content` read the full value.
+
 **Behavior:**
 - **Error pages are content.** A page that answers with a status such as 404 is still returned; check `fetch.httpStatusCode`. The task fails only when Web Fetch itself cannot fetch the page.
 - **One request per attempt.** The connector sends a single request and never replays it, because each fetch is billed. Camunda's job **Retries** setting still applies on top: set **Retries** to `0` if a failed fetch should not be repeated (see [Error Handling and Retries](#error-handling-and-retries)).
