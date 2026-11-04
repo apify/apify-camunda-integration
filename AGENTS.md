@@ -26,7 +26,7 @@ in `CONTRIBUTING.md` and `DEVELOPMENT.md`, and the release process is in `RELEAS
 ## Commands
 
 ```bash
-mvn clean verify                                        # build + 102 unit tests (what CI runs)
+mvn clean verify                                        # build + 121 unit tests (what CI runs)
 mvn clean package -DskipTests -Dversion.connectors=8.9.0  # JAR for Camunda 8.9 (default is 8.8.8)
 ```
 
