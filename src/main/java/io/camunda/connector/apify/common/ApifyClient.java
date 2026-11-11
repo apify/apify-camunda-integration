@@ -30,6 +30,7 @@ public class ApifyClient implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApifyClient.class);
     private static final String APIFY_API_URL = "https://api.apify.com";
+    private static final String WEB_FETCH_STANDBY_URL = "https://web-fetch.apify.actor/";
 
     private static final int HTTP_NOT_FOUND = 404;
 
@@ -39,9 +40,15 @@ public class ApifyClient implements AutoCloseable {
     private static final int DEFAULT_EXP_BACKOFF_RETRIES = 3;
 
     private final CloseableHttpClient httpClient;
+    private final String webFetchUrl;
 
     public ApifyClient() {
+        this(WEB_FETCH_STANDBY_URL);
+    }
+
+    ApifyClient(String webFetchUrl) {
         this.httpClient = HttpClients.createDefault();
+        this.webFetchUrl = webFetchUrl;
     }
 
     /**
@@ -194,6 +201,12 @@ public class ApifyClient implements AutoCloseable {
 
     private ResponseResult performHttpRequest(Method method, String url, String authToken, String body)
             throws IOException {
+        return performHttpRequest(httpClient, method, url, authToken, body);
+    }
+
+    private ResponseResult performHttpRequest(
+            CloseableHttpClient client, Method method, String url, String authToken, String body)
+            throws IOException {
         ClassicHttpRequest request;
 
         switch (method) {
@@ -245,7 +258,7 @@ public class ApifyClient implements AutoCloseable {
             return new ResponseResult(statusCode, responseBody, responseBodyBytes, contentType);
         };
 
-        return httpClient.execute(null, request, responseHandler);
+        return client.execute(null, request, responseHandler);
     }
 
     private void addHeaders(HttpRequest request, String authToken) {
@@ -338,7 +351,7 @@ public class ApifyClient implements AutoCloseable {
 
     /**
      * Runs an Apify Actor by its ID with optional parameters.
-     * Sends a POST request to /v2/acts/{actorId}/runs with the provided input JSON
+     * Sends a POST request to /v2/actors/{actorId}/runs with the provided input JSON
      * and query parameters.
      *
      * @param authToken  The authentication token
@@ -353,7 +366,7 @@ public class ApifyClient implements AutoCloseable {
             throws IOException {
         try {
             URIBuilder builder = new URIBuilder(APIFY_API_URL)
-                    .setPath("/v2/acts/" + actorId + "/runs");
+                    .setPath("/v2/actors/" + actorId + "/runs");
 
             if (runOptions != null) {
                 if (runOptions.timeout != null) {
@@ -448,7 +461,7 @@ public class ApifyClient implements AutoCloseable {
      * @throws IOException if the request fails
      */
     public ResponseResult getActor(String actorId, String authToken) throws IOException {
-        return executeRequest(Method.GET, "/v2/acts/" + actorId, authToken, null);
+        return executeRequest(Method.GET, "/v2/actors/" + actorId, authToken, null);
     }
 
     /**
@@ -487,7 +500,7 @@ public class ApifyClient implements AutoCloseable {
      * @throws IOException if the request fails
      */
     public ResponseResult getDefaultBuild(String actorId, String authToken) throws IOException {
-        return executeRequest(Method.GET, "/v2/acts/" + actorId + "/builds/default", authToken, null);
+        return executeRequest(Method.GET, "/v2/actors/" + actorId + "/builds/default", authToken, null);
     }
 
     /**
@@ -541,6 +554,34 @@ public class ApifyClient implements AutoCloseable {
         return executeRequest(Method.GET, "/v2/webhooks", authToken, null);
     }
 
+
+    /**
+     * Fetches one URL through the Web Fetch Actor's Standby endpoint.
+     * Sends exactly one HTTP request: neither this client's backoff loop nor HttpClient's default
+     * 429/503 replay applies, because a repeated request could fetch and bill the page again.
+     * Job-level retries are still governed by the task's Retries setting in Camunda.
+     * A target page's own error status (e.g. 404) arrives as HTTP 200 with
+     * {@code fetch.httpStatusCode} set, so it is returned as content, not raised.
+     *
+     * @param authToken       The authentication token
+     * @param requestBodyJson The Web Fetch request body ({@code url}, optional {@code formats} and {@code headers})
+     * @return ResponseResult containing the Web Fetch envelope as JSON
+     * @throws ApifyApiException if Web Fetch cannot be reached or answers with a non-2xx status
+     */
+    public ResponseResult webFetch(String authToken, String requestBodyJson) throws IOException {
+        ResponseResult result;
+        try (CloseableHttpClient singleAttemptClient = HttpClients.custom().disableAutomaticRetries().build()) {
+            result = performHttpRequest(singleAttemptClient, Method.POST, webFetchUrl, authToken, requestBodyJson);
+        } catch (IOException e) {
+            throw new ApifyApiException(
+                    String.format("Could not connect to Web Fetch at %s: %s", webFetchUrl, e.getMessage()),
+                    0, null, null, e);
+        }
+        if (result.getStatusCode() < 200 || result.getStatusCode() >= 300) {
+            throw ApifyApiException.fromWebFetchResponse(result.getStatusCode(), result.getResponseBody());
+        }
+        return result;
+    }
 
     /**
      * Closes the HTTP client and releases resources.

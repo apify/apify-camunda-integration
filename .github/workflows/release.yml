@@ -166,7 +166,7 @@ jobs:
       # Build a JAR per supported Camunda minor. Tests already passed in
       # `build_and_test`; here we only package. Each iteration overrides the
       # SDK version via -Dversion.connectors and renames the shaded JAR with
-      # a Camunda-minor suffix (e.g. -c8.8, -c8.9).
+      # a Camunda-minor suffix (e.g. -c8.8, -c8.9, -c8.10).
       - name: Build multi-version release artifacts
         env:
           VERSION: ${{ needs.release_metadata.outputs.version_number }}
@@ -178,6 +178,7 @@ jobs:
           declare -A SDK_VERSIONS=(
             ["c8.8"]="8.8.8"
             ["c8.9"]="8.9.0"
+            ["c8.10"]="8.10.0"
           )
 
           for suffix in "${!SDK_VERSIONS[@]}"; do

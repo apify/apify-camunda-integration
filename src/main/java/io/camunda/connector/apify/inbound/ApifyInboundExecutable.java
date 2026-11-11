@@ -37,7 +37,7 @@ import java.util.function.Function;
  * Apify Inbound Connector implementation that listens for Apify webhook events.
  */
 @InboundConnector(name = "Apify Inbound Connector", type = "io.camunda:apify-inbound:1")
-@ElementTemplate(id = "io.camunda.connector.inbound.Apify.v1", name = "Apify Connector", version = 1, description = "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.", icon = "icon.svg", documentationRef = "https://docs.apify.com/platform/integrations/camunda", inputDataClass = ApifyInboundProperties.class)
+@ElementTemplate(id = "io.camunda.connector.inbound.Apify.v1", name = "Apify Connector", version = 1, description = "Creates an Apify webhook for completed Actor or Task runs, receives event updates, and automatically deletes the webhook on closure.", icon = "icon.svg", documentationRef = "https://docs.apify.com/integrations/camunda", inputDataClass = ApifyInboundProperties.class)
 public class ApifyInboundExecutable implements WebhookConnectorExecutable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApifyInboundExecutable.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -196,7 +196,7 @@ public class ApifyInboundExecutable implements WebhookConnectorExecutable {
         if (fromProperty == null || fromProperty.isBlank()) {
             throw new IllegalArgumentException(
                     "Camunda webhook URL is not configured. Set the 'Camunda webhook URL' field "
-                            + "in the element template. See https://docs.apify.com/platform/integrations/camunda for details.");
+                            + "in the element template. See https://docs.apify.com/integrations/camunda for details.");
         }
         return stripTrailingSlash(fromProperty.trim());
     }

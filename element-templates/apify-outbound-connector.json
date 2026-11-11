@@ -3,8 +3,8 @@
   "name": "Apify Outbound Connector",
   "id": "io.camunda.connector.outbound.Apify.v1",
   "version": 1,
-  "description": "Interacts with the Apify API to run Actors, tasks, scrape URLs, and more.",
-  "documentationRef": "https://docs.apify.com/platform/integrations/camunda",
+  "description": "Interacts with the Apify API to run Actors and tasks, fetch web pages, read storage, and more.",
+  "documentationRef": "https://docs.apify.com/integrations/camunda",
   "metadata": {
     "keywords": ["apify", "connector", "actor"],
     "_note": "Hand-curated. Edit this file directly, don't regenerate."
@@ -36,7 +36,7 @@
     {
       "id": "authentication.token",
       "label": "Apify API token",
-      "description": "Your Apify API token. Find it in <a href=\"https://console.apify.com/settings/integrations?utm_source=camunda&amp;utm_medium=integrations\">Apify Console → Settings → Integrations</a>.",
+      "description": "Your Apify API token. Find it in <a href=\"https://console.apify.com/settings/integrations?utm_source=camunda&amp;utm_medium=integrations\">Apify Console &gt; Settings &gt; API &amp; Integrations</a>.",
       "tooltip": "Prefer <code>{{secrets.APIFY_TOKEN}}</code> over pasting the token directly. Learn more about <a href=\"https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/\">Camunda Secrets</a>.",
       "constraints": { "notEmpty": true },
       "feel": "optional",
@@ -56,12 +56,13 @@
       "choices": [
         { "name": "Run Actor", "value": "runActor" },
         { "name": "Run task", "value": "runTask" },
-        { "name": "Scrape single URL", "value": "scrapeSingleUrl" },
+        { "name": "Web Fetch", "value": "webFetch" },
         { "name": "Get dataset items", "value": "getDatasetItems" },
         {
           "name": "Get key-value store record",
           "value": "getKeyValueStoreRecord"
-        }
+        },
+        { "name": "Scrape single URL (deprecated)", "value": "scrapeSingleUrl" }
       ]
     },
     {
@@ -356,7 +357,7 @@
     {
       "id": "apifyRequestInput.scrapeSingleUrlInput.url",
       "label": "URL",
-      "description": "The URL to scrape (must start with http:// or https://).",
+      "description": "Deprecated: use the Web Fetch operation instead. This operation will be removed in a future release. The URL to scrape (must start with http:// or https://).",
       "constraints": { "notEmpty": true },
       "feel": "optional",
       "group": "apifyRequestInput",
@@ -393,6 +394,64 @@
       ],
       "value": "cheerio",
       "type": "Dropdown"
+    },
+    {
+      "id": "apifyRequestInput.webFetchInput.url",
+      "label": "URL",
+      "description": "The page, PDF or file to fetch, including http:// or https://. Web Fetch reads one URL in a single request and gets past bot protection. To crawl several pages, use Run Actor with <a href=\"https://apify.com/apify/website-content-crawler\">Website Content Crawler</a>.",
+      "constraints": { "notEmpty": true },
+      "feel": "optional",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.webFetchInput.url",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "webFetch",
+        "type": "simple"
+      },
+      "placeholder": "e.g. https://example.com",
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.webFetchInput.formats",
+      "label": "Formats",
+      "description": "Comma-separated list of output formats: markdown, html, text, links, raw. Use raw for images and other files (base64). Clear the field to let Web Fetch pick from the content type.",
+      "value": "markdown",
+      "optional": true,
+      "feel": "optional",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.webFetchInput.formats",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "webFetch",
+        "type": "simple"
+      },
+      "placeholder": "e.g. markdown,html",
+      "type": "String"
+    },
+    {
+      "id": "apifyRequestInput.webFetchInput.headers",
+      "label": "Custom headers",
+      "description": "HTTP headers that Web Fetch sends to the target site, as a JSON object. They are not used to sign in to Apify. Optional.",
+      "optional": true,
+      "feel": "required",
+      "group": "apifyRequestInput",
+      "binding": {
+        "name": "apifyRequestInput.webFetchInput.headers",
+        "type": "zeebe:input"
+      },
+      "condition": {
+        "property": "operation.type",
+        "equals": "webFetch",
+        "type": "simple"
+      },
+      "placeholder": "{\"Accept-Language\": \"fr-FR\"}",
+      "type": "Text"
     },
     {
       "id": "apifyRequestInput.getKeyValueStoreRecordInput.storeId",
@@ -435,7 +494,8 @@
     {
       "id": "resultVariable",
       "label": "Result Variable",
-      "description": "Variable name to store the response in.",
+      "description": "Variable name to store the full response in.",
+      "tooltip": "Stores the whole response, even when Result Expression is also set. For large responses, such as Web Fetch or Get dataset items, leave this empty and use Result Expression to keep only the fields you need.",
       "group": "output",
       "binding": {
         "key": "resultVariable",
@@ -448,6 +508,7 @@
       "id": "resultExpression",
       "label": "Result Expression",
       "description": "A FEEL expression to map the response into process variables.",
+      "tooltip": "Each key becomes a process variable, for example <code>={content: response.data.markdown}</code>. Keep only the fields you need: Camunda recommends <a href=\"https://docs.camunda.io/docs/components/concepts/variables/\">1 MB or less</a> of variables.",
       "feel": "required",
       "group": "output",
       "binding": {

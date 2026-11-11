@@ -82,6 +82,53 @@ public class ApifyApiException extends IOException {
         return new ApifyApiException(message, statusCode, apifyType, apifyMessage);
     }
 
+    /**
+     * Builds the error for a failed Web Fetch Standby request. The Actor reports its own errors
+     * as {@code {"error": "...", "code": "..."}}, the Standby gateway uses Apify's standard
+     * envelope, and a gateway error page may not be JSON at all.
+     *
+     * @param statusCode   the HTTP status code
+     * @param responseBody the raw response body (may be {@code null})
+     */
+    static ApifyApiException fromWebFetchResponse(int statusCode, String responseBody) {
+        String prefix = String.format("Web Fetch failed with status %d", statusCode);
+        String errorType = null;
+        String errorMessage = null;
+        String errorCode = null;
+        JsonNode root = null;
+        if (responseBody != null && !responseBody.isBlank()) {
+            try {
+                root = MAPPER.readTree(responseBody);
+            } catch (IOException ignored) {
+                // Not JSON, e.g. a gateway error page
+            }
+        }
+        if (root != null && root.isObject()) {
+            JsonNode errorNode = root.path("error");
+            if (errorNode.isTextual()) {
+                errorMessage = errorNode.asText();
+                errorCode = root.path("code").isTextual() ? root.path("code").asText() : null;
+            } else if (errorNode.isObject()) {
+                errorType = errorNode.path("type").isTextual() ? errorNode.path("type").asText() : null;
+                errorMessage = errorNode.path("message").isTextual() ? errorNode.path("message").asText() : null;
+            }
+        }
+
+        String message;
+        if (errorMessage != null) {
+            message = errorCode != null
+                    ? String.format("%s: %s (code: %s)", prefix, errorMessage, errorCode)
+                    : String.format("%s: %s", prefix, errorMessage);
+        } else {
+            String snippet = responseBody == null ? "" : responseBody.trim();
+            if (snippet.length() > 300) {
+                snippet = snippet.substring(0, 300) + "...";
+            }
+            message = snippet.isEmpty() ? prefix : String.format("%s: %s", prefix, snippet);
+        }
+        return new ApifyApiException(message, statusCode, errorType, errorMessage);
+    }
+
     public int getStatusCode() {
         return statusCode;
     }

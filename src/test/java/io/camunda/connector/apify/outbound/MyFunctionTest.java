@@ -48,6 +48,7 @@ public class MyFunctionTest {
       null,
       null,
       null,
+      null,
       null
     );
     var input = new ApifyRequest(
@@ -67,6 +68,7 @@ public class MyFunctionTest {
   @Test
   void shouldReturnResultForUnsupportedOperation() throws Exception {
     var apifyRequestInput = new ApifyRequestInput(
+      null,
       null,
       null,
       null,
@@ -302,6 +304,7 @@ public class MyFunctionTest {
       null,
       null,
       scrapeInput,
+      null,
       null
     );
     var input = new ApifyRequest(
