@@ -88,6 +88,27 @@ class WebFetchOperationTest {
   }
 
   @Test
+  void masksHeaderValuesWhenLogged() throws Exception {
+    var requestInput = new ApifyRequestInput(null, null, null, null, null, new WebFetchInput(
+        "https://example.com", "markdown", json("{\"Authorization\":\"Bearer s3cr3t\",\"Cookie\":\"session=abc\"}")));
+
+    // ApifyFunction logs the whole request input, so header values must not appear in toString().
+    assertThat(requestInput.toString())
+        .doesNotContain("s3cr3t")
+        .doesNotContain("session=abc")
+        .contains("Authorization=***")
+        .contains("Cookie=***")
+        .contains("https://example.com");
+  }
+
+  @Test
+  void masksHeadersGivenAsJsonText() throws Exception {
+    var input = new WebFetchInput("https://example.com", null, json("\"{\\\"Authorization\\\":\\\"Bearer s3cr3t\\\"}\""));
+
+    assertThat(input.toString()).doesNotContain("s3cr3t").contains("headers=***");
+  }
+
+  @Test
   void rejectsUrlWithoutHost() {
     assertThatThrownBy(() -> ApifyFunction.buildWebFetchRequestBody(
         new WebFetchInput("https://", null, null)))
