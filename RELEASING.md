@@ -28,6 +28,7 @@ Releases are created by GitHub Actions workflow [`Create a release`](.github/wor
 
 - `apify-camunda-connector-<version>-c8.8.jar`
 - `apify-camunda-connector-<version>-c8.9.jar`
+- `apify-camunda-connector-<version>-c8.10.jar`
 - `apify-camunda-connector-element-templates-<version>.zip`
 
 ## Prerequisites

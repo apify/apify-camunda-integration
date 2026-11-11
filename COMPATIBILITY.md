@@ -9,10 +9,12 @@ and highlights configuration differences between supported versions.
 |---|---|---|---|---|
 | `-c8.8` | 8.8.x | 8.8.8 | 3.x | Stable, supported |
 | `-c8.9` | 8.9.x | 8.9.0 | 4.0.x | Stable, supported |
+| `-c8.10` | 8.10.x | 8.10.0 | 4.1.x | Stable, supported |
 
 > **Why separate JARs?** The Camunda Connector SDK minor must match the Connector Runtime minor.
 > Between 8.8 and 8.9, Spring Boot jumped from 3.x to 4.0.x and the Java client introduced
 > type-safe pagination - both require recompilation. A single JAR cannot serve both runtimes.
+> 8.10 follows the same rule, so it gets its own JAR too.
 
 Each JAR is built against the SDK version in the table above and runs on **any runtime patch of the same minor** - patches are interchangeable, minors are not.
 
@@ -25,6 +27,7 @@ Each JAR is built against the SDK version in the table above and runs on **any r
 |---|---|
 | `connectors-bundle:8.8.x` | `apify-camunda-connector-<version>-c8.8.jar` |
 | `connectors-bundle:8.9.x` | `apify-camunda-connector-<version>-c8.9.jar` |
+| `connectors-bundle:8.10.x` | `apify-camunda-connector-<version>-c8.10.jar` |
 
 ## Version-Specific Configuration
 
@@ -36,8 +39,11 @@ For local/self-managed runtime, when a connector template field references `{{se
 |---|---|---|
 | 8.8.x | `APIFY_TOKEN=<value>` | No prefix required |
 | 8.9.x | `SECRET_APIFY_TOKEN=<value>` | `SECRET_` prefix required by default |
+| 8.10.x | `SECRET_APIFY_TOKEN=<value>` | Same as 8.9 |
 
-In 8.9, the environment-based secret provider uses `SECRET_` as the default prefix. The `{{secrets.APIFY_TOKEN}}` reference in the element template stays the same — only the environment variable naming changes.
+From 8.9, the environment-based secret provider uses `SECRET_` as the default prefix. The `{{secrets.APIFY_TOKEN}}` reference in the element template stays the same; only the environment variable naming changes.
+
+**8.10 secret filter:** From 8.10, a secret only resolves in a connector field that references it directly in the deployed BPMN (the `STRICT` secret filter, now the default for outbound and inbound connectors). Typing `{{secrets.APIFY_TOKEN}}` into the **Apify API token** field works. Passing the placeholder in through a process variable does not. See the [8.10 announcements](https://docs.camunda.io/docs/reference/announcements-release-notes/8100/8100-announcements/).
 
 > **Note:** This only applies when the template uses a secret reference. If the token is entered directly in the connector template field (e.g. in Web Modeler), no environment variable is needed.
 
@@ -56,6 +62,7 @@ Inside the container the orchestration REST API always listens on `8080`. Only t
 |---|---|---|
 | 8.8.x | 8088 | `8088:8080` |
 | 8.9.x | 8080 | `8080:8080` |
+| 8.10.x | 8080 | `8080:8080` |
 
 When the connector runs **inside** the bundle on the compose network, it reaches the cluster at `http://orchestration:8080` regardless of version. The host port only matters for a runtime running outside Docker (e.g. `LocalConnectorRuntime`) or for external clients; set `CAMUNDA_CLIENT_RESTADDRESS` to match.
 
@@ -65,4 +72,6 @@ When the connector runs **inside** the bundle on the compose network, it reaches
 - [Camunda 8.8 - Announcements](https://docs.camunda.io/docs/reference/announcements-release-notes/880/880-announcements/)
 - [Camunda 8.9 - What's New](https://docs.camunda.io/docs/reference/announcements-release-notes/890/whats-new-in-89/)
 - [Camunda 8.9 - Announcements](https://docs.camunda.io/docs/reference/announcements-release-notes/890/890-announcements/)
+- [Camunda 8.10 - What's New](https://docs.camunda.io/docs/reference/announcements-release-notes/8100/whats-new-in-810/)
+- [Camunda 8.10 - Announcements](https://docs.camunda.io/docs/reference/announcements-release-notes/8100/8100-announcements/)
 - [Connector SDK Compatibility](https://docs.camunda.io/docs/components/connectors/custom-built-connectors/connector-sdk/#runtime-environments)

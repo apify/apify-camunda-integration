@@ -26,8 +26,8 @@ in `CONTRIBUTING.md` and `DEVELOPMENT.md`, and the release process is in `RELEAS
 ## Commands
 
 ```bash
-mvn clean verify                                        # build + 121 unit tests (what CI runs)
-mvn clean package -DskipTests -Dversion.connectors=8.9.0  # JAR for Camunda 8.9 (default is 8.8.8)
+mvn clean verify                                        # build + 123 unit tests (what CI runs)
+mvn clean package -DskipTests -Dversion.connectors=8.9.0  # JAR for Camunda 8.9 (default is 8.8.8; 8.10 uses 8.10.0)
 ```
 
 There is no Maven wrapper and no formatter or linter. `.tool-versions` pins Temurin 21 and Maven
@@ -37,10 +37,13 @@ resolve from Camunda's Artifactory, which is configured in `pom.xml`.
 - `mvn verify` needs network access. `MyFunctionTest.shouldReturnReceivedMessageWhenExecute` makes
   a real call to `api.apify.com` with a fake token and asserts on the resulting "Apify API error"
   (a 401). No other test calls the real API.
-- Tests only run against the 8.8 SDK. With `-Dversion.connectors=8.9.0` the main code compiles,
-  but test discovery fails with a JUnit platform clash (`NoSuchMethodError` in
-  `CollectionUtils`). The release workflow builds the 8.9 JAR with `-DskipTests`.
-- Running the connector end to end needs a Camunda 8.8 or 8.9 stack in Docker. You can run it from
+- CI runs the suite three times: on the default 8.8 SDK (`build-and-test`), with
+  `-Dversion.connectors=8.9.0` (`build-and-test-c89`) and with `8.10.0` (`build-and-test-c810`).
+  Keep those SDK versions in sync with `SDK_VERSIONS` in `release.yml`.
+  Keep `junit-jupiter` on the version that `connector-test` ships (6.0.3 for 8.9 and 8.10): a
+  mismatch fails test discovery with `NoSuchMethodError` in `CollectionUtils`. The release
+  workflow builds the 8.9 and 8.10 JARs with `-DskipTests`.
+- Running the connector end to end needs a Camunda 8.8, 8.9 or 8.10 stack in Docker. You can run it from
   the IDE (`LocalConnectorRuntime`, port 9898) or mount the JAR into `connectors-bundle`. Inbound
   also needs a public URL such as ngrok. See `DEVELOPMENT.md`.
 
@@ -135,8 +138,8 @@ so it is retried too.
 - **Keep `version.connectors` at or below the lowest supported runtime patch.** Provided deps
   resolve at runtime, so compiling against a newer SDK can break on an older runtime. Only the
   minor has to match.
-- **8.8 and 8.9 need separate JARs** (Spring Boot 3 vs 4). `release.yml` builds both and adds the
-  `-c8.8`/`-c8.9` suffix. Adding a Camunda minor means updating the `SDK_VERSIONS` matrix in
+- **Each Camunda minor needs its own JAR** (8.8 uses Spring Boot 3, 8.9 Spring Boot 4.0, 8.10 Spring
+  Boot 4.1). `release.yml` builds all three and adds the `-c8.8`/`-c8.9`/`-c8.10` suffix. Adding a Camunda minor means updating the `SDK_VERSIONS` matrix in
   `release.yml`, `COMPATIBILITY.md`, `README.md` and `CONTRIBUTING.md`, following the checklist in
   `RELEASING.md`.
 - **Releases are workflow-only** ("Create a release", run from `main`). git-cliff picks the bump
