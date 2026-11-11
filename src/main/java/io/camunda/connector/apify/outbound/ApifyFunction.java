@@ -496,7 +496,7 @@ public class ApifyFunction implements OutboundConnectorFunction {
     }
 
     ObjectNode result = objectMapper.createObjectNode();
-    parsed.fields().forEachRemaining(entry -> {
+    parsed.properties().forEach(entry -> {
       JsonNode value = entry.getValue();
       if (!value.isValueNode() || value.isNull()) {
         throw new ConnectorInputException(
