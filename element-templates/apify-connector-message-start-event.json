@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
   "name": "Apify Message Start Event Connector",
   "id": "io.camunda.connector.inbound.Apify.v1:MessageStartEvent",
-  "version": 2,
+  "version": 1,
   "description": "Creates an Apify webhook for completed Actor or task runs, triggered by message start events with optional subprocess correlation.",
   "documentationRef": "https://docs.apify.com/platform/integrations/camunda",
   "metadata": {
