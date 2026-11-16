@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
   "name": "Apify Boundary Event Connector",
   "id": "io.camunda.connector.inbound.Apify.v1:BoundaryEvent",
-  "version": 1,
+  "version": 2,
   "description": "Receives webhook events from Apify for completed Actor or task runs.",
   "documentationRef": "https://docs.apify.com/platform/integrations/camunda",
   "metadata": {
@@ -62,7 +62,7 @@
     {
       "id": "authentication.token",
       "label": "Apify API token",
-      "description": "Your Apify API token. Find it in <a href=\"https://console.apify.com/settings/integrations?utm_source=camunda&amp;utm_medium=integrations\">Apify Console → Settings → Integrations</a>.",
+      "description": "Create an API token for Camunda in <a href=\"https://console.apify.com/settings/integrations?createApiToken=true&amp;for=Camunda&amp;utm_source=camunda&amp;utm_medium=integrations\">Apify Console</a> and copy it right after creating it — it is shown only once.",
       "tooltip": "Prefer <code>{{secrets.APIFY_TOKEN}}</code> over pasting the token directly. Learn more about <a href=\"https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/\">Camunda Secrets</a>.",
       "type": "String",
       "feel": "optional",

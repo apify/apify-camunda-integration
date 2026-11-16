@@ -194,9 +194,8 @@ For a deeper explanation of how inbound webhook URLs are structured in Camunda, 
 
 All Apify Connector operations require an **Apify Token**.
 
-1. Log in to [Apify Console](https://console.apify.com/?utm_source=camunda&utm_medium=integrations).
-2. Navigate to [**Settings → Integrations**](https://console.apify.com/settings/integrations?utm_source=camunda&utm_medium=integrations).
-3. Copy your **Apify Token**.
+1. Open the [Apify Console create-token form](https://console.apify.com/settings/integrations?createApiToken=true&for=Camunda&utm_source=camunda&utm_medium=integrations) (log in if asked).
+2. Create the token and copy your **Apify Token** right after creating it. It is shown only once.
 
 > **Security Best Practice:** In Camunda, avoid hardcoding your token directly in the process design. Instead, use [**Camunda Secrets**](https://docs.camunda.io/docs/components/console/manage-clusters/manage-secrets/) (e.g., [`{{secrets.APIFY_TOKEN}}`](https://docs.camunda.io/docs/components/connectors/use-connectors/#using-secrets)) to store your API token securely.
 >
@@ -603,7 +602,7 @@ When an Apify inbound connector is triggered, it receives a payload with event a
 | Apify connector not visible in the Modeler palette | Confirm the element template was both **uploaded and published** to your Modeler project (publishing is a separate step from upload). Make sure you are looking at the correct project. If the templates are present but the service task fails on deploy, the JAR is not loaded on your connectors runtime - see [Setting up the connectors runtime](#setting-up-the-connectors-runtime). |
 | Webhook not triggering | Ensure you have deployed the process. For Start Events, deploying automatically creates the webhook in Apify. Check the **Integrations** tab of your Actor in Apify Console to verify the webhook exists. |
 | Process stuck at Intermediate Event | Check your **Correlation Keys**. The value in the process variable must *exactly* match the value in the webhook payload. Use Camunda Operate to inspect variable values. |
-| `401 Unauthorized` | Check your API Token. Regenerate it in Apify Console (Settings → Integrations) if necessary. |
+| `401 Unauthorized` | Check your API Token. Create a new token in [Apify Console](https://console.apify.com/settings/integrations?createApiToken=true&for=Camunda&utm_source=camunda&utm_medium=integrations) if necessary. |
 | `Connection refused` on the orchestration REST port | A runtime running **outside** Docker (e.g. `LocalConnectorRuntime`) reaches the cluster on the host-mapped REST port, which differs by version: `8088` on 8.8, `8080` on 8.9 (the container always listens on `8080`). Point `CAMUNDA_CLIENT_RESTADDRESS` / `-Dcamunda.client.rest-address` at the right one. Only run **one Camunda version at a time** — run `docker compose down` before switching. |
 
 ---
