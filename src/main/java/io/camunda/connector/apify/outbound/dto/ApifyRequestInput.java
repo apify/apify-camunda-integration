@@ -9,5 +9,6 @@ public record ApifyRequestInput(
     @Valid @TemplateProperty(group = "apifyRequestInput") RunTaskInput runTaskInput,
     @Valid @TemplateProperty(group = "apifyRequestInput") GetDatasetItemsInput getDatasetItemsInput,
     @Valid @TemplateProperty(group = "apifyRequestInput") ScrapeSingleUrlInput scrapeSingleUrlInput,
-    @Valid @TemplateProperty(group = "apifyRequestInput") GetKeyValueStoreRecordInput getKeyValueStoreRecordInput
+    @Valid @TemplateProperty(group = "apifyRequestInput") GetKeyValueStoreRecordInput getKeyValueStoreRecordInput,
+    @Valid @TemplateProperty(group = "apifyRequestInput") WebFetchInput webFetchInput
 ) {}
