@@ -31,7 +31,7 @@ Quick fixes for common setup and runtime issues.
 | `NoClassDefFoundError: io/camunda/connector/api/outbound/OutboundConnectorFunction` | Mount JAR at `/opt/custom/connector.jar`, not `/opt/app/`. |
 | Port `8086` already allocated | Stop stock `connectors` container or map different host port. |
 | Container starts but Apify jobs are not consumed | Verify container network and presence of Apify worker line in logs. |
-| Secret `{{secrets.APIFY_TOKEN}}` resolves empty | Use correct env var by version (`SECRET_APIFY_TOKEN` for 8.9.x, `APIFY_TOKEN` for 8.8.x). |
+| Secret `{{secrets.APIFY_TOKEN}}` resolves empty | Use correct env var by version (`SECRET_APIFY_TOKEN` for 8.9.x and 8.10.x, `APIFY_TOKEN` for 8.8.x). On 8.10, type the placeholder into the token field itself: a placeholder passed through a process variable does not resolve. |
 
 ## Stale webhooks / reset local stack
 

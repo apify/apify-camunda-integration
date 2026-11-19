@@ -56,7 +56,7 @@ Open Web Modeler at <http://localhost:8070/> (`demo` / `demo`) and add the Apify
 | Java | 21+ |
 | Maven | 3.8+ |
 | Docker + Docker Compose | Latest stable |
-| Camunda stack | 8.8 or 8.9 (`docker-compose-full.yaml`) |
+| Camunda stack | 8.8, 8.9 or 8.10 (`docker-compose-full.yaml`) |
 | Apify account + token | Free tier works |
 
 Use `apify/hello-world` as your smoke-test Actor. It is fast and needs no extra config.
@@ -68,7 +68,7 @@ Use `apify/hello-world` as your smoke-test Actor. It is fast and needs no extra 
 - **Outbound connector testing:** [Development guide - Outbound](DEVELOPMENT.md#outbound-modeler-smoke-test)
 - **Inbound connector testing (webhooks + ngrok):** [Development guide - Inbound](DEVELOPMENT.md#inbound-testing-webhooks)
 - **Test as if deployed (Self-Managed / Hybrid):** [Development guide - Docker bundle check](DEVELOPMENT.md#test-shaded-jar-in-connectors-bundle)
-- **Version-specific checks (8.8 / 8.9):** [Development guide - Camunda versions](DEVELOPMENT.md#test-against-specific-camunda-versions)
+- **Version-specific checks (8.8 / 8.9 / 8.10):** [Development guide - Camunda versions](DEVELOPMENT.md#test-against-specific-camunda-versions)
 
 ---
 
