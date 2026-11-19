@@ -3,6 +3,8 @@ package io.camunda.connector.apify.outbound.dto;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,10 +20,42 @@ public record WebFetchInput(
     JsonNode headers
 ) {
 
-  // ApifyFunction logs the request input, and header values often carry credentials for the target site.
+  // ApifyFunction logs the request input, and URL query strings, URL user info and header values
+  // often carry credentials for the target site.
   @Override
   public String toString() {
-    return "WebFetchInput[url=" + url + ", formats=" + formats + ", headers=" + maskedHeaders() + "]";
+    return "WebFetchInput[url=" + maskedUrl() + ", formats=" + formats + ", headers=" + maskedHeaders() + "]";
+  }
+
+  private String maskedUrl() {
+    if (url == null) {
+      return "null";
+    }
+    try {
+      URI uri = new URI(url.trim());
+      StringBuilder masked = new StringBuilder();
+      if (uri.getScheme() != null) {
+        masked.append(uri.getScheme()).append("://");
+      }
+      if (uri.getRawUserInfo() != null) {
+        masked.append("***@");
+      }
+      if (uri.getHost() != null) {
+        masked.append(uri.getHost());
+      }
+      if (uri.getPort() != -1) {
+        masked.append(':').append(uri.getPort());
+      }
+      if (uri.getRawPath() != null) {
+        masked.append(uri.getRawPath());
+      }
+      if (uri.getRawQuery() != null) {
+        masked.append("?***");
+      }
+      return masked.toString();
+    } catch (URISyntaxException e) {
+      return "***";
+    }
   }
 
   private String maskedHeaders() {

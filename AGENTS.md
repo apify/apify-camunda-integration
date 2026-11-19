@@ -26,7 +26,7 @@ in `CONTRIBUTING.md` and `DEVELOPMENT.md`, and the release process is in `RELEAS
 ## Commands
 
 ```bash
-mvn clean verify                                        # build + 123 unit tests (what CI runs)
+mvn clean verify                                        # build + 128 unit tests (what CI runs)
 mvn clean package -DskipTests -Dversion.connectors=8.9.0  # JAR for Camunda 8.9 (default is 8.8.8; 8.10 uses 8.10.0)
 ```
 
@@ -89,6 +89,8 @@ Behaviour that isn't obvious from the field names:
    request on its own client with automatic retries disabled, because every fetch is billed.
    `ApifyApiException.fromWebFetchResponse` also parses the Actor's own `{"error": str, "code": str}`
    shape. `ApifyClientWebFetchTest` pins the single-request behavior for 429, 502 and 503.
+   A 2xx body that is not a JSON object becomes a `ConnectorInputException` in
+   `ApifyFunction.parseWebFetchResponse`, so Zeebe does not retry and re-bill it.
 2. `ApifyFunction.raiseApiFailure` maps 4xx (except 429) to `ConnectorInputException`, which
    becomes an incident with no retry. 5xx, 429 and transport failures (status 0) become a plain
    `RuntimeException`, which Zeebe retries (the template defaults to 3 retries, `PT0S`). On an

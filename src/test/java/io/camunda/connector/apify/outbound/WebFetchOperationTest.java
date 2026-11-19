@@ -109,6 +109,46 @@ class WebFetchOperationTest {
   }
 
   @Test
+  void masksUrlQueryAndCredentialsWhenLogged() {
+    var input = new WebFetchInput("https://user:p4ss@example.com/report?api_key=s3cr3t#top", null, null);
+
+    assertThat(input.toString())
+        .doesNotContain("s3cr3t")
+        .doesNotContain("p4ss")
+        .contains("url=https://***@example.com/report?***");
+  }
+
+  @Test
+  void keepsPlainUrlReadableWhenLogged() {
+    var input = new WebFetchInput("https://example.com/docs", null, null);
+
+    assertThat(input.toString()).contains("url=https://example.com/docs,");
+  }
+
+  @Test
+  void returnsWebFetchEnvelopeAsData() {
+    var response = ApifyFunction.parseWebFetchResponse("{\"url\":\"https://example.com\",\"markdown\":\"# Example\"}");
+
+    assertThat(response.data().get("markdown").asText()).isEqualTo("# Example");
+  }
+
+  @Test
+  void failsWithoutRetryOnNonJsonResponse() {
+    // A retried job would fetch and bill the page again, so this must be a ConnectorInputException.
+    assertThatThrownBy(() -> ApifyFunction.parseWebFetchResponse("<html>Bad Gateway</html>"))
+        .isInstanceOf(ConnectorInputException.class)
+        .hasMessageContaining("not a JSON object");
+  }
+
+  @Test
+  void failsWithoutRetryOnEmptyOrNonObjectResponse() {
+    assertThatThrownBy(() -> ApifyFunction.parseWebFetchResponse(""))
+        .isInstanceOf(ConnectorInputException.class);
+    assertThatThrownBy(() -> ApifyFunction.parseWebFetchResponse("[1, 2]"))
+        .isInstanceOf(ConnectorInputException.class);
+  }
+
+  @Test
   void rejectsUrlWithoutHost() {
     assertThatThrownBy(() -> ApifyFunction.buildWebFetchRequestBody(
         new WebFetchInput("https://", null, null)))

@@ -1,5 +1,6 @@
 package io.camunda.connector.apify.outbound;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -422,15 +423,33 @@ public class ApifyFunction implements OutboundConnectorFunction {
     var input = apifyRequestInput.webFetchInput();
     JsonNode requestBody = buildWebFetchRequestBody(input);
 
+    String responseBody;
     try (ApifyClient apifyClient = new ApifyClient()) {
-      String responseBody = apifyClient.webFetch(authentication.token(), requestBody.toString()).getResponseBody();
-      return new WebFetchResponse(responseBody);
+      responseBody = apifyClient.webFetch(authentication.token(), requestBody.toString()).getResponseBody();
     } catch (ApifyApiException e) {
       throw raiseApiFailure(e, "webFetch", "URL", input.url());
     } catch (Exception e) {
       LOGGER.error("Failed to fetch URL with Web Fetch: {}", e.getMessage(), e);
       throw new RuntimeException("Error: Failed to fetch URL with Web Fetch - " + e.getMessage(), e);
     }
+    return parseWebFetchResponse(responseBody);
+  }
+
+  /**
+   * Parses a successful Web Fetch answer. A body that isn't a JSON object fails as a
+   * {@link ConnectorInputException}, which Camunda doesn't retry: a retry would fetch and bill the page again.
+   */
+  static WebFetchResponse parseWebFetchResponse(String responseBody) {
+    JsonNode envelope = null;
+    try {
+      envelope = objectMapper.readTree(responseBody == null ? "" : responseBody);
+    } catch (JsonProcessingException e) {
+      LOGGER.warn("Web Fetch returned a body that is not JSON: {}", e.getOriginalMessage());
+    }
+    if (envelope == null || !envelope.isObject()) {
+      throw new ConnectorInputException("Web Fetch returned a response that is not a JSON object.");
+    }
+    return new WebFetchResponse(envelope);
   }
 
   /**
