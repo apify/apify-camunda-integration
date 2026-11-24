@@ -85,7 +85,9 @@ jobs:
     name: Update changelog and bump pom version
     needs: [release_metadata, build_and_test]
     runs-on: ubuntu-latest
-    environment: automation
+    environment:
+      name: automation
+      deployment: false
     permissions:
       contents: write  # Required to commit CHANGELOG.md + pom.xml back to main.
     outputs:
